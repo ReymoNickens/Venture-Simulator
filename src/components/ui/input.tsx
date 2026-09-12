@@ -1,5 +1,5 @@
-import { cn } from "@/lib/utils";
 import type { InputHTMLAttributes, LabelHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
@@ -42,10 +42,20 @@ export function Field({
   hint?: string;
   children: ReactNode;
 }) {
+  // Every screen builds its forms on this component, so an unassociated
+  // <label> (previously a plain sibling, no htmlFor/id, no wrapping) would
+  // silently break screen readers and label-based automation on every form
+  // in the app, not just one. Wrapping the control inside the <label>
+  // associates them naturally (no ids to generate or keep in sync, and it
+  // still works when a Field holds a control plus trailing content like a
+  // <Why> hint) — simpler and safer than cloning an id onto the child, which
+  // triggered a real SSR/CSR hydration mismatch when tried here.
   return (
     <div className="space-y-1.5">
-      <Label>{label}</Label>
-      {children}
+      <Label className="space-y-1.5">
+        <span className="block">{label}</span>
+        {children}
+      </Label>
       {hint ? <p className="text-xs leading-5 text-muted">{hint}</p> : null}
     </div>
   );
