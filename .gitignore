@@ -1,0 +1,35 @@
+# dependencies and build
+node_modules/
+dist/
+.output/
+.tanstack/
+.vercel/
+.vite/
+*.tsbuildinfo
+
+# local data
+.pglite/
+*.data
+*.log
+.tmp/
+
+# env (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# App Builder internals (not part of the product)
+.grok/
+AGENTS.md
+AGENTS.project.md
+.node_modules.lock
+
+# local QA artifacts
+screenshots/
+artifacts/
