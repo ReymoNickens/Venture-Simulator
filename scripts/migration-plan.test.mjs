@@ -57,8 +57,15 @@ test("non-.sql entries are dropped (readdir also yields the auth/ directory)", (
 });
 
 test("the auth schema ships outside the globbed directory", () => {
+  // Was pinned to a pristine, schema-less scaffold ("readdir the migrations
+  // dir, get []"); this workspace has since shipped real schema migrations,
+  // so what's actually worth protecting is the invariant the name describes:
+  // migrations/auth/ (a directory, non-recursively read) never gets treated
+  // as a pending migration itself, and the auth template still lives there.
   const migrationsDir = join(projectRoot(), "migrations");
-  assert.deepEqual(pendingMigrations(readdirSync(migrationsDir), []), []);
+  const entries = readdirSync(migrationsDir);
+  assert.ok(entries.includes("auth"), "migrations/auth/ must exist alongside the numbered files");
+  assert.ok(pendingMigrations(entries, []).every((m) => m.name !== "auth"));
   assert.ok(readdirSync(join(migrationsDir, "auth")).includes("0001_auth.sql"));
 });
 
