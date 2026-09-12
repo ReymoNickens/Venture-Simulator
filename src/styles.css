@@ -5,24 +5,28 @@
   --font-sans: "Figtree", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  --color-bg: #f3eee4;
-  --color-bg-elevated: #fbf7ef;
-  --color-bg-subtle: #ebe4d6;
-  --color-ink: #1c1914;
-  --color-ink-soft: #3f3a33;
-  --color-muted: #6f675c;
-  --color-faint: #948c80;
-  --color-line: #d9d0c0;
-  --color-line-strong: #c4b8a4;
-  --color-accent: #2f5d56;
-  --color-accent-fg: #f4efe6;
-  --color-accent-soft: #e4eeec;
-  --color-warn: #8a5a2b;
-  --color-warn-soft: #f3e6d4;
+  /* Warmer, campus-earth palette (leaf / sun / clay / paper) — same token
+     names as before so components don't change, only the values. */
+  --color-bg: #f7f4eb;
+  --color-bg-elevated: #fffdf8;
+  --color-bg-subtle: #eee7d6;
+  --color-ink: #15251f;
+  --color-ink-soft: #2f3f37;
+  --color-muted: #5c6b61;
+  --color-faint: #8b9389;
+  --color-line: #d7cdb5;
+  --color-line-strong: #c2b494;
+  --color-accent: #286045;
+  --color-accent-fg: #f6f1e4;
+  --color-accent-soft: #e2ece3;
+  --color-sun: #f4b942;
+  --color-sun-soft: #fdf1d9;
+  --color-warn: #b86d3d;
+  --color-warn-soft: #f3e2d2;
   --color-bad: #8f2d2d;
   --color-bad-soft: #f6e0dc;
-  --color-ok: #2f5d56;
-  --color-spine: #3a2a22;
+  --color-ok: #286045;
+  --color-spine: #2a1f16;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
