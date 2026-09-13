@@ -11,7 +11,7 @@ export const Route = createFileRoute("/studio")({ component: StudioLayout });
 function StudioLayout() {
   const { user, isPending } = useCurrentUserState();
   const workspace = useWorkspace();
-  const { data, loading, refresh } = workspace;
+  const { data, loading } = workspace;
   const navigate = useNavigate();
 
   useEffect(() => {
