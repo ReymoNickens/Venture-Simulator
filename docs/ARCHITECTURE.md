@@ -56,7 +56,7 @@ RLS policies are real SQL and actually enforced: `authMiddleware` runs every han
 ## AI advisor
 
 - Called only from `sendAdvisorMessage` (server function).
-- Model: `grok-4.5` via `XAI_API_KEY`.
+- Model: `claude-opus-5` via `ANTHROPIC_API_KEY`.
 - Context is assembled from the current stage, venture, alternatives, rationale, recent evidence/assumptions, and recent messages — not the whole database.
 - Response is parsed as `{ message, challenge_type, requires_evidence, related_assumption_id, suggested_next_action }`.
 - Deterministic operations (join, capacity, required fields) never call the model.

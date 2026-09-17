@@ -37,7 +37,7 @@ Use **Simulate offline** in the top bar to test local save and replay.
 - TanStack Start + Vite + Tailwind
 - Postgres (Neon when deployed, PGLite in preview)
 - Better Auth
-- xAI (`grok-4.5`) for the advisor, server-side only
+- Claude (`claude-opus-5`) for the advisor, server-side only
 
 The original concept named Next.js, Supabase, and Claude. Pedagogy follows the concept; runtime follows this host.
 
@@ -64,7 +64,7 @@ Do not put secrets in the client. Deployed apps receive:
 | Variable | Where | Purpose |
 |---|---|---|
 | `DATABASE_URL` | server | Postgres (Neon or Supabase) |
-| `XAI_API_KEY` | server | Advisor (never `VITE_`-prefixed) |
+| `ANTHROPIC_API_KEY` | server | Advisor (never `VITE_`-prefixed) |
 | `BETTER_AUTH_URL` | server | This app's public URL |
 | `BETTER_AUTH_SECRET` | server | Session signing secret |
 | `VITE_APP_NAME` | client | Optional display name |
