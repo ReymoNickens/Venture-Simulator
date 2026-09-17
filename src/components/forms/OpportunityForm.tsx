@@ -53,6 +53,9 @@ export function OpportunityForm({
     return ASSUMPTION_LANGUAGE.test(blob);
   }, [fields]);
 
+  const submitted = existing?.status && existing.status !== "draft";
+  if (submitted) return null;
+
   function set<K extends keyof OpportunityFields>(key: K, value: string) {
     setFields((f) => ({ ...f, [key]: value }));
   }
@@ -75,8 +78,6 @@ export function OpportunityForm({
       setPending(null);
     }
   }
-
-  const submitted = existing?.status && existing.status !== "draft";
 
   return (
     <form
@@ -191,8 +192,8 @@ export function OpportunityForm({
         >
           {pending === "save" ? "Saving…" : "Save draft"}
         </Button>
-        <Button type="submit" disabled={Boolean(pending) || Boolean(submitted)}>
-          {pending === "submit" ? "Submitting…" : submitted ? "Already submitted" : "Submit opportunity"}
+        <Button type="submit" disabled={Boolean(pending)}>
+          {pending === "submit" ? "Submitting…" : "Submit opportunity"}
         </Button>
       </div>
       <p className="text-xs text-muted">
