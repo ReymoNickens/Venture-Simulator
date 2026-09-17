@@ -1,51 +1,46 @@
 /**
  * Self-hosted Better Auth for THIS app (server-only).
  *
- * Pre-wired for live preview + deploy — do not rewrite this file. To enable
- * local email/password, flip the flag in `./email-password` only (see auth skill).
- *
  * The app runs its own Better Auth at `/api/auth/*`, so the session cookie stays
- * on this app's own origin. Sign-in federates to the shared **Grok auth broker**
- * (`GROK_AUTH_ISSUER`) via the `genericOAuth` plugin — the broker brokers the
- * upstream sign-in methods (Google, X, …) and holds their shared secrets; this
- * app only holds its own client id/secret and names the upstream it wants via
- * each provider's `idp` hint.
+ * on this app's own origin. Sign-in is email/password only, but the "email"
+ * side of it is really an index number: this app has no open self-registration
+ * — an instructor pre-loads the student roster (`scripts/roster-import.mjs`)
+ * with each student's institutional email + index number ahead of time, and a
+ * student "activates" their own account by supplying a password that matches
+ * an unclaimed roster row. From then on they can sign in with EITHER their
+ * email (Better Auth's built-in `emailAndPassword`) OR their index number
+ * (the `username` plugin, index number doubles as the username) — see the
+ * `databaseHooks.user.create` below and `client.ts`'s `signIn`/`activateAccount`.
  *
- * Tri-mode:
- *   - Deployed: the deployer injects a per-app `GROK_AUTH_*` + `BETTER_AUTH_URL`
- *     + `DATABASE_URL`, so real federated auth is persisted in Postgres.
- *   - Sandbox live preview: no injection -> falls back to the shared **preview
- *     client** (`./preview`) and derives the preview's `https://*.grok-sandbox.com`
- *     origin from the request, so real sign-in works (no demo users). Sessions
- *     and identities persist in the embedded PGLite DB (same DB as app data);
- *     the process restart wipes both. Live-preview iframe clients use a bearer
- *     token (partitioned cookies) — see `client.ts`.
+ * Modes:
+ *   - Deployed: set `BETTER_AUTH_URL` + `DATABASE_URL` (+ `BETTER_AUTH_SECRET`).
+ *   - Sandbox live preview: no fixed URL (each preview gets a dynamic
+ *     `https://*.grok-sandbox.com` host), so Better Auth derives the origin
+ *     per-request (see `baseURL` below). Sessions persist in the embedded
+ *     PGLite DB (same DB as app data); a process restart wipes both.
+ *     Live-preview iframe clients use a bearer token (partitioned cookies) —
+ *     see `client.ts`.
  *   - Off (`VITE_AUTH_ENABLED=false`, the shipped default): no providers;
  *     `requireUserId` resolves a dev user with no database configured, and
  *     throws fail-closed once `DATABASE_URL` is set (see `verify.server.ts`).
  *
- * NEVER import this from client code — it pulls in `pg` + the preview secret +
- * server-only Better Auth internals. The client uses `@/lib/auth/client`;
- * components read the user via `@/lib/auth/use-current-user`; server functions get
- * a verified id via `@/lib/auth/middleware`.
+ * NEVER import this from client code — it pulls in `pg` + server-only Better
+ * Auth internals. The client uses `@/lib/auth/client`; components read the
+ * user via `@/lib/auth/use-current-user`; server functions get a verified id
+ * via `@/lib/auth/middleware`.
  */
 import { betterAuth } from "better-auth";
-import { bearer, genericOAuth } from "better-auth/plugins";
+import { bearer, username } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
+import { APIError } from "better-auth/api";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
-import { ensureDbReady, getPglite } from "../db";
+import { ensureDbReady, getPglite, getSql } from "../db";
 import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
-import { GROK_PROVIDERS } from "./providers";
 import { pgliteDialect } from "./pglite-dialect";
-import {
-  GROK_ISSUER_DEFAULT,
-  PREVIEW_ALLOWED_HOSTS,
-  PREVIEW_CLIENT_ID,
-  PREVIEW_CLIENT_SECRET,
-} from "./preview";
+import { PREVIEW_ALLOWED_HOSTS } from "./preview";
 
 // Kick (and share) PGLite bootstrap as soon as the auth server module loads.
 void ensureDbReady();
@@ -70,27 +65,17 @@ const env = (key: string): string | undefined => {
   return value ? value : undefined;
 };
 
-// Explicit off-switch. The deployer sets `VITE_AUTH_ENABLED=true` when it
-// provisions auth; set it to "false" to force auth off everywhere (dev user).
+// Explicit off-switch. Set to "false" to force auth off everywhere (dev user).
 const authDisabled = env("VITE_AUTH_ENABLED") === "false";
 
-// Broker federation creds: the deployer injects a per-app client when deployed;
-// otherwise fall back to the shared live-preview client, which the broker accepts
-// for any `*.grok-sandbox.com` callback (see `./preview`).
-const grokIssuer = env("GROK_AUTH_ISSUER") ?? GROK_ISSUER_DEFAULT;
-const grokClientId = env("GROK_AUTH_CLIENT_ID") ?? PREVIEW_CLIENT_ID;
-const grokClientSecret = env("GROK_AUTH_CLIENT_SECRET") ?? PREVIEW_CLIENT_SECRET;
+/** True when real auth (email/index-number + password) is enforced. */
+export const authConfigured = !authDisabled;
 
-/** True when federated sign-in is active (real auth is enforced). */
-export const authConfigured =
-  !authDisabled && Boolean(grokClientId && grokClientSecret);
-
-// This app's own Better Auth origin. When deployed the deployer injects the
-// public URL. In the sandbox live preview there's no fixed URL (each preview gets
-// a dynamic `*.grok-sandbox.com` host), so we hand Better Auth a dynamic baseURL:
-// it derives the origin per-request from the (proxied) host, validated against the
-// preview allowlist, which makes the OAuth `redirect_uri` the concrete preview URL
-// the broker's preview client accepts.
+// This app's own Better Auth origin. Set `BETTER_AUTH_URL` when deployed. In the
+// sandbox live preview there's no fixed URL (each preview gets a dynamic
+// `*.grok-sandbox.com` host), so we hand Better Auth a dynamic baseURL: it
+// derives the origin per-request from the (proxied) host, validated against the
+// preview allowlist.
 const explicitBaseURL = env("BETTER_AUTH_URL");
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
@@ -127,15 +112,6 @@ const trustedOrigins: string[] = explicitBaseURL
 
 const databaseUrl = env("DATABASE_URL");
 
-// Static broker OAuth endpoints (skip OIDC discovery on every sign-in / callback).
-// Discovery would cost an extra network hop to the broker before the popup can
-// even redirect to Google/X — the live-preview popup felt stuck on the app for
-// that whole round-trip. These paths match the broker's discovery document.
-const issuerBase = grokIssuer.replace(/\/+$/, "");
-const grokAuthorizationUrl = `${issuerBase}/api/auth/oauth2/authorize`;
-const grokTokenUrl = `${issuerBase}/api/auth/oauth2/token`;
-const grokUserInfoUrl = `${issuerBase}/api/auth/oauth2/userinfo`;
-
 // Real Postgres when `DATABASE_URL` is set (deployed apps), else the app's
 // embedded PGLite (preview) via a Kysely dialect — so Better Auth persists to the
 // SAME DB as app data, including email/password users. Both use the Better Auth
@@ -145,32 +121,13 @@ const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
   : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
 
-/** Session token cookie name — also read by the live-preview popup completion page. */
+/** Session token cookie name. */
 export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 
-// Built separately so the `betterAuth({...})` call stays easy to edit without
-// breaking brackets (models often trip on the conditional plugin spread).
-const grokOAuthPlugin = authConfigured
-  ? genericOAuth({
-      config: GROK_PROVIDERS.map(({ providerId, idp }) => ({
-        providerId,
-        clientId: grokClientId as string,
-        clientSecret: grokClientSecret as string,
-        // Prefer static endpoints over `discoveryUrl` so initiating (and
-        // completing) OAuth does not wait on a broker discovery fetch.
-        authorizationUrl: grokAuthorizationUrl,
-        tokenUrl: grokTokenUrl,
-        userInfoUrl: grokUserInfoUrl,
-        scopes: ["openid", "profile", "email"],
-        // `prompt: "login"` forces the broker to re-authenticate against the
-        // upstream on every sign-in instead of silently reusing an existing
-        // broker session. Combined with the broker sending Google
-        // `prompt=select_account`, the user always gets the account chooser
-        // and can pick (or switch) which account to sign in with.
-        authorizationUrlParams: { idp, prompt: "login" },
-      })),
-    })
-  : null;
+type RosterMatch = { id: string; full_name: string };
+
+/** A user object mid-creation, as Better Auth's `databaseHooks` hand it to us. */
+type CreatingUser = { email?: string; username?: string } & Record<string, unknown>;
 
 export const auth = betterAuth({
   baseURL,
@@ -184,23 +141,52 @@ export const auth = betterAuth({
   // local loopback variants, or clients get "Invalid origin".
   trustedOrigins,
 
-  // Encrypt broker-issued OAuth tokens at rest, and treat the broker's upstreams
-  // as trusted first-party identities. The broker owns identity and X emails are
-  // synthetic/unverified, so WITHOUT this a login can fail with
-  // `account_not_linked` (Better Auth refuses to attach an untrusted, unverified
-  // identity to an existing user). Google and X carry DISTINCT emails, so this
-  // never merges them into one user — they stay separate identities.
   account: {
-    encryptOAuthTokens: true,
     accountLinking: {
       enabled: true,
-      trustedProviders: [
-        ...GROK_PROVIDERS.map((p) => p.providerId),
-        GATE_PROVIDER_ID,
-      ],
-      // X's synthetic email is never "verified", so don't gate linking on the
-      // local user's email-verified state.
-      requireLocalEmailVerified: false,
+      trustedProviders: [GATE_PROVIDER_ID],
+    },
+  },
+
+  // Enforces "no self-serve sign-up": a `/sign-up/email` call only succeeds
+  // when it matches an UNCLAIMED roster row an instructor pre-loaded (see
+  // scripts/roster-import.mjs) — the account is then bound to that row and
+  // takes its name from the roster, not whatever the client submitted.
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user: CreatingUser) => {
+          const email = user.email?.trim().toLowerCase();
+          const username = user.username?.trim().toUpperCase();
+          if (!email || !username) {
+            throw new APIError("BAD_REQUEST", {
+              message: "Email and index number are required.",
+            });
+          }
+          const sql = await getSql();
+          const rows = await sql<RosterMatch>`
+            select id, full_name from students
+            where auth_user_id is null
+              and lower(email) = ${email}
+              and index_number = ${username}
+            limit 1
+          `;
+          if (!rows[0]) {
+            throw new APIError("FORBIDDEN", {
+              message:
+                "No matching student record. Ask your instructor to add you to the roster.",
+            });
+          }
+          return { data: { ...user, name: rows[0].full_name, username, displayUsername: username } };
+        },
+        after: async (user: { id: string; email: string }) => {
+          const sql = await getSql();
+          await sql`
+            update students set auth_user_id = ${user.id}, updated_at = now()
+            where auth_user_id is null and lower(email) = ${user.email.toLowerCase()}
+          `;
+        },
+      },
     },
   },
 
@@ -236,14 +222,21 @@ export const auth = betterAuth({
   plugins: [
     gateIdentitySessions(),
 
-    // One genericOAuth provider per upstream (when auth is on), all federating
-    // to the broker with the SAME client and differing only by the `idp` hint.
-    ...(grokOAuthPlugin ? [grokOAuthPlugin] : []),
+    // Index number doubles as the Better Auth "username", so sign-in accepts
+    // either identifier (see `client.ts`'s `signIn`). Normalized/validated the
+    // same way `upsertProfile` treats an index number: trimmed, uppercased, any
+    // non-empty value — student index numbers aren't alphanumeric-only.
+    username({
+      minUsernameLength: 1,
+      maxUsernameLength: 64,
+      usernameValidator: (value) => value.trim().length > 0,
+      usernameNormalization: (value) => value.trim().toUpperCase(),
+    }),
 
     // Accept `Authorization: Bearer <session-token>` as an alternative to the
     // cookie. Needed for the LIVE PREVIEW: the app runs in an embedded iframe
-    // where cookies are partitioned, so after popup sign-in it authenticates with
-    // a bearer token instead (see `client.ts` / the `auth` skill). The hook only
+    // where cookies are partitioned, so sign-in also returns the token in its
+    // response body and the client stores it (see `client.ts`). The hook only
     // fires when an Authorization header is present, so the cookie path
     // (deployed apps) is unaffected.
     bearer(),
@@ -257,7 +250,3 @@ export const auth = betterAuth({
 export function readSessionToken(): string | null {
   return getCookie(SESSION_TOKEN_COOKIE) ?? null;
 }
-
-// Re-exported for convenience; the array lives in the dependency-free
-// `providers.ts` so the client can import it too.
-export { GROK_PROVIDERS } from "./providers";
