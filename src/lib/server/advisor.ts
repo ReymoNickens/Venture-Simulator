@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import Anthropic from "@anthropic-ai/sdk";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
@@ -151,7 +152,7 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: { stage: AdvisorStage; content: string; sessionId?: string }) => input)
   .handler(async ({ context, data }) => {
-    const apiKey = process.env.XAI_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       throw new AppError("AI_UNAVAILABLE", "The AI advisor is not available in this environment.");
     }
@@ -208,33 +209,30 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
       order by created_at asc
     `;
     const brief = await assembleContext(group.id, data.stage);
-    const messages = [
-      { role: "system", content: SYSTEM },
+    const messages: Anthropic.MessageParam[] = [
       { role: "user", content: `CONTEXT FOR THIS TURN:\n${brief}` },
-      ...history.slice(-12).map((m) => ({
-        role: m.role === "advisor" ? "assistant" : "user",
-        content: m.content,
-      })),
+      ...history.slice(-12).map(
+        (m): Anthropic.MessageParam => ({
+          role: m.role === "advisor" ? "assistant" : "user",
+          content: m.content,
+        }),
+      ),
     ];
 
-    const res = await fetch("https://api.x.ai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "grok-4.5",
+    const anthropic = new Anthropic({ apiKey });
+    let raw: string;
+    try {
+      const response = await anthropic.messages.create({
+        model: "claude-opus-5",
+        max_tokens: 1024,
+        system: SYSTEM,
         messages,
-        max_tokens: 400,
-        temperature: 0.4,
-      }),
-    });
-    if (!res.ok) {
-      throw new AppError("AI_ERROR", `The advisor could not respond (${res.status}). Try again.`);
+      });
+      const textBlock = response.content.find((b) => b.type === "text");
+      raw = textBlock?.text ?? "";
+    } catch {
+      throw new AppError("AI_ERROR", "The advisor could not respond. Try again.");
     }
-    const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const raw = body.choices?.[0]?.message?.content ?? "";
     const parsed = parseAdvisor(raw);
     const advisorMsgId = newId();
     await sql`
