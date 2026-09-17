@@ -162,12 +162,22 @@ export const joinGroup = createServerFn({ method: "POST" })
     // group_members_select only grant that once membership already exists.
     // The join code itself (a unique, unguessable secret) is what actually
     // authorizes this lookup; RLS can't see the literal it's compared against.
+    //
+    // `for update` locks this one group's row for the rest of the
+    // transaction: two students racing to join the same near-full group have
+    // their capacity checks properly serialized (the second waits for the
+    // first's commit/rollback before its own count query runs), instead of
+    // both reading "9 of 10" and both inserting. A load test against this
+    // stack's single-connection PGlite fallback didn't reproduce the
+    // over-subscription window (it serializes all transactions anyway), but
+    // that's an accident of the dev database, not a guarantee — a real
+    // connection-pooled Postgres (Neon) is exactly what would expose it.
     const group = await withRlsBypass(async () => {
       const groups = await sql<{
         id: string;
         capacity: number;
         status: string;
-      }>`select id, capacity, status from groups where upper(join_code) = ${code} limit 1`;
+      }>`select id, capacity, status from groups where upper(join_code) = ${code} limit 1 for update`;
       const group = groups[0];
       if (!group) return null;
       const count = await sql<{ n: number }>`
