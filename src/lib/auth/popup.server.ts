@@ -6,7 +6,7 @@
  * document — no React shell:
  *
  *   Phase 1 (`?providerId=…`): start OAuth server-side and 302 straight to the
- *     broker / upstream login page. The popup never paints the app.
+ *     upstream login page. The popup never paints the app.
  *   Phase 2 (`?done=1`): after the broker round-trip, emit a tiny HTML page that
  *     posts the session token to the opener and closes. No SPA hydrate, no
  *     server-fn round-trip.
@@ -62,9 +62,9 @@ export async function handleAuthPopupRequest(request: Request): Promise<Response
   // Stay first-party for the callback so the session cookie lands in THIS popup.
   const back = `${url.origin}/auth/popup?done=1`;
   try {
-    const apiRes = await auth.api.signInWithOAuth2({
+    const apiRes = await auth.api.signInSocial({
       body: {
-        providerId,
+        provider: providerId,
         callbackURL: back,
         errorCallbackURL: `${back}&error=1`,
       },

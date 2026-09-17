@@ -1,7 +1,6 @@
-import { genericOAuthClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.mjs";
-import { GROK_PROVIDERS } from "./providers";
+import { AUTH_PROVIDERS, type AuthProvider } from "./providers";
 
 /**
  * Better Auth client for this React SPA (browser-side).
@@ -18,7 +17,6 @@ import { GROK_PROVIDERS } from "./providers";
  * the visitor stays signed in.
  */
 export const authClient = createAuthClient({
-  plugins: [genericOAuthClient()],
   fetchOptions: {
     onRequest(ctx) {
       const token = getBearerToken();
@@ -37,8 +35,24 @@ export const authClient = createAuthClient({
  */
 export const authEnabled = import.meta.env.VITE_AUTH_ENABLED !== "false";
 
-/** The upstream providers to render sign-in buttons for. */
-export { GROK_PROVIDERS };
+/**
+ * Which of `AUTH_PROVIDERS` to render a sign-in button for. A provider only
+ * lights up once its own OAuth app credentials are set server-side AND its
+ * matching client-visible flag is set — set both together when you turn one
+ * on (see `.env.example`):
+ *   Google:  GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET (server) +
+ *            VITE_GOOGLE_AUTH_ENABLED=true (client)
+ *   X:       TWITTER_CLIENT_ID / TWITTER_CLIENT_SECRET (server) +
+ *            VITE_TWITTER_AUTH_ENABLED=true (client)
+ * Email/password needs neither and always works once auth is on.
+ */
+export const enabledAuthProviders: readonly AuthProvider[] = AUTH_PROVIDERS.filter(
+  (p) => {
+    if (p.providerId === "google") return import.meta.env.VITE_GOOGLE_AUTH_ENABLED === "true";
+    if (p.providerId === "twitter") return import.meta.env.VITE_TWITTER_AUTH_ENABLED === "true";
+    return false;
+  },
+);
 
 // ── Live-preview bearer token ────────────────────────────────────────────────
 // The embedded preview iframe has partitioned cookies, so we keep the session's
@@ -69,8 +83,8 @@ function setBearerToken(token: string | null): void {
 
 /**
  * The sandbox live preview runs this app inside an iframe on a `*.grok-sandbox.com`
- * host, where a full-page redirect to the broker can't work — so sign-in uses a
- * popup there and a normal redirect everywhere else.
+ * host, where a full-page redirect away to the upstream login can't work — so
+ * sign-in uses a popup there and a normal redirect everywhere else.
  */
 function inLivePreview(): boolean {
   return (
@@ -83,15 +97,15 @@ function inLivePreview(): boolean {
 type PopupMessage = { source: "grok-auth-popup"; token: string | null; error?: string };
 
 /**
- * Start sign-in with one upstream provider (`providerId` from `GROK_PROVIDERS`),
- * federating through the Grok auth broker.
+ * Start sign-in with one upstream provider (`providerId` from `AUTH_PROVIDERS`)
+ * via this app's own Better Auth `socialProviders`.
  *
  * - **Live preview** (`*.grok-sandbox.com` iframe): opens a POPUP to
  *   `/auth/popup`, served by the template Vite plugin (see `vite.config.ts` +
- *   `popup.server.ts`) — 302s to the broker/upstream login (no app chrome) and,
- *   on return, posts the session bearer token back. We store it and refresh the
- *   session; no top-level navigation of the iframe to the broker.
- * - **Deployed** (and local non-iframe): a normal full-page redirect into the broker.
+ *   `popup.server.ts`) — 302s straight to the upstream login (no app chrome)
+ *   and, on return, posts the session bearer token back. We store it and
+ *   refresh the session; no top-level navigation of the iframe.
+ * - **Deployed** (and local non-iframe): a normal full-page redirect to the upstream.
  *
  * Either way it clears any existing local session FIRST so switching providers
  * actually switches identity.
@@ -143,8 +157,8 @@ export async function signIn(
     return;
   }
 
-  const { data, error } = await authClient.signIn.oauth2({
-    providerId,
+  const { data, error } = await authClient.signIn.social({
+    provider: providerId as "google" | "twitter",
     callbackURL,
     errorCallbackURL,
   });

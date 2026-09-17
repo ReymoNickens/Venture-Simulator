@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { authClient, authEnabled, enabledAuthProviders, signIn } from "@/lib/auth/client";
 import { APP_NAME } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
@@ -56,24 +56,28 @@ function Login() {
         <Card className="mt-6 space-y-4">
           {authEnabled ? (
             <>
-              <div className="space-y-2">
-                {GROK_PROVIDERS.map((p) => (
-                  <Button
-                    key={p.providerId}
-                    type="button"
-                    variant="secondary"
-                    className="w-full"
-                    onClick={() => signIn(p.providerId, { callbackURL: "/studio" })}
-                  >
-                    Continue with {p.label}
-                  </Button>
-                ))}
-              </div>
-              <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-faint">
-                <span className="h-px flex-1 bg-line" />
-                or email
-                <span className="h-px flex-1 bg-line" />
-              </div>
+              {enabledAuthProviders.length > 0 ? (
+                <>
+                  <div className="space-y-2">
+                    {enabledAuthProviders.map((p) => (
+                      <Button
+                        key={p.providerId}
+                        type="button"
+                        variant="secondary"
+                        className="w-full"
+                        onClick={() => signIn(p.providerId, { callbackURL: "/studio" })}
+                      >
+                        Continue with {p.label}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-faint">
+                    <span className="h-px flex-1 bg-line" />
+                    or email
+                    <span className="h-px flex-1 bg-line" />
+                  </div>
+                </>
+              ) : null}
               <form className="space-y-3" onSubmit={(e) => void onEmail(e)}>
                 {mode === "signup" ? (
                   <Field label="Name">
