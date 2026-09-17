@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { RedirectToSignIn } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { listOfferings } from "@/lib/server/workspace";
+import { getWorkspace, listOfferings } from "@/lib/server/workspace";
 import { upsertProfile } from "@/lib/server/mutations";
 import type { CourseOffering } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
@@ -22,12 +22,22 @@ function Onboarding() {
   const [offeringId, setOfferingId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Set once at roster activation (or the dev/demo fallback below) and never
+  // editable afterward — see upsertProfile.
+  const [identityLocked, setIdentityLocked] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     void listOfferings().then((rows) => {
       setOfferings(rows);
       if (rows[0]) setOfferingId(rows[0].id);
+    });
+    void getWorkspace().then(({ student }) => {
+      if (!student) return;
+      setFullName(student.fullName);
+      setIndexNumber(student.indexNumber);
+      setProgramme(student.programme);
+      setIdentityLocked(true);
     });
   }, [user]);
 
@@ -62,15 +72,28 @@ function Onboarding() {
         </p>
         <Card className="mt-6">
           <form className="space-y-4" onSubmit={(e) => void submit(e)}>
-            <Field label="Full name">
-              <Input required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            <Field label="Full name" hint={identityLocked ? "Set by your instructor's roster — not editable." : undefined}>
+              <Input
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                disabled={identityLocked}
+              />
             </Field>
-            <Field label="Index number" hint="Used as your academic identity, not as a login.">
+            <Field
+              label="Index number"
+              hint={
+                identityLocked
+                  ? "Set by your instructor's roster — not editable."
+                  : "Used as your academic identity, not as a login."
+              }
+            >
               <Input
                 required
                 value={indexNumber}
                 onChange={(e) => setIndexNumber(e.target.value)}
                 placeholder="e.g. 10987654"
+                disabled={identityLocked}
               />
             </Field>
             <Field label="Programme">
