@@ -93,7 +93,7 @@ function Login() {
                   <Input
                     type="password"
                     required
-                    minLength={8}
+                    minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete={mode === "signup" ? "new-password" : "current-password"}
