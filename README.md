@@ -12,7 +12,7 @@ Students independently investigate a real problem, keep that work private until 
 
 ## Journey (this slice)
 
-1. Sign in (Google, X, or email)
+1. Sign in with your student email address or index number (pre-provisioned roster; see [Sign-in](#sign-in))
 2. Academic profile (name, index number, programme) — separate from login
 3. Create or join a group (join code, configurable capacity)
 4. Write and submit an individual opportunity (private until selection)
@@ -41,6 +41,22 @@ Use **Simulate offline** in the top bar to test local save and replay.
 
 The original concept named Next.js, Supabase, and Claude. Pedagogy follows the concept; runtime follows this host.
 
+## Sign-in
+
+There is no open self-registration. An instructor pre-loads the student
+roster (email + index number + name + programme) with:
+
+```
+node scripts/roster-import.mjs roster.csv [courseOfferingId]
+```
+
+(CSV columns: `email,index_number,full_name,programme`.) A student then
+**activates** their own account at `/login` by entering the email and index
+number their instructor has on file plus a password of their choosing — this
+only succeeds against an unclaimed roster row. From then on they sign in with
+EITHER identifier (their email or their index number) plus that password.
+Index number doubles as Better Auth's `username`, matched case-insensitively.
+
 ## Environment
 
 Do not put secrets in the client. Deployed apps receive:
@@ -51,15 +67,7 @@ Do not put secrets in the client. Deployed apps receive:
 | `XAI_API_KEY` | server | Advisor (never `VITE_`-prefixed) |
 | `BETTER_AUTH_URL` | server | This app's public URL |
 | `BETTER_AUTH_SECRET` | server | Session signing secret |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | server | Optional: turns on "Continue with Google" |
-| `TWITTER_CLIENT_ID` / `TWITTER_CLIENT_SECRET` | server | Optional: turns on "Continue with X" |
-| `VITE_GOOGLE_AUTH_ENABLED` / `VITE_TWITTER_AUTH_ENABLED` | client | Set to `true` alongside the matching server credentials above |
 | `VITE_APP_NAME` | client | Optional display name |
-
-Sign-in uses Better Auth's own `socialProviders` directly — this app holds its
-own Google/X OAuth app credentials, with no external auth broker involved.
-Email/password sign-in needs none of the OAuth variables and works as soon as
-`DATABASE_URL` is set.
 
 Copy [`.env.example`](.env.example) when running outside this host. Never commit a real `.env`.
 

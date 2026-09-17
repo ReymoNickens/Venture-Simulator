@@ -1,19 +1,19 @@
 /**
  * Self-hosted Better Auth for THIS app (server-only).
  *
- * To enable local email/password, flip the flag in `./email-password` only
- * (see auth skill).
- *
  * The app runs its own Better Auth at `/api/auth/*`, so the session cookie stays
- * on this app's own origin. Sign-in uses Better Auth's built-in
- * `socialProviders` (Google, X) directly — this app holds its own OAuth app
- * credentials for each upstream it wants; no external auth broker is involved.
+ * on this app's own origin. Sign-in is email/password only, but the "email"
+ * side of it is really an index number: this app has no open self-registration
+ * — an instructor pre-loads the student roster (`scripts/roster-import.mjs`)
+ * with each student's institutional email + index number ahead of time, and a
+ * student "activates" their own account by supplying a password that matches
+ * an unclaimed roster row. From then on they can sign in with EITHER their
+ * email (Better Auth's built-in `emailAndPassword`) OR their index number
+ * (the `username` plugin, index number doubles as the username) — see the
+ * `databaseHooks.user.create` below and `client.ts`'s `signIn`/`activateAccount`.
  *
  * Modes:
- *   - Deployed: set `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` and/or
- *     `TWITTER_CLIENT_ID`/`TWITTER_CLIENT_SECRET` to turn on that provider's
- *     sign-in button, plus `BETTER_AUTH_URL` + `DATABASE_URL`. Email/password
- *     (`./email-password`) works with no OAuth credentials at all.
+ *   - Deployed: set `BETTER_AUTH_URL` + `DATABASE_URL` (+ `BETTER_AUTH_SECRET`).
  *   - Sandbox live preview: no fixed URL (each preview gets a dynamic
  *     `https://*.grok-sandbox.com` host), so Better Auth derives the origin
  *     per-request (see `baseURL` below). Sessions persist in the embedded
@@ -30,15 +30,15 @@
  * via `@/lib/auth/middleware`.
  */
 import { betterAuth } from "better-auth";
-import { bearer } from "better-auth/plugins";
+import { bearer, username } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
+import { APIError } from "better-auth/api";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
-import { ensureDbReady, getPglite } from "../db";
+import { ensureDbReady, getPglite, getSql } from "../db";
 import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
-import { AUTH_PROVIDERS } from "./providers";
 import { pgliteDialect } from "./pglite-dialect";
 import { PREVIEW_ALLOWED_HOSTS } from "./preview";
 
@@ -68,21 +68,14 @@ const env = (key: string): string | undefined => {
 // Explicit off-switch. Set to "false" to force auth off everywhere (dev user).
 const authDisabled = env("VITE_AUTH_ENABLED") === "false";
 
-/** True when real auth (email/password, and optionally social) is enforced. */
+/** True when real auth (email/index-number + password) is enforced. */
 export const authConfigured = !authDisabled;
-
-// This app's own OAuth app credentials, set directly per upstream — no broker.
-const googleClientId = env("GOOGLE_CLIENT_ID");
-const googleClientSecret = env("GOOGLE_CLIENT_SECRET");
-const twitterClientId = env("TWITTER_CLIENT_ID");
-const twitterClientSecret = env("TWITTER_CLIENT_SECRET");
 
 // This app's own Better Auth origin. Set `BETTER_AUTH_URL` when deployed. In the
 // sandbox live preview there's no fixed URL (each preview gets a dynamic
 // `*.grok-sandbox.com` host), so we hand Better Auth a dynamic baseURL: it
 // derives the origin per-request from the (proxied) host, validated against the
-// preview allowlist, which makes the OAuth `redirect_uri` the concrete preview
-// URL for that host.
+// preview allowlist.
 const explicitBaseURL = env("BETTER_AUTH_URL");
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
@@ -128,20 +121,13 @@ const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
   : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
 
-/** Session token cookie name — also read by the live-preview popup completion page. */
+/** Session token cookie name. */
 export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 
-// Each entry only takes effect once its own client id + secret are set; an
-// unconfigured provider is simply absent from `socialProviders` below (no
-// sign-in button renders for it — see `client.ts`).
-const socialProviders = {
-  ...(googleClientId && googleClientSecret
-    ? { google: { clientId: googleClientId, clientSecret: googleClientSecret } }
-    : {}),
-  ...(twitterClientId && twitterClientSecret
-    ? { twitter: { clientId: twitterClientId, clientSecret: twitterClientSecret } }
-    : {}),
-};
+type RosterMatch = { id: string; full_name: string };
+
+/** A user object mid-creation, as Better Auth's `databaseHooks` hand it to us. */
+type CreatingUser = { email?: string; username?: string } & Record<string, unknown>;
 
 export const auth = betterAuth({
   baseURL,
@@ -155,25 +141,52 @@ export const auth = betterAuth({
   // local loopback variants, or clients get "Invalid origin".
   trustedOrigins,
 
-  socialProviders,
-
-  // Encrypt OAuth tokens at rest, and treat these upstreams as trusted
-  // first-party identities. X emails are synthetic/unverified, so WITHOUT this
-  // a login can fail with `account_not_linked` (Better Auth refuses to attach
-  // an untrusted, unverified identity to an existing user). Google and X carry
-  // DISTINCT emails, so this never merges them into one user — they stay
-  // separate identities.
   account: {
-    encryptOAuthTokens: true,
     accountLinking: {
       enabled: true,
-      trustedProviders: [
-        ...AUTH_PROVIDERS.map((p) => p.providerId),
-        GATE_PROVIDER_ID,
-      ],
-      // X's synthetic email is never "verified", so don't gate linking on the
-      // local user's email-verified state.
-      requireLocalEmailVerified: false,
+      trustedProviders: [GATE_PROVIDER_ID],
+    },
+  },
+
+  // Enforces "no self-serve sign-up": a `/sign-up/email` call only succeeds
+  // when it matches an UNCLAIMED roster row an instructor pre-loaded (see
+  // scripts/roster-import.mjs) — the account is then bound to that row and
+  // takes its name from the roster, not whatever the client submitted.
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user: CreatingUser) => {
+          const email = user.email?.trim().toLowerCase();
+          const username = user.username?.trim().toUpperCase();
+          if (!email || !username) {
+            throw new APIError("BAD_REQUEST", {
+              message: "Email and index number are required.",
+            });
+          }
+          const sql = await getSql();
+          const rows = await sql<RosterMatch>`
+            select id, full_name from students
+            where auth_user_id is null
+              and lower(email) = ${email}
+              and index_number = ${username}
+            limit 1
+          `;
+          if (!rows[0]) {
+            throw new APIError("FORBIDDEN", {
+              message:
+                "No matching student record. Ask your instructor to add you to the roster.",
+            });
+          }
+          return { data: { ...user, name: rows[0].full_name, username, displayUsername: username } };
+        },
+        after: async (user: { id: string; email: string }) => {
+          const sql = await getSql();
+          await sql`
+            update students set auth_user_id = ${user.id}, updated_at = now()
+            where auth_user_id is null and lower(email) = ${user.email.toLowerCase()}
+          `;
+        },
+      },
     },
   },
 
@@ -207,10 +220,21 @@ export const auth = betterAuth({
   plugins: [
     gateIdentitySessions(),
 
+    // Index number doubles as the Better Auth "username", so sign-in accepts
+    // either identifier (see `client.ts`'s `signIn`). Normalized/validated the
+    // same way `upsertProfile` treats an index number: trimmed, uppercased, any
+    // non-empty value — student index numbers aren't alphanumeric-only.
+    username({
+      minUsernameLength: 1,
+      maxUsernameLength: 64,
+      usernameValidator: (value) => value.trim().length > 0,
+      usernameNormalization: (value) => value.trim().toUpperCase(),
+    }),
+
     // Accept `Authorization: Bearer <session-token>` as an alternative to the
     // cookie. Needed for the LIVE PREVIEW: the app runs in an embedded iframe
-    // where cookies are partitioned, so after popup sign-in it authenticates with
-    // a bearer token instead (see `client.ts` / the `auth` skill). The hook only
+    // where cookies are partitioned, so sign-in also returns the token in its
+    // response body and the client stores it (see `client.ts`). The hook only
     // fires when an Authorization header is present, so the cookie path
     // (deployed apps) is unaffected.
     bearer(),
@@ -224,7 +248,3 @@ export const auth = betterAuth({
 export function readSessionToken(): string | null {
   return getCookie(SESSION_TOKEN_COOKIE) ?? null;
 }
-
-// Re-exported for convenience; the array lives in the dependency-free
-// `providers.ts` so the client can import it too.
-export { AUTH_PROVIDERS } from "./providers";

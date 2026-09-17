@@ -1,6 +1,6 @@
 import { useState, useSyncExternalStore, type ReactNode } from "react";
-import { Navigate } from "@tanstack/react-router";
-import { authEnabled, enabledAuthProviders, signIn, signOut } from "./client";
+import { Link, Navigate } from "@tanstack/react-router";
+import { authEnabled, signOut } from "./client";
 import { hasGateSessionMarker } from "./gate-session-marker";
 import { resolveSignInGateState } from "./sign-in-gate";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
@@ -63,19 +63,19 @@ export function SignInGate({
   return <>{fallback ?? <SignInButtons />}</>;
 }
 
+/**
+ * Sign-in needs a form (email-or-index-number + password), not a one-click
+ * button, so the default `SignInGate` fallback just points at `/login`.
+ */
 export function SignInButtons() {
   return (
     <div className="flex w-full max-w-sm flex-col gap-2">
-      {enabledAuthProviders.map((p) => (
-        <button
-          key={p.providerId}
-          type="button"
-          onClick={() => signIn(p.providerId, { callbackURL: "/" })}
-          className="w-full cursor-pointer rounded-md border border-neutral-300 px-4 py-2 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
-        >
-          Continue with {p.label}
-        </button>
-      ))}
+      <Link
+        to="/login"
+        className="w-full cursor-pointer rounded-md border border-neutral-300 px-4 py-2 text-center hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-900"
+      >
+        Sign in
+      </Link>
     </div>
   );
 }
