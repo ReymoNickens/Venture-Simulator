@@ -98,10 +98,19 @@ const baseURL = explicitBaseURL ?? {
   fallback: "http://localhost:8080",
 };
 
+// Vercel injects a unique URL per deployment (VERCEL_URL, no protocol) and a
+// stable per-branch alias (VERCEL_BRANCH_URL) on every deployment — preview
+// AND production. Without these, only the one fixed BETTER_AUTH_URL is
+// trusted, so every preview deployment (a different URL on every push)
+// rejects its own sign-in/sign-up POSTs with "Invalid origin".
+const vercelOrigins: string[] = [env("VERCEL_URL"), env("VERCEL_BRANCH_URL")]
+  .filter((h): h is string => Boolean(h))
+  .map((h) => `https://${h}`);
+
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
 const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
+  ? [explicitBaseURL, ...vercelOrigins, ...LOCAL_DEV_ORIGINS]
   : [
       // Host wildcards (matched against Origin's host)
       ...previewAllowedHosts,
