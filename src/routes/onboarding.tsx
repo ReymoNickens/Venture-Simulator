@@ -104,7 +104,7 @@ function Onboarding() {
                 placeholder="e.g. Business Administration"
               />
             </Field>
-            <Field label="Course offering">
+            <Field label="Your course">
               <select
                 required
                 className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"

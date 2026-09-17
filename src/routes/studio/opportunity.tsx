@@ -96,25 +96,13 @@ function OpportunityPage() {
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <Badge>
-          {data.submissionProgress.submitted} / {data.submissionProgress.required} submitted
-        </Badge>
-        <h1 className="mt-2 font-display text-3xl">A problem you have seen</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          Do not start with “what business do I want to start?”. Investigate a gap on campus, in a
-          hostel, a market, a tro-tro park, or a farm. AI-generated ideas are not evidence.
-        </p>
-      </div>
+    <div className="space-y-4">
       {data.myOpportunity?.syncState === "pending" ? (
         <p className="rounded-[12px] bg-warn-soft px-3 py-2 text-sm text-warn">
           Saved locally — will sync when connected.
         </p>
       ) : null}
-      <Card>
-        <OpportunityForm existing={data.myOpportunity} onSaved={() => void refresh()} />
-      </Card>
+      <OpportunityForm existing={data.myOpportunity} onSaved={() => void refresh()} />
     </div>
   );
 }
