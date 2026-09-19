@@ -77,9 +77,19 @@ export const authConfigured = !authDisabled;
 // derives the origin per-request from the (proxied) host, validated against the
 // preview allowlist.
 const explicitBaseURL = env("BETTER_AUTH_URL");
+// Vercel injects a unique URL per deployment (VERCEL_URL, no protocol) and a
+// stable per-branch alias (VERCEL_BRANCH_URL) into EVERY deployment — preview
+// and production alike, regardless of whether BETTER_AUTH_URL is set for that
+// environment. Trusting these closes "Invalid origin" on preview deployments
+// without needing a per-preview BETTER_AUTH_URL (which can't exist — every
+// preview gets a fresh, unpredictable URL).
+const vercelHosts: string[] = [env("VERCEL_URL"), env("VERCEL_BRANCH_URL")].filter(
+  (h): h is string => Boolean(h),
+);
+const vercelOrigins: string[] = vercelHosts.map((h) => `https://${h}`);
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
-const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
+const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS, ...vercelHosts];
 // Local `npm run dev` (port 8080 contract). Browsers may send Origin as any of
 // these for the same server — trusting only `localhost` rejects `127.0.0.1` and
 // breaks email/password with "Invalid origin".
@@ -98,17 +108,10 @@ const baseURL = explicitBaseURL ?? {
   fallback: "http://localhost:8080",
 };
 
-// Vercel injects a unique URL per deployment (VERCEL_URL, no protocol) and a
-// stable per-branch alias (VERCEL_BRANCH_URL) on every deployment — preview
-// AND production. Without these, only the one fixed BETTER_AUTH_URL is
-// trusted, so every preview deployment (a different URL on every push)
-// rejects its own sign-in/sign-up POSTs with "Invalid origin".
-const vercelOrigins: string[] = [env("VERCEL_URL"), env("VERCEL_BRANCH_URL")]
-  .filter((h): h is string => Boolean(h))
-  .map((h) => `https://${h}`);
-
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
-// Missing entries here surface as FORBIDDEN "Invalid origin".
+// Missing entries here surface as FORBIDDEN "Invalid origin". vercelOrigins is
+// included in BOTH branches: a Vercel deployment can have BETTER_AUTH_URL set
+// for Production only, leaving Preview to hit the dynamic-baseURL branch below.
 const trustedOrigins: string[] = explicitBaseURL
   ? [explicitBaseURL, ...vercelOrigins, ...LOCAL_DEV_ORIGINS]
   : [
