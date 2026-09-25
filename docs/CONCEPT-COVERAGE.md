@@ -28,9 +28,26 @@ Working name: **Experiential Venture Platform** (`VITE_APP_NAME`). This is not V
 | Opportunity revision snapshots | `opportunity_revisions` |
 | Pedagogical “why” microcopy on forms | [`src/lib/domain/copy.ts`](../src/lib/domain/copy.ts) |
 
-## Intentionally not built (later slices)
+## Built beyond Slice 1
 
-Feasibility, finance, prototypes, resource mobilisation, simulation, lecturer dashboard, contribution / competency scoring, business-plan generation, marketplace, SSO / roster verification.
+| Concept area | Where it lives |
+|---|---|
+| Customer discovery (interviews as evidence) | `interviews`; `src/routes/studio/listen.tsx` |
+| Business model canvas linked to evidence | `canvas_entries`, `canvas_entry_evidence`; `studio/canvas.tsx` |
+| Feasibility (market, technical, organisational, financial) | `feasibility_assessments`; `studio/feasibility.tsx` |
+| Financial modelling (deterministic, no AI) | `financial_models`; `src/lib/domain/finance.ts` |
+| Prototype submission and user testing | `prototypes`, `prototype_tests`; `studio/prototype.tsx` |
+| Persevere / pivot / stop, ratified by majority | `venture_decisions`, `decision_votes` |
+| Business-plan assembly from the record, pitch mode | `plan_sections`; `studio/pitch.tsx` |
+| Simulation events (market shocks) | `market_events`, `event_responses`; `src/lib/domain/market-events.ts` |
+| Lecturer dashboard, intervention, feedback | `staff`, `feedback`, `milestones`, `announcements`; `src/routes/lecturer/` |
+| Contribution evidence and peer assessment | `activity_events`, `peer_ratings`, gradebook export |
+| Individual reflection (private) | `reflections` |
+| Group governance: leave, inactive members, majority decisions | `0006_group_governance.sql`, `governance.ts` |
+
+## Still not built
+
+Automated grading, financing simulation beyond the stress tests, venture marketplace, SSO / roster verification, object storage for photos.
 
 ## Stack (documented deviation)
 

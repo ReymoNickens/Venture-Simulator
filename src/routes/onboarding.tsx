@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/badge";
 import { APP_NAME } from "@/lib/brand";
+import { KenteBand } from "@/components/ui/kente";
 
 export const Route = createFileRoute("/onboarding")({ component: Onboarding });
 
@@ -56,7 +57,8 @@ function Onboarding() {
   }
 
   return (
-    <main className="min-h-dvh bg-bg pl-3 text-ink">
+    <main className="min-h-dvh text-ink">
+      <KenteBand />
       <div className="mx-auto max-w-md px-5 py-10">
         <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">{APP_NAME}</p>
         <h1 className="mt-2 font-display text-3xl">Your academic identity</h1>

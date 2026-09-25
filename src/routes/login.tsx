@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
 import { APP_NAME } from "@/lib/brand";
+import { KenteBand } from "@/components/ui/kente";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/badge";
@@ -46,7 +47,8 @@ function Login() {
   }
 
   return (
-    <main className="min-h-dvh bg-bg pl-3 text-ink">
+    <main className="min-h-dvh text-ink">
+      <KenteBand />
       <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
         <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">Sign in</p>
         <h1 className="mt-2 font-display text-3xl">{APP_NAME}</h1>

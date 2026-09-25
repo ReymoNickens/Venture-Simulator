@@ -1,6 +1,6 @@
 # Experiential Venture Platform
 
-Slice 1 of a progressive web app for university entrepreneurship education.
+A progressive web app for university entrepreneurship education in Ghana: students practise the whole venture process — from spotting a problem to pitching — with evidence, not just a written plan.
 
 **GitHub:** [ReymoNickens/Venture-Simulator](https://github.com/ReymoNickens/Venture-Simulator)
 
@@ -10,27 +10,39 @@ Working name: **Experiential Venture Platform** (override with `VITE_APP_NAME`).
 
 Students independently investigate a real problem, keep that work private until the group is ready, record individual judgement before a group decision, and build an evidence record the AI advisor is allowed to challenge — not to complete.
 
-## Journey (this slice)
+## The route (student side)
 
-1. Sign in (Google, X, or email)
-2. Academic profile (name, index number, programme) — separate from login
-3. Create or join a group (join code, configurable capacity)
-4. Write and submit an individual opportunity (private until selection)
-5. Record a personal preference, then a group selection rationale
-6. Talk to a challenging AI advisor
-7. Log evidence (with classification and optional photo)
-8. Log assumptions and link evidence (supports / challenges)
-9. Keep working offline; sync when the network returns
+Eleven stops, each with a field mission, a “done” checklist computed from the record, optional milestone, lecturer feedback and a private reflection:
 
-Not in this slice: feasibility, finance, prototypes, lecturer dashboard, contribution scoring, business-plan generation.
+1. **Team up** — create or join a group (join code, WhatsApp share, leave with a reason)
+2. **Spot a problem** — individual opportunity, sealed until everyone has submitted
+3. **Choose together** — compare, record your own preference first (peers’ preferences stay hidden until you do), propose, majority ratifies
+4. **What must be true?** — assumption ledger with a risk grid; mark assumptions held up / broke
+5. **Go and listen** — interview guide and consent script; offline interview log that becomes evidence
+6. **Model the business** — canvas; every note is stamped GUESS until linked to evidence
+7. **Can it work?** — four feasibility lenses, each verdict citing evidence
+8. **Run the numbers** — unit economics, break-even, payback, cedi/price stress tests, sourced-cost check
+9. **Build & test** — cheap prototypes and offline user tests
+10. **Persevere, pivot or stop** — look-back summary, majority decision, confidential peer ratings
+11. **Pitch day** — business plan assembled from the record (printable) and a pitch-slide mode
 
-See [docs/CONCEPT-COVERAGE.md](docs/CONCEPT-COVERAGE.md) for what the full concept required that a shorter prompt had dropped, and [docs/DEVIATIONS.md](docs/DEVIATIONS.md) for stack differences.
+Also: **Today** (next move, deadlines, market shocks, announcements, team activity), **Notebook** (all evidence), **Advisor** (challenging AI with daily caps). Everything but the advisor works offline.
 
-## Demonstration cohort
+## The staff room (lecturer side, `/lecturer`)
 
-After creating a student profile, open **Enter demonstration cohort**. Nine peers submit grounded campus/hostel/market opportunities. Their work stays hidden until you submit yours, then selection opens.
+Built for one lecturer to ~400 students — it works by exception:
 
-Use **Simulate offline** in the top bar to test local save and replay.
+- **Attention queue** — groups ranked by readable rules (stalled, blocked on named members, silent members, untested critical assumptions, opinion-heavy evidence, advisor use without fieldwork, missed milestones, unanswered shocks) and a stage funnel.
+- **Group drill-down** — contribution per member, confidential peer averages, private reflections, the full record; mark a member inactive (unblocks the group), feedback with rubric levels and reusable comments, take ownership of a group.
+- **Course set-up** — milestones, announcements, Ghana-grounded market shocks, CSV gradebook.
+
+Staff join with `STAFF_ACCESS_CODE` (preview database: `DEMO-STAFF`).
+
+## Demonstration group
+
+After creating a student profile, open **Enter demonstration group**. Nine peers submit grounded campus/hostel/market opportunities, hidden until you submit yours. Demo peers auto-endorse group proposals (labelled) so one person can walk the whole route.
+
+Use **Rehearse offline** (tap the connection pill) to test local save and replay.
 
 ## Stack
 
@@ -49,6 +61,7 @@ Do not put secrets in the client. Deployed apps receive:
 |---|---|---|
 | `DATABASE_URL` | server | Neon Postgres |
 | `XAI_API_KEY` | server | Advisor (never `VITE_`-prefixed) |
+| `STAFF_ACCESS_CODE` | server | Code lecturers enter to join the staff room |
 | `VITE_APP_NAME` | client | Optional display name |
 | Auth credentials | server | Injected by the host |
 
@@ -59,9 +72,10 @@ Copy [`.env.example`](.env.example) when running outside this host. Never commit
 ```
 migrations/          schema, RLS, catalogue seed
 src/routes/          pages (landing, login, studio journey)
-src/lib/domain/      types, state machine, pedagogical copy
-src/lib/server/      authz, mutations, advisor, demo bootstrap
+src/lib/domain/      types, state machine, stages, finance, flags, market events
+src/lib/server/      authz, mutations, governance, venture work, lecturer, advisor
 src/lib/offline/     IndexedDB, outbox, photo compression, sync
-src/components/      shell, forms, advisor
+src/components/      shell, stage, forms, advisor, lecturer, ui (emblems, stamps, kente)
+src/routes/lecturer/ staff room (queue, group detail, course set-up)
 docs/                architecture, coverage, deviations, manual tests
 ```
