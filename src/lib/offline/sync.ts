@@ -3,6 +3,7 @@ import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
 import { getOfflineOwner, outboxAll, outboxDelete, outboxPut } from "./idb";
 import { emitConnectionChange, isEffectivelyOnline } from "./status";
 import type { OutboxItem } from "./idb";
+import { OFFLINE_CALLS, type OfflineCallName } from "./calls";
 
 export async function enqueue(type: OutboxItem["type"], payload: unknown, id?: string): Promise<string> {
   const item: OutboxItem = {
@@ -65,6 +66,13 @@ async function runOutbox(): Promise<{ synced: number; failed: number }> {
 
 async function dispatch(item: OutboxItem): Promise<void> {
   const p = item.payload as Record<string, unknown>;
+  if (item.type === "call") {
+    const name = String(p.fn) as OfflineCallName;
+    const fn = OFFLINE_CALLS[name] as unknown as ((arg: { data: unknown }) => Promise<unknown>) | undefined;
+    if (!fn) throw new Error(`Unknown queued action: ${name}`);
+    await fn({ data: p.data });
+    return;
+  }
   switch (item.type) {
     case "upsert_opportunity":
       await upsertOpportunity({

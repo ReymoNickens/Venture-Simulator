@@ -48,7 +48,8 @@ export type OutboxType =
   | "submit_opportunity"
   | "create_evidence"
   | "create_assumption"
-  | "link_assumption_evidence";
+  | "link_assumption_evidence"
+  | "call";
 
 export interface Student {
   id: string;
@@ -288,7 +289,186 @@ export interface WorkspaceSnapshot {
   submissionProgress: { submitted: number; required: number };
   preferenceProgress: { recorded: number; required: number };
   proposals: VentureProposal[];
+  work: VentureWork;
+  life: CourseLife;
   canOpenSelection: boolean;
   canRecordGroupDecision: boolean;
   aiAvailable: boolean;
+}
+
+// ── Venture journey (stops 5–11) ────────────────────────────────────────────
+
+export type WouldPay = "yes" | "maybe" | "no" | "not_asked";
+
+export interface Interview {
+  id: string;
+  studentId: string;
+  authorName: string;
+  evidenceItemId: string | null;
+  intervieweeProfile: string;
+  segment: string;
+  location: string;
+  conductedOn: string | null;
+  channel: string;
+  consent: boolean;
+  keyQuotes: string;
+  pains: string;
+  currentSolution: string;
+  spendSignal: string;
+  wouldPay: WouldPay;
+  painLevel: number | null;
+  surprise: string;
+  createdAt: string;
+  syncState?: "pending" | "synced";
+}
+
+export interface CanvasEntry {
+  id: string;
+  block: string;
+  body: string;
+  studentId: string;
+  authorName: string;
+  status: "active" | "retired";
+  retiredReason: string | null;
+  evidenceIds: string[];
+  createdAt: string;
+}
+
+export interface FeasibilityAssessment {
+  id: string;
+  lens: string;
+  verdict: "promising" | "uncertain" | "concerning";
+  reasoning: string;
+  evidenceIds: string[];
+  authorName: string;
+  createdAt: string;
+  /** How many earlier verdicts this lens has had. */
+  revisions: number;
+}
+
+export interface FinanceModelVersion {
+  id: string;
+  inputs: string;
+  note: string;
+  authorName: string;
+  createdAt: string;
+  versions: number;
+}
+
+export interface Prototype {
+  id: string;
+  title: string;
+  kind: string;
+  description: string;
+  learningGoal: string;
+  costGhs: number;
+  hasPhoto: boolean;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface PrototypeTest {
+  id: string;
+  prototypeId: string;
+  evidenceItemId: string | null;
+  testerProfile: string;
+  task: string;
+  observed: string;
+  quote: string;
+  outcome: "succeeded" | "struggled" | "failed";
+  wouldPay: WouldPay;
+  authorName: string;
+  createdAt: string;
+  syncState?: "pending" | "synced";
+}
+
+export interface VentureDecision {
+  id: string;
+  decision: "persevere" | "pivot" | "stop";
+  rationale: string;
+  whatChanges: string;
+  status: ProposalStatus;
+  proposedByStudentId: string;
+  proposedByName: string;
+  createdAt: string;
+  votes: ProposalVote[];
+  threshold: number;
+}
+
+export interface PlanSection {
+  section: string;
+  body: string;
+  authorName: string;
+  createdAt: string;
+  revisions: number;
+}
+
+export interface Reflection {
+  id: string;
+  stage: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface PeerRating {
+  rateeStudentId: string;
+  score: number;
+  comment: string;
+}
+
+export interface Milestone {
+  stage: string;
+  dueAt: string;
+  note: string;
+}
+
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  staffName: string;
+  createdAt: string;
+}
+
+export interface MarketEvent {
+  id: string;
+  eventKey: string;
+  title: string;
+  body: string;
+  prompt: string;
+  respondBy: string | null;
+  createdAt: string;
+  myResponse: string | null;
+  groupResponses: { studentName: string; body: string; createdAt: string }[];
+}
+
+export interface StaffFeedback {
+  id: string;
+  stage: string;
+  body: string;
+  level: number | null;
+  staffName: string;
+  createdAt: string;
+}
+
+export interface VentureWork {
+  interviews: Interview[];
+  canvas: CanvasEntry[];
+  feasibility: FeasibilityAssessment[];
+  finance: FinanceModelVersion | null;
+  prototypes: Prototype[];
+  prototypeTests: PrototypeTest[];
+  decisions: VentureDecision[];
+  plan: PlanSection[];
+}
+
+export interface CourseLife {
+  myReflections: Reflection[];
+  myPeerRatings: PeerRating[];
+  milestones: Milestone[];
+  announcements: Announcement[];
+  marketEvents: MarketEvent[];
+  feedback: StaffFeedback[];
+  interviewsPerMember: number;
+  minPrototypeTests: number;
 }

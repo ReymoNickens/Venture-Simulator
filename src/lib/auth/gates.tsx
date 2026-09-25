@@ -108,11 +108,11 @@ export function UserButton() {
           className="h-8 w-8 rounded-full object-cover"
         />
       ) : (
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/20">
+        <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-ink bg-bg-elevated text-sm font-bold">
           {label.charAt(0).toUpperCase()}
         </span>
       )}
-      <span className="text-sm font-medium">{label}</span>
+      <span className="hidden text-sm font-medium md:inline">{label}</span>
       {authEnabled && !gateSession && (
         <button
           type="button"

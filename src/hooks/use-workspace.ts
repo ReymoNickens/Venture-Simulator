@@ -33,6 +33,7 @@ export function useWorkspace(ownerId: string | null) {
         setLoading(false);
         return snap;
       } catch (err) {
+        console.error("[workspace] load failed, falling back to this device's copy", err);
         const cached = await kvGet<WorkspaceSnapshot>(SNAPSHOT_KEY);
         if (cached) {
           setData(await overlayOutbox(cached));
@@ -112,6 +113,61 @@ async function overlayOutbox(snap: WorkspaceSnapshot): Promise<WorkspaceSnapshot
         },
         ...next.evidence,
       ];
+    }
+    if (item.type === "call" && snap.venture) {
+      const d = (p.data ?? {}) as Record<string, unknown>;
+      const id = String(d.clientId ?? item.id);
+      if (p.fn === "logInterview") {
+        next.work = {
+          ...next.work,
+          interviews: [
+            {
+              id,
+              studentId: snap.student.id,
+              authorName: snap.student.fullName,
+              evidenceItemId: null,
+              intervieweeProfile: String(d.intervieweeProfile ?? ""),
+              segment: String(d.segment ?? ""),
+              location: String(d.location ?? ""),
+              conductedOn: (d.conductedOn as string | null) ?? null,
+              channel: String(d.channel ?? "in_person"),
+              consent: Boolean(d.consent),
+              keyQuotes: String(d.keyQuotes ?? ""),
+              pains: String(d.pains ?? ""),
+              currentSolution: String(d.currentSolution ?? ""),
+              spendSignal: String(d.spendSignal ?? ""),
+              wouldPay: (d.wouldPay as "not_asked") ?? "not_asked",
+              painLevel: typeof d.painLevel === "number" ? d.painLevel : null,
+              surprise: String(d.surprise ?? ""),
+              createdAt: item.createdAt,
+              syncState: "pending",
+            },
+            ...next.work.interviews,
+          ],
+        };
+      }
+      if (p.fn === "logPrototypeTest") {
+        next.work = {
+          ...next.work,
+          prototypeTests: [
+            {
+              id,
+              prototypeId: String(d.prototypeId ?? ""),
+              evidenceItemId: null,
+              testerProfile: String(d.testerProfile ?? ""),
+              task: String(d.task ?? ""),
+              observed: String(d.observed ?? ""),
+              quote: String(d.quote ?? ""),
+              outcome: (d.outcome as "struggled") ?? "struggled",
+              wouldPay: (d.wouldPay as "not_asked") ?? "not_asked",
+              authorName: snap.student.fullName,
+              createdAt: item.createdAt,
+              syncState: "pending",
+            },
+            ...next.work.prototypeTests,
+          ],
+        };
+      }
     }
     if (item.type === "create_assumption" && snap.venture) {
       next.assumptions = [

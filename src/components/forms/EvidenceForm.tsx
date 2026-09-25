@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from "react";
+import { Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea } from "@/components/ui/input";
+import { Choice, Field, Input, Textarea } from "@/components/ui/input";
 import { Why } from "@/components/ui/why";
+import { FormMessages } from "@/components/ui/feedback";
 import { CLASSIFICATIONS, SOURCE_TYPES, ASSUMPTION_LANGUAGE } from "@/lib/domain/config";
+import type { EvidenceClassification, EvidenceSourceType } from "@/lib/domain/types";
 import { WHY } from "@/lib/domain/copy";
 import { compressPhoto } from "@/lib/offline/photos";
 import { saveEvidence } from "@/lib/offline/actions";
@@ -16,10 +19,10 @@ export function EvidenceForm({
 }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [sourceType, setSourceType] = useState("observation");
-  const [classification, setClassification] = useState("unknown");
+  const [sourceType, setSourceType] = useState<EvidenceSourceType>("observation");
+  const [classification, setClassification] = useState<EvidenceClassification>("unknown");
   const [locationContext, setLocationContext] = useState("");
-  const [observedAt, setObservedAt] = useState("");
+  const [observedAt, setObservedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [photo, setPhoto] = useState<{ dataUrl: string; mime: string } | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +56,8 @@ export function EvidenceForm({
       });
       setNotice(
         "queued" in result && result.queued
-          ? "Saved locally — will sync when connected."
-          : "Evidence logged. You remain responsible for the classification.",
+          ? "Saved on this phone — it will sync when you are connected."
+          : "Logged. You remain responsible for the classification.",
       );
       setTitle("");
       setContent("");
@@ -71,75 +74,57 @@ export function EvidenceForm({
 
   return (
     <form className="space-y-4" onSubmit={(e) => void submit(e)}>
-      <Field label="Title">
-        <Input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short label" />
+      <Field label="Short title">
+        <Input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Queue at Hall B taps, 6:40am" />
       </Field>
-      <Field label="What did you collect?">
-        <Textarea required value={content} onChange={(e) => setContent(e.target.value)} />
-      </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Source">
-          <select
-            className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-            value={sourceType}
-            onChange={(e) => setSourceType(e.target.value)}
-          >
-            {SOURCE_TYPES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Your classification">
-          <select
-            className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-            value={classification}
-            onChange={(e) => setClassification(e.target.value)}
-          >
-            {CLASSIFICATIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <Why text={WHY.classification} />
-        </Field>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="When (optional)">
-          <Input
-            type="text"
-            inputMode="numeric"
-            placeholder="YYYY-MM-DD"
-            value={observedAt}
-            onChange={(e) => setObservedAt(e.target.value)}
-          />
-        </Field>
-        <Field label="Where (optional)">
-          <Input value={locationContext} onChange={(e) => setLocationContext(e.target.value)} />
-        </Field>
-      </div>
-      <Field label="Photo (optional, compressed on this device)">
-        <Input
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/*"
-          capture="environment"
-          onChange={(e) => void onFile(e.target.files?.[0])}
+      <Field label="What exactly did you see, hear, count or collect?">
+        <Textarea
+          required
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Numbers, quotes, prices. Write what happened, not what you think it means."
         />
-        {photo ? (
-          <img src={photo.dataUrl} alt="Evidence" className="mt-2 max-h-40 rounded-[12px] border border-line" />
-        ) : null}
       </Field>
-      {looksAssumed ? (
-        <p className="rounded-[12px] bg-warn-soft px-3 py-2 text-sm text-warn">
-          This reads like an assumption dressed as evidence. Consider classifying it as assumption, then ask what would test it.
+      <Choice label="Where did it come from?" value={sourceType} options={SOURCE_TYPES} onChange={setSourceType} />
+      <Choice
+        label="What kind of claim is it?"
+        value={classification}
+        options={CLASSIFICATIONS}
+        onChange={setClassification}
+      />
+      <Why text={WHY.classification} />
+      {looksAssumed && classification !== "assumption" && classification !== "opinion" ? (
+        <p className="rounded-[8px] border-2 border-gold/60 bg-gold-soft px-3 py-2 text-sm">
+          This reads like an assumption dressed as evidence (“everyone”, “will buy”, “most students”).
+          Is it really a <strong>{classification}</strong>?
         </p>
       ) : null}
-      {error ? <p className="text-sm text-bad">{error}</p> : null}
-      {notice ? <p className="text-sm text-accent">{notice}</p> : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="When" optional>
+          <Input type="date" value={observedAt} onChange={(e) => setObservedAt(e.target.value)} />
+        </Field>
+        <Field label="Where" optional>
+          <Input value={locationContext} onChange={(e) => setLocationContext(e.target.value)} placeholder="Madina market, Hall B…" />
+        </Field>
+      </div>
+      <div>
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-[8px] border-2 border-dashed border-line-strong px-3 py-2 text-sm font-medium text-ink-soft hover:border-ink">
+          <Camera className="size-4" aria-hidden />
+          {photo ? "Change photo" : "Add a photo"}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            capture="environment"
+            className="sr-only"
+            onChange={(e) => void onFile(e.target.files?.[0])}
+          />
+        </label>
+        <p className="mt-1 text-xs text-faint">Shrunk on your phone before upload to save data.</p>
+        {photo ? <img src={photo.dataUrl} alt="Evidence preview" className="mt-2 max-h-40 rounded-[8px] border-2 border-ink" /> : null}
+      </div>
+      <FormMessages error={error} notice={notice} />
       <Button type="submit" disabled={pending}>
-        {pending ? "Saving…" : "Log evidence"}
+        {pending ? "Saving…" : "Log it in the notebook"}
       </Button>
     </form>
   );

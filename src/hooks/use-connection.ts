@@ -40,19 +40,23 @@ export function useConnection() {
   };
 }
 
-export function connectionCopy(state: ConnectionState): { label: string; tone: "ok" | "warn" | "bad" } {
+export function connectionCopy(state: ConnectionState): {
+  label: string;
+  short: string;
+  tone: "ok" | "warn" | "bad";
+} {
   switch (state) {
     case "offline":
-      return { label: "Working offline", tone: "warn" };
+      return { label: "Working offline", short: "Offline", tone: "warn" };
     case "saved_locally":
-      return { label: "Saved locally — will sync when connected", tone: "warn" };
+      return { label: "Saved locally — will sync when connected", short: "Saved on phone", tone: "warn" };
     case "syncing":
-      return { label: "Syncing…", tone: "ok" };
+      return { label: "Syncing…", short: "Syncing", tone: "ok" };
     case "synced":
-      return { label: "Synced", tone: "ok" };
+      return { label: "Synced", short: "Synced", tone: "ok" };
     case "sync_error":
-      return { label: "Saved locally — unable to sync yet", tone: "bad" };
+      return { label: "Saved locally — unable to sync yet", short: "Not synced", tone: "bad" };
     default:
-      return { label: "Online", tone: "ok" };
+      return { label: "Online", short: "Online", tone: "ok" };
   }
 }

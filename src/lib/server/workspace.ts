@@ -18,6 +18,7 @@ import type {
   WorkspaceSnapshot,
 } from "@/lib/domain/types";
 import { decisionThreshold } from "@/lib/domain/state-machine";
+import { emptyWork, loadCourseLife, loadVentureWork } from "./workspace-venture";
 import {
   loadOfferingForStudent,
   loadStudent,
@@ -59,6 +60,8 @@ export const getWorkspace = createServerFn({ method: "GET" })
       submissionProgress: { submitted: 0, required: 0 },
       preferenceProgress: { recorded: 0, required: 0 },
       proposals: [],
+      work: emptyWork(),
+      life: await loadCourseLife({ studentId: "", groupId: null, offeringId: null }),
       canOpenSelection: false,
       canRecordGroupDecision: false,
       aiAvailable: Boolean(process.env.XAI_API_KEY),
@@ -67,7 +70,13 @@ export const getWorkspace = createServerFn({ method: "GET" })
 
     const offering = await loadOfferingForStudent(student.id);
     const group = await loadGroupForStudent(student.id);
-    if (!group) return { ...empty, offering };
+    if (!group) {
+      return {
+        ...empty,
+        offering,
+        life: await loadCourseLife({ studentId: student.id, groupId: null, offeringId: offering?.id ?? null }),
+      };
+    }
 
     const sql = await getSql();
     const memberRows = await sql<{
@@ -174,7 +183,12 @@ export const getWorkspace = createServerFn({ method: "GET" })
       join opportunities o on o.id = p.opportunity_id
       where o.group_id = ${group.id}
     `;
-    const preferences: OpportunityPreference[] = peersVisible
+    // Others' preferences are withheld until you have recorded your own, so a
+    // student's first judgement is theirs rather than a vote for the crowd.
+    const iHaveRecorded = prefRows.some((row) => row.student_id === student.id);
+    const hasVentureAlready = group.status === "venture_created";
+    const preferences: OpportunityPreference[] =
+      peersVisible && (iHaveRecorded || hasVentureAlready)
       ? prefRows.map((row) => ({
           id: row.id,
           opportunityId: row.opportunity_id,
@@ -404,7 +418,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       select * from activity_events
       where group_id = ${group.id}
       order by created_at desc
-      limit 40
+      limit 150
     `;
 
     const proposalRows = await sql<{
@@ -463,6 +477,15 @@ export const getWorkspace = createServerFn({ method: "GET" })
         })),
     }));
 
+    const work = venture
+      ? await loadVentureWork(venture.id, activeMembers.length, quorumPct)
+      : emptyWork();
+    const life = await loadCourseLife({
+      studentId: student.id,
+      groupId: group.id,
+      offeringId: offering?.id ?? null,
+    });
+
     const required = activeMembers.length;
     const canOpenSelection =
       group.status === "selection_ready" ||
@@ -503,6 +526,8 @@ export const getWorkspace = createServerFn({ method: "GET" })
       submissionProgress: { submitted, required },
       preferenceProgress: { recorded, required },
       proposals,
+      work,
+      life,
       canOpenSelection,
       canRecordGroupDecision,
       aiAvailable: Boolean(process.env.XAI_API_KEY),

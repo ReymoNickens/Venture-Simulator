@@ -23,13 +23,16 @@ function Onboarding() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Keyed on the id, not the user object: useCurrentUserState builds a new
+  // object every render, and depending on it re-fetched offerings in a loop.
+  const userId = user?.id ?? null;
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     void listOfferings().then((rows) => {
       setOfferings(rows);
-      if (rows[0]) setOfferingId(rows[0].id);
+      setOfferingId((current) => current || rows[0]?.id || "");
     });
-  }, [user]);
+  }, [userId]);
 
   if (isPending) {
     return <div className="min-h-dvh bg-bg" />;

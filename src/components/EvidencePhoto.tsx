@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getEvidencePhoto } from "@/lib/server/photos";
+import { getPrototypePhoto } from "@/lib/server/venture-work";
 import { cacheGet, cachePut } from "@/lib/offline/idb";
 import { cn } from "@/lib/utils";
 
@@ -13,11 +14,13 @@ export function EvidencePhoto({
   localData,
   className,
   alt = "",
+  kind = "evidence",
 }: {
   id: string;
   localData?: string | null;
   className?: string;
   alt?: string;
+  kind?: "evidence" | "prototype";
 }) {
   const [src, setSrc] = useState<string | null>(localData ?? null);
   const [failed, setFailed] = useState(false);
@@ -30,15 +33,19 @@ export function EvidencePhoto({
     let cancelled = false;
     void (async () => {
       try {
-        const cached = await cacheGet(`photo:${id}`);
+        const key = `${kind}-photo:${id}`;
+        const cached = await cacheGet(key);
         if (cached) {
           if (!cancelled) setSrc(cached);
           return;
         }
-        const res = await getEvidencePhoto({ data: { id } });
+        const res =
+          kind === "prototype"
+            ? await getPrototypePhoto({ data: { id } })
+            : await getEvidencePhoto({ data: { id } });
         if (cancelled) return;
         setSrc(res.dataUrl);
-        await cachePut(`photo:${id}`, res.dataUrl);
+        await cachePut(key, res.dataUrl);
       } catch {
         if (!cancelled) setFailed(true);
       }
@@ -46,7 +53,7 @@ export function EvidencePhoto({
     return () => {
       cancelled = true;
     };
-  }, [id, localData]);
+  }, [id, localData, kind]);
 
   if (failed) {
     return (

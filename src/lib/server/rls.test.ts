@@ -212,3 +212,81 @@ describe("RLS actually enforces group isolation (not just executable SQL)", () =
     }
   });
 });
+
+/** Group A gets a second member and a venture; group B a venture of its own. */
+async function withVentures(pg: PGlite): Promise<void> {
+  await pg.query(
+    `insert into students (id, auth_user_id, full_name, index_number, programme) values ('student-a2','auth-a2','Student A2','IDX-a2','Test')`,
+  );
+  await pg.query(
+    `insert into group_members (id, group_id, student_id, membership_status) values ('member-a2','group-a','student-a2','active')`,
+  );
+  for (const g of ["a", "b"]) {
+    await pg.query(
+      `insert into ventures (id, group_id, opportunity_id, name, selection_rationale) values ($1,$2,$3,'V','because')`,
+      [`venture-${g}`, `group-${g}`, `opp-${g}`],
+    );
+  }
+  await pg.query(
+    `insert into interviews (id, venture_id, student_id, interviewee_profile, key_quotes) values ('int-b','venture-b','student-b','Trader','quote')`,
+  );
+  await pg.query(
+    `insert into reflections (id, student_id, group_id, stage, body) values ('ref-a','student-a','group-a','decide','private thoughts')`,
+  );
+  await pg.query(
+    `insert into peer_ratings (id, group_id, rater_student_id, ratee_student_id, score) values ('pr-a','group-a','student-a','student-a2',2)`,
+  );
+}
+
+describe("RLS for the later venture stages", () => {
+  it("denies reading another group's interviews", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      const rows = await asUser(pg, "auth-a", (tx) => tx.query("select id from interviews"));
+      assert.equal(rows.rows.length, 0);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("keeps a reflection private from the author's own teammates", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      const teammate = await asUser(pg, "auth-a2", (tx) => tx.query("select id from reflections"));
+      assert.equal(teammate.rows.length, 0);
+      const author = await asUser(pg, "auth-a", (tx) => tx.query("select id from reflections"));
+      assert.equal(author.rows.length, 1);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("hides a peer rating from the teammate being rated", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      const ratee = await asUser(pg, "auth-a2", (tx) => tx.query("select id from peer_ratings"));
+      assert.equal(ratee.rows.length, 0);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("denies writing an interview into another group's venture", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      await assert.rejects(() =>
+        asUser(pg, "auth-a", (tx) =>
+          tx.query(
+            `insert into interviews (id, venture_id, student_id, interviewee_profile, key_quotes) values ('int-x','venture-b','student-a','x','y')`,
+          ),
+        ),
+      );
+    } finally {
+      await pg.close();
+    }
+  });
+});

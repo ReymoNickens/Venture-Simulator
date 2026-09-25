@@ -1,46 +1,65 @@
 @import "tailwindcss";
 
+/*
+ * Design language: a field notebook carried through Ghana.
+ *  - Paper and ink, not glass and gradients: students write in exercise
+ *    books with a red margin rule, and evidence here looks like that.
+ *  - Kente strips mark structure (the header, a stage's threshold) — woven
+ *    from gold, forest, clay and black, the way strip-cloth is built from
+ *    narrow bands.
+ *  - Status is stamped, like a receipt or a registry form: SUBMITTED,
+ *    RATIFIED, TESTED.
+ *  - Adinkra symbols mark each stop on the route, with their meaning.
+ * Light only: most use is on phones, outdoors, in daylight.
+ */
+
 @theme {
-  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
   --font-sans: "Figtree", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* Warmer, campus-earth palette (leaf / sun / clay / paper) — same token
-     names as before so components don't change, only the values. */
-  --color-bg: #f7f4eb;
-  --color-bg-elevated: #fffdf8;
-  --color-bg-subtle: #eee7d6;
-  --color-ink: #15251f;
-  --color-ink-soft: #2f3f37;
-  --color-muted: #5c6b61;
-  --color-faint: #8b9389;
-  --color-line: #d7cdb5;
-  --color-line-strong: #c2b494;
-  --color-accent: #286045;
-  --color-accent-fg: #f6f1e4;
-  --color-accent-soft: #e2ece3;
-  --color-sun: #f4b942;
-  --color-sun-soft: #fdf1d9;
-  --color-warn: #b86d3d;
-  --color-warn-soft: #f3e2d2;
-  --color-bad: #8f2d2d;
-  --color-bad-soft: #f6e0dc;
-  --color-ok: #286045;
-  --color-spine: #2a1f16;
+  --color-bg: #f5efe2;
+  --color-bg-elevated: #fffbf2;
+  --color-bg-subtle: #ece3cf;
+  --color-ink: #1c1712;
+  --color-ink-soft: #3a322a;
+  --color-muted: #6b6154;
+  --color-faint: #8f8474;
+  --color-line: #ddd1b9;
+  --color-line-strong: #c4b494;
 
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --color-accent: #1e5a3c; /* forest */
+  --color-accent-fg: #fff8e7;
+  --color-accent-soft: #dcebdd;
+  --color-gold: #e2a21b;
+  --color-gold-deep: #9c6b00;
+  --color-gold-soft: #fbebc4;
+  --color-clay: #b3452c;
+  --color-clay-soft: #f6ddd4;
+  --color-indigo: #2b3a67;
+  --color-indigo-soft: #dfe3f0;
 
-  --shadow-page: 0 1px 0 rgba(28, 25, 20, 0.04), 0 12px 32px -18px rgba(28, 25, 20, 0.28);
+  --color-sun: var(--color-gold);
+  --color-sun-soft: var(--color-gold-soft);
+  --color-warn: #a2581a;
+  --color-warn-soft: #f5e3cc;
+  --color-bad: var(--color-clay);
+  --color-bad-soft: var(--color-clay-soft);
+  --color-ok: var(--color-accent);
+  --color-spine: #1c1712;
+
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
 }
 
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
   }
   html,
   body,
@@ -51,17 +70,20 @@
     font-family: var(--font-sans);
   }
   body {
-    background-image:
-      linear-gradient(90deg, var(--color-spine) 0 12px, transparent 12px),
-      radial-gradient(1200px 600px at 80% -10%, rgba(47, 93, 86, 0.06), transparent 50%);
+    background-image: radial-gradient(
+      circle at 1px 1px,
+      color-mix(in oklab, var(--color-ink) 7%, transparent) 1px,
+      transparent 0
+    );
+    background-size: 22px 22px;
   }
   h1,
   h2,
   h3 {
     font-family: var(--font-display);
     text-wrap: balance;
-    letter-spacing: -0.03em;
-    font-weight: 550;
+    letter-spacing: -0.02em;
+    font-weight: 700;
   }
   p {
     text-wrap: pretty;
@@ -71,7 +93,75 @@
     cursor: pointer;
   }
   ::selection {
-    background: color-mix(in oklab, var(--color-accent) 22%, white);
+    background: var(--color-gold-soft);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Woven strip: narrow warp bands in kente colours, with a weft shimmer. */
+  .kente {
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        transparent 0 3px,
+        rgba(0, 0, 0, 0.14) 3px 4px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        var(--color-gold) 0 18px,
+        var(--color-ink) 18px 22px,
+        var(--color-accent) 22px 34px,
+        var(--color-ink) 34px 38px,
+        var(--color-gold) 38px 44px,
+        var(--color-clay) 44px 52px,
+        var(--color-ink) 52px 56px,
+        var(--color-indigo) 56px 64px,
+        var(--color-ink) 64px 68px
+      );
+  }
+  .kente-thin {
+    background-image: repeating-linear-gradient(
+      90deg,
+      var(--color-gold) 0 10px,
+      var(--color-ink) 10px 12px,
+      var(--color-accent) 12px 20px,
+      var(--color-ink) 20px 22px,
+      var(--color-clay) 22px 28px,
+      var(--color-ink) 28px 30px
+    );
+  }
+  /* Exercise-book page: ruled lines and the red margin. */
+  .notebook {
+    background-color: var(--color-bg-elevated);
+    background-image:
+      linear-gradient(
+        90deg,
+        transparent 0 26px,
+        color-mix(in oklab, var(--color-clay) 55%, transparent) 26px 27.5px,
+        transparent 27.5px
+      ),
+      repeating-linear-gradient(
+        180deg,
+        transparent 0 27px,
+        color-mix(in oklab, var(--color-indigo) 12%, transparent) 27px 28px
+      );
+  }
+  .stamp {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 2px solid currentColor;
+    border-radius: 4px;
+    box-shadow: inset 0 0 0 1.5px var(--color-bg-elevated), inset 0 0 0 3px currentColor;
+    mask-image: radial-gradient(circle at 30% 40%, #000 70%, rgba(0, 0, 0, 0.72) 100%);
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -81,5 +171,14 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  body {
+    background: white;
+  }
+  .no-print {
+    display: none !important;
   }
 }

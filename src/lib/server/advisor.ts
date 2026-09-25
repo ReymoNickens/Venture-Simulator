@@ -20,6 +20,9 @@ Rules:
 6. Distinguish assumptions from evidence. If a sentence reads like "everyone wants this", press on it.
 7. When a group is selecting, ask about the alternatives they are rejecting and why.
 8. When evidence is logged, challenge mis-classification. Do not silently rewrite the student's claim.
+   Canvas blocks marked (NO EVIDENCE) are guesses — say so when relevant.
+   Interviews: if they asked "would you buy it?", explain why that answer is weak and ask about past behaviour and actual spending instead.
+   Numbers: question prices and costs that were not collected from the real market.
 9. Keep replies short: 2–4 sentences. This is a conversation, not an essay.
 10. Stay respectful. A challenge should feel like a serious question, not a rejection.
 11. Suggest a next investigation the students could actually do on campus, in a hostel, or in a nearby market — as a question, not a task list.
@@ -130,6 +133,58 @@ async function assembleContext(
     limit 12
   `;
 
+  const work = venture[0]
+    ? await (async () => {
+        const interviews = await sql<{ interviewee_profile: string; key_quotes: string; would_pay: string }>`
+          select i.interviewee_profile, left(i.key_quotes, 200) as key_quotes, i.would_pay
+          from interviews i join ventures v on v.id = i.venture_id
+          where v.group_id = ${groupId}
+          order by i.created_at desc limit 6
+        `;
+        const interviewCount = await sql<{ n: number }>`
+          select count(*)::int as n from interviews i join ventures v on v.id = i.venture_id
+          where v.group_id = ${groupId}
+        `;
+        const canvas = await sql<{ block: string; body: string; evidenced: boolean }>`
+          select c.block, left(c.body, 160) as body,
+                 exists (select 1 from canvas_entry_evidence l where l.entry_id = c.id) as evidenced
+          from canvas_entries c join ventures v on v.id = c.venture_id
+          where v.group_id = ${groupId} and c.status = 'active'
+          order by c.created_at desc limit 18
+        `;
+        const feas = await sql<{ lens: string; verdict: string }>`
+          select distinct on (f.lens) f.lens, f.verdict
+          from feasibility_assessments f join ventures v on v.id = f.venture_id
+          where v.group_id = ${groupId}
+          order by f.lens, f.created_at desc
+        `;
+        const finance = await sql<{ inputs: string }>`
+          select f.inputs from financial_models f join ventures v on v.id = f.venture_id
+          where v.group_id = ${groupId} order by f.created_at desc limit 1
+        `;
+        const tests = await sql<{ outcome: string; n: number }>`
+          select t.outcome, count(*)::int as n
+          from prototype_tests t join ventures v on v.id = t.venture_id
+          where v.group_id = ${groupId} group by t.outcome
+        `;
+        return [
+          interviewCount[0]?.n
+            ? `INTERVIEWS (${interviewCount[0].n} total; latest):\n${interviews
+                .map((i) => `- ${i.interviewee_profile} [would pay: ${i.would_pay}]: “${i.key_quotes}”`)
+                .join("\n")}`
+            : "INTERVIEWS: none yet.",
+          canvas.length
+            ? `CANVAS:\n${canvas.map((c) => `- ${c.block}${c.evidenced ? "" : " (NO EVIDENCE)"}: ${c.body}`).join("\n")}`
+            : "CANVAS: empty.",
+          feas.length ? `FEASIBILITY: ${feas.map((f) => `${f.lens}=${f.verdict}`).join(", ")}` : "",
+          finance[0] ? `NUMBERS (student-entered JSON): ${finance[0].inputs.slice(0, 600)}` : "",
+          tests.length ? `PROTOTYPE TESTS: ${tests.map((t) => `${t.outcome}×${t.n}`).join(", ")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+      })()
+    : "";
+
   return [
     `COURSE RULES: Students must back claims with evidence. The platform does not pick winners.`,
     peersVisible
@@ -156,6 +211,7 @@ async function assembleContext(
     assumptions.length
       ? `ASSUMPTIONS:\n${assumptions.map((a) => `- [${a.importance}/${a.confidence}] ${a.statement}`).join("\n")}`
       : "ASSUMPTIONS: none.",
+    work,
   ]
     .filter(Boolean)
     .join("\n\n");

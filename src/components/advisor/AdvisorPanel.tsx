@@ -1,20 +1,40 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { WifiOff } from "lucide-react";
 import { sendAdvisorMessage } from "@/lib/server/advisor";
 import type { AdvisorSession, AdvisorStage, WorkspaceSnapshot } from "@/lib/domain/types";
 import { OFFLINE_AI } from "@/lib/domain/copy";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
-import { Card } from "@/components/ui/badge";
+import { Stamp } from "@/components/ui/stamp";
+import { FormMessages } from "@/components/ui/feedback";
 import { useConnection } from "@/hooks/use-connection";
+import { errorMessage } from "@/hooks/use-action";
+import { cn } from "@/lib/utils";
+
+const PROMPTS: Record<AdvisorStage, string[]> = {
+  selection: [
+    "What is weakest about the opportunity I prefer?",
+    "What should we learn from the ideas we are rejecting?",
+    "Who exactly has this problem?",
+  ],
+  evidence: [
+    "Which of our assumptions could kill this venture?",
+    "Is our evidence strong enough, or is it opinion?",
+    "What should I ask in my next interview?",
+    "Challenge our price.",
+  ],
+};
 
 export function AdvisorPanel({
   data,
   stage,
   onSent,
+  className,
 }: {
   data: WorkspaceSnapshot;
   stage: AdvisorStage;
   onSent: () => void;
+  className?: string;
 }) {
   const session: AdvisorSession | undefined = data.advisorSessions.find((s) => s.stage === stage);
   const { state } = useConnection();
@@ -22,87 +42,127 @@ export function AdvisorPanel({
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const messages = session?.messages ?? [];
 
-  async function send() {
+  const today = new Date().toDateString();
+  const usedToday = data.advisorSessions
+    .flatMap((s) => s.messages)
+    .filter(
+      (m) => m.role === "student" && m.studentId === data.student?.id && new Date(m.createdAt).toDateString() === today,
+    ).length;
+  const limit = data.offering?.aiDailyStudentLimit ?? 25;
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "nearest" });
+  }, [messages.length]);
+
+  async function send(content: string) {
     setError(null);
-    if (offline) {
-      setError(OFFLINE_AI);
-      return;
-    }
-    if (!data.aiAvailable) {
-      setError("The AI advisor is not available in this environment.");
-      return;
-    }
+    if (offline) return setError(OFFLINE_AI);
+    if (!data.aiAvailable) return setError("The AI advisor is not switched on for this course yet.");
     setPending(true);
     try {
-      await sendAdvisorMessage({
-        data: { stage, content: text, sessionId: session?.id },
-      });
+      await sendAdvisorMessage({ data: { stage, content, sessionId: session?.id } });
       setText("");
       onSent();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The advisor could not reply.");
+      setError(errorMessage(err));
     } finally {
       setPending(false);
     }
   }
 
   return (
-    <Card className="space-y-4">
-      <div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">Advisor</p>
-        <h2 className="font-display text-xl">Challenge, not cheerleading</h2>
-        <p className="mt-1 text-sm text-muted">
-          The advisor will not pick an opportunity for you, invent statistics, or write your answers.
-        </p>
+    <section className={cn("overflow-hidden rounded-[12px] border-2 border-ink bg-bg-elevated", className)}>
+      <div className="flex items-center justify-between gap-2 border-b-2 border-ink bg-ink px-4 py-2.5 text-bg-elevated">
+        <div>
+          <p className="font-display text-base font-bold">The Advisor</p>
+          <p className="text-[11px] text-bg-elevated/70">Asks hard questions. Never writes your answers.</p>
+        </div>
+        <span className="font-mono text-[11px] tabular text-bg-elevated/80">
+          {Math.max(0, limit - usedToday)}/{limit} left today
+        </span>
       </div>
-      <div className="space-y-3">
-        {(session?.messages ?? []).map((m) => (
-          <div
-            key={m.id}
-            className={
-              m.role === "advisor"
-                ? "rounded-[16px] bg-accent-soft px-3 py-2.5 text-sm leading-6 text-ink"
-                : "rounded-[16px] border border-line px-3 py-2.5 text-sm leading-6"
-            }
-          >
-            <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
-              {m.role === "advisor" ? "Advisor" : "You"}
-            </p>
-            <p>{m.content}</p>
-            {m.role === "advisor" && m.metadata?.suggestedNextAction ? (
-              <p className="mt-2 text-xs text-accent">Next: {m.metadata.suggestedNextAction}</p>
-            ) : null}
-          </div>
-        ))}
-        {!session?.messages.length ? (
+
+      <div className="max-h-[55dvh] space-y-3 overflow-y-auto px-3 py-4 sm:px-4">
+        {messages.length === 0 ? (
           <p className="text-sm text-muted">
-            Ask about evidence, the alternatives you rejected, or the assumption that would kill this idea.
+            The advisor has read your group’s record. It will not tell you which idea to pick, invent
+            market figures, or praise you. Ask it to push on your reasoning.
           </p>
         ) : null}
+        {messages.map((m) =>
+          m.role === "advisor" ? (
+            <div key={m.id} className="mr-6 rounded-[10px] rounded-tl-[2px] border-2 border-ink bg-gold-soft px-3 py-2.5 text-sm leading-6">
+              {m.metadata?.challengeType ? (
+                <Stamp tone="clay" size="xs" tilt={-2} className="mb-1.5">
+                  {m.metadata.challengeType}
+                </Stamp>
+              ) : null}
+              <p className="whitespace-pre-line">{m.content}</p>
+              {m.metadata?.suggestedNextAction ? (
+                <p className="mt-2 border-t border-ink/15 pt-2 text-xs font-semibold text-accent">
+                  Try this: {m.metadata.suggestedNextAction}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div key={m.id} className="ml-8 rounded-[10px] rounded-tr-[2px] bg-bg-subtle px-3 py-2.5 text-sm leading-6">
+              {m.studentId && m.studentId !== data.student?.id ? (
+                <p className="mb-0.5 text-[11px] font-semibold text-muted">
+                  {data.members.find((x) => x.studentId === m.studentId)?.fullName ?? "Teammate"}
+                </p>
+              ) : null}
+              <p className="whitespace-pre-line">{m.content}</p>
+            </div>
+          ),
+        )}
+        {pending ? <p className="text-xs text-muted">The advisor is reading your record…</p> : null}
+        <div ref={endRef} />
       </div>
-      {offline ? (
-        <p className="rounded-[12px] bg-warn-soft px-3 py-2 text-sm text-warn">{OFFLINE_AI}</p>
-      ) : (
-        <form
-          className="space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
-          }}
-        >
-          <Textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="What are you unsure about?"
-            disabled={pending}
-          />
-          {error ? <p className="text-sm text-bad">{error}</p> : null}
-          <Button type="submit" disabled={pending || !text.trim()}>
-            {pending ? "Asking…" : "Ask the advisor"}
-          </Button>
-        </form>
-      )}
-    </Card>
+
+      <div className="border-t-2 border-ink/10 px-3 pb-3 sm:px-4">
+        {offline ? (
+          <p className="mt-3 flex items-start gap-2 rounded-[8px] bg-warn-soft px-3 py-2 text-sm text-warn">
+            <WifiOff className="mt-0.5 size-4 shrink-0" aria-hidden /> {OFFLINE_AI}
+          </p>
+        ) : (
+          <form
+            className="space-y-2 pt-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (text.trim()) void send(text.trim());
+            }}
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {PROMPTS[stage].map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setText(p)}
+                  className="rounded-full border border-line-strong px-2.5 py-1 text-xs text-ink-soft hover:border-ink"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <Textarea
+              aria-label="Your question for the advisor"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="What are you unsure about?"
+              disabled={pending}
+              className="min-h-20"
+            />
+            <FormMessages error={error} />
+            <Button type="submit" disabled={pending || !text.trim()}>
+              {pending ? "Asking…" : "Ask the advisor"}
+            </Button>
+          </form>
+        )}
+      </div>
+    </section>
   );
 }

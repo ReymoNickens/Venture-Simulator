@@ -14,8 +14,18 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
+import { Route as StudioAdvisorRouteImport } from './routes/studio/advisor'
+import { Route as StudioCanvasRouteImport } from './routes/studio/canvas'
+import { Route as StudioDecideRouteImport } from './routes/studio/decide'
+import { Route as StudioFeasibilityRouteImport } from './routes/studio/feasibility'
 import { Route as StudioGroupRouteImport } from './routes/studio/group'
+import { Route as StudioListenRouteImport } from './routes/studio/listen'
+import { Route as StudioMapRouteImport } from './routes/studio/map'
+import { Route as StudioNotebookRouteImport } from './routes/studio/notebook'
+import { Route as StudioNumbersRouteImport } from './routes/studio/numbers'
 import { Route as StudioOpportunityRouteImport } from './routes/studio/opportunity'
+import { Route as StudioPitchRouteImport } from './routes/studio/pitch'
+import { Route as StudioPrototypeRouteImport } from './routes/studio/prototype'
 import { Route as StudioSelectRouteImport } from './routes/studio/select'
 import { Route as StudioVentureRouteImport } from './routes/studio/venture'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -45,14 +55,64 @@ const StudioIndexRoute = StudioIndexRouteImport.update({
   path: '/',
   getParentRoute: () => StudioRoute,
 } as any)
+const StudioAdvisorRoute = StudioAdvisorRouteImport.update({
+  id: '/advisor',
+  path: '/advisor',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioCanvasRoute = StudioCanvasRouteImport.update({
+  id: '/canvas',
+  path: '/canvas',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioDecideRoute = StudioDecideRouteImport.update({
+  id: '/decide',
+  path: '/decide',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioFeasibilityRoute = StudioFeasibilityRouteImport.update({
+  id: '/feasibility',
+  path: '/feasibility',
+  getParentRoute: () => StudioRoute,
+} as any)
 const StudioGroupRoute = StudioGroupRouteImport.update({
   id: '/group',
   path: '/group',
   getParentRoute: () => StudioRoute,
 } as any)
+const StudioListenRoute = StudioListenRouteImport.update({
+  id: '/listen',
+  path: '/listen',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioMapRoute = StudioMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioNotebookRoute = StudioNotebookRouteImport.update({
+  id: '/notebook',
+  path: '/notebook',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioNumbersRoute = StudioNumbersRouteImport.update({
+  id: '/numbers',
+  path: '/numbers',
+  getParentRoute: () => StudioRoute,
+} as any)
 const StudioOpportunityRoute = StudioOpportunityRouteImport.update({
   id: '/opportunity',
   path: '/opportunity',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioPitchRoute = StudioPitchRouteImport.update({
+  id: '/pitch',
+  path: '/pitch',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioPrototypeRoute = StudioPrototypeRouteImport.update({
+  id: '/prototype',
+  path: '/prototype',
   getParentRoute: () => StudioRoute,
 } as any)
 const StudioSelectRoute = StudioSelectRouteImport.update({
@@ -76,8 +136,18 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/studio': typeof StudioRouteWithChildren
+  '/studio/advisor': typeof StudioAdvisorRoute
+  '/studio/canvas': typeof StudioCanvasRoute
+  '/studio/decide': typeof StudioDecideRoute
+  '/studio/feasibility': typeof StudioFeasibilityRoute
   '/studio/group': typeof StudioGroupRoute
+  '/studio/listen': typeof StudioListenRoute
+  '/studio/map': typeof StudioMapRoute
+  '/studio/notebook': typeof StudioNotebookRoute
+  '/studio/numbers': typeof StudioNumbersRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
+  '/studio/pitch': typeof StudioPitchRoute
+  '/studio/prototype': typeof StudioPrototypeRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
   '/studio/': typeof StudioIndexRoute
@@ -87,8 +157,18 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/studio/advisor': typeof StudioAdvisorRoute
+  '/studio/canvas': typeof StudioCanvasRoute
+  '/studio/decide': typeof StudioDecideRoute
+  '/studio/feasibility': typeof StudioFeasibilityRoute
   '/studio/group': typeof StudioGroupRoute
+  '/studio/listen': typeof StudioListenRoute
+  '/studio/map': typeof StudioMapRoute
+  '/studio/notebook': typeof StudioNotebookRoute
+  '/studio/numbers': typeof StudioNumbersRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
+  '/studio/pitch': typeof StudioPitchRoute
+  '/studio/prototype': typeof StudioPrototypeRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
   '/studio': typeof StudioIndexRoute
@@ -100,8 +180,18 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/studio': typeof StudioRouteWithChildren
+  '/studio/advisor': typeof StudioAdvisorRoute
+  '/studio/canvas': typeof StudioCanvasRoute
+  '/studio/decide': typeof StudioDecideRoute
+  '/studio/feasibility': typeof StudioFeasibilityRoute
   '/studio/group': typeof StudioGroupRoute
+  '/studio/listen': typeof StudioListenRoute
+  '/studio/map': typeof StudioMapRoute
+  '/studio/notebook': typeof StudioNotebookRoute
+  '/studio/numbers': typeof StudioNumbersRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
+  '/studio/pitch': typeof StudioPitchRoute
+  '/studio/prototype': typeof StudioPrototypeRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
   '/studio/': typeof StudioIndexRoute
@@ -114,8 +204,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/studio'
+    | '/studio/advisor'
+    | '/studio/canvas'
+    | '/studio/decide'
+    | '/studio/feasibility'
     | '/studio/group'
+    | '/studio/listen'
+    | '/studio/map'
+    | '/studio/notebook'
+    | '/studio/numbers'
     | '/studio/opportunity'
+    | '/studio/pitch'
+    | '/studio/prototype'
     | '/studio/select'
     | '/studio/venture'
     | '/studio/'
@@ -125,8 +225,18 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/onboarding'
+    | '/studio/advisor'
+    | '/studio/canvas'
+    | '/studio/decide'
+    | '/studio/feasibility'
     | '/studio/group'
+    | '/studio/listen'
+    | '/studio/map'
+    | '/studio/notebook'
+    | '/studio/numbers'
     | '/studio/opportunity'
+    | '/studio/pitch'
+    | '/studio/prototype'
     | '/studio/select'
     | '/studio/venture'
     | '/studio'
@@ -137,8 +247,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/studio'
+    | '/studio/advisor'
+    | '/studio/canvas'
+    | '/studio/decide'
+    | '/studio/feasibility'
     | '/studio/group'
+    | '/studio/listen'
+    | '/studio/map'
+    | '/studio/notebook'
+    | '/studio/numbers'
     | '/studio/opportunity'
+    | '/studio/pitch'
+    | '/studio/prototype'
     | '/studio/select'
     | '/studio/venture'
     | '/studio/'
@@ -190,6 +310,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioIndexRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/studio/advisor': {
+      id: '/studio/advisor'
+      path: '/advisor'
+      fullPath: '/studio/advisor'
+      preLoaderRoute: typeof StudioAdvisorRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/canvas': {
+      id: '/studio/canvas'
+      path: '/canvas'
+      fullPath: '/studio/canvas'
+      preLoaderRoute: typeof StudioCanvasRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/decide': {
+      id: '/studio/decide'
+      path: '/decide'
+      fullPath: '/studio/decide'
+      preLoaderRoute: typeof StudioDecideRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/feasibility': {
+      id: '/studio/feasibility'
+      path: '/feasibility'
+      fullPath: '/studio/feasibility'
+      preLoaderRoute: typeof StudioFeasibilityRouteImport
+      parentRoute: typeof StudioRoute
+    }
     '/studio/group': {
       id: '/studio/group'
       path: '/group'
@@ -197,11 +345,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioGroupRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/studio/listen': {
+      id: '/studio/listen'
+      path: '/listen'
+      fullPath: '/studio/listen'
+      preLoaderRoute: typeof StudioListenRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/map': {
+      id: '/studio/map'
+      path: '/map'
+      fullPath: '/studio/map'
+      preLoaderRoute: typeof StudioMapRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/notebook': {
+      id: '/studio/notebook'
+      path: '/notebook'
+      fullPath: '/studio/notebook'
+      preLoaderRoute: typeof StudioNotebookRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/numbers': {
+      id: '/studio/numbers'
+      path: '/numbers'
+      fullPath: '/studio/numbers'
+      preLoaderRoute: typeof StudioNumbersRouteImport
+      parentRoute: typeof StudioRoute
+    }
     '/studio/opportunity': {
       id: '/studio/opportunity'
       path: '/opportunity'
       fullPath: '/studio/opportunity'
       preLoaderRoute: typeof StudioOpportunityRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/pitch': {
+      id: '/studio/pitch'
+      path: '/pitch'
+      fullPath: '/studio/pitch'
+      preLoaderRoute: typeof StudioPitchRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/prototype': {
+      id: '/studio/prototype'
+      path: '/prototype'
+      fullPath: '/studio/prototype'
+      preLoaderRoute: typeof StudioPrototypeRouteImport
       parentRoute: typeof StudioRoute
     }
     '/studio/select': {
@@ -229,16 +419,36 @@ declare module '@tanstack/react-router' {
 }
 
 interface StudioRouteChildren {
+  StudioAdvisorRoute: typeof StudioAdvisorRoute
+  StudioCanvasRoute: typeof StudioCanvasRoute
+  StudioDecideRoute: typeof StudioDecideRoute
+  StudioFeasibilityRoute: typeof StudioFeasibilityRoute
   StudioGroupRoute: typeof StudioGroupRoute
+  StudioListenRoute: typeof StudioListenRoute
+  StudioMapRoute: typeof StudioMapRoute
+  StudioNotebookRoute: typeof StudioNotebookRoute
+  StudioNumbersRoute: typeof StudioNumbersRoute
   StudioOpportunityRoute: typeof StudioOpportunityRoute
+  StudioPitchRoute: typeof StudioPitchRoute
+  StudioPrototypeRoute: typeof StudioPrototypeRoute
   StudioSelectRoute: typeof StudioSelectRoute
   StudioVentureRoute: typeof StudioVentureRoute
   StudioIndexRoute: typeof StudioIndexRoute
 }
 
 const StudioRouteChildren: StudioRouteChildren = {
+  StudioAdvisorRoute: StudioAdvisorRoute,
+  StudioCanvasRoute: StudioCanvasRoute,
+  StudioDecideRoute: StudioDecideRoute,
+  StudioFeasibilityRoute: StudioFeasibilityRoute,
   StudioGroupRoute: StudioGroupRoute,
+  StudioListenRoute: StudioListenRoute,
+  StudioMapRoute: StudioMapRoute,
+  StudioNotebookRoute: StudioNotebookRoute,
+  StudioNumbersRoute: StudioNumbersRoute,
   StudioOpportunityRoute: StudioOpportunityRoute,
+  StudioPitchRoute: StudioPitchRoute,
+  StudioPrototypeRoute: StudioPrototypeRoute,
   StudioSelectRoute: StudioSelectRoute,
   StudioVentureRoute: StudioVentureRoute,
   StudioIndexRoute: StudioIndexRoute,

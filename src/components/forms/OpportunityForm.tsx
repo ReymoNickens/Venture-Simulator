@@ -6,6 +6,21 @@ import { CONTEXTS, WHY } from "@/lib/domain/copy";
 import { ASSUMPTION_LANGUAGE } from "@/lib/domain/config";
 import type { Opportunity, OpportunityFields } from "@/lib/domain/types";
 import { saveOpportunity } from "@/lib/offline/actions";
+import { FormMessages } from "@/components/ui/feedback";
+
+function SectionHead({ n, title, sub }: { n: string; title: string; sub: string }) {
+  return (
+    <div className="flex items-start gap-3 pt-2">
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-gold font-display text-sm font-extrabold">
+        {n}
+      </span>
+      <div>
+        <h2 className="font-display text-lg leading-tight font-extrabold">{title}</h2>
+        <p className="text-xs text-muted">{sub}</p>
+      </div>
+    </div>
+  );
+}
 
 const empty: OpportunityFields = {
   problem: "",
@@ -86,6 +101,7 @@ export function OpportunityForm({
         void save(true);
       }}
     >
+      <SectionHead n="1" title="What you saw" sub="Facts from the field — what, who, where, and what you counted." />
       <Field label="What problem, gap, or unmet need did you notice?">
         <Textarea
           required
@@ -126,6 +142,7 @@ export function OpportunityForm({
         />
         <Why text={WHY.observedEvidence} />
       </Field>
+      <SectionHead n="2" title="How people cope today" sub="If they already manage somehow, you are competing with that." />
       <Field label="How do people deal with this today?">
         <Textarea
           required
@@ -142,7 +159,8 @@ export function OpportunityForm({
         />
         <Why text={WHY.whyItMatters} />
       </Field>
-      <Field label="What might help — if you had to guess? (optional)">
+      <SectionHead n="3" title="Your hunch — and what you don’t know" sub="Guesses are allowed here, as long as you call them guesses." />
+      <Field label="What might help — if you had to guess?" optional>
         <Textarea
           value={fields.possibleSolution}
           onChange={(e) => set("possibleSolution", e.target.value)}
@@ -150,14 +168,14 @@ export function OpportunityForm({
         />
         <Why text={WHY.possibleSolution} />
       </Field>
-      <Field label="Who would use or pay for a solution? (optional)">
+      <Field label="Who would use or pay for a solution?" optional>
         <Input
           value={fields.potentialCustomer}
           onChange={(e) => set("potentialCustomer", e.target.value)}
         />
         <Why text={WHY.potentialCustomer} />
       </Field>
-      <Field label="If this became a venture, how might it be paid for? (optional)">
+      <Field label="If this became a venture, how might it be paid for?" optional>
         <Input
           value={fields.revenueMechanism}
           onChange={(e) => set("revenueMechanism", e.target.value)}
@@ -174,13 +192,12 @@ export function OpportunityForm({
       </Field>
 
       {assumptionHit ? (
-        <p className="rounded-[12px] bg-warn-soft px-3 py-2 text-sm text-warn">
+        <p className="rounded-[8px] border-2 border-gold/60 bg-gold-soft px-3 py-2 text-sm">
           Some of this language reads like an assumption (“everyone”, “will buy”, “most students”).
           That is allowed — but it is not evidence. Name it in uncertainties.
         </p>
       ) : null}
-      {error ? <p className="text-sm text-bad">{error}</p> : null}
-      {notice ? <p className="text-sm text-accent">{notice}</p> : null}
+      <FormMessages error={error} notice={notice} />
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button
@@ -195,7 +212,7 @@ export function OpportunityForm({
           {pending === "submit" ? "Submitting…" : submitted ? "Already submitted" : "Submit opportunity"}
         </Button>
       </div>
-      <p className="text-xs text-muted">
+      <p className="text-xs leading-5 text-muted">
         Submissions stay private until every active member has submitted and selection opens.
         A submitted opportunity is not deleted.
       </p>
