@@ -1,4 +1,5 @@
 export const DEFAULT_GROUP_SIZE = 10;
+export const ADVISOR_MAX_CHARS = 1500;
 export const DEFAULT_MAX_PHOTO_BYTES = 800_000;
 export const DEFAULT_MAX_PHOTO_EDGE = 1280;
 export const JPEG_QUALITY = 0.72;

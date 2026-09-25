@@ -1,6 +1,6 @@
 import { upsertOpportunity, createEvidence, createAssumption, linkEvidence } from "@/lib/server/mutations";
 import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
-import { outboxAll, outboxDelete, outboxPut } from "./idb";
+import { getOfflineOwner, outboxAll, outboxDelete, outboxPut } from "./idb";
 import { emitConnectionChange, isEffectivelyOnline } from "./status";
 import type { OutboxItem } from "./idb";
 
@@ -19,7 +19,23 @@ export async function enqueue(type: OutboxItem["type"], payload: unknown, id?: s
   return item.id;
 }
 
-export async function processOutbox(): Promise<{ synced: number; failed: number }> {
+let running: Promise<{ synced: number; failed: number }> | null = null;
+
+/**
+ * Replay queued writes for the signed-in account. Serialised: two overlapping
+ * runs (a refresh racing an "online" event) would otherwise both dispatch the
+ * same item. Server writes are idempotent on clientId, but there is no reason
+ * to send them twice on a student's data bundle.
+ */
+export function processOutbox(): Promise<{ synced: number; failed: number }> {
+  running ??= runOutbox().finally(() => {
+    running = null;
+  });
+  return running;
+}
+
+async function runOutbox(): Promise<{ synced: number; failed: number }> {
+  if (!getOfflineOwner()) return { synced: 0, failed: 0 };
   if (!(await isEffectivelyOnline())) return { synced: 0, failed: 0 };
   const items = await outboxAll();
   let synced = 0;

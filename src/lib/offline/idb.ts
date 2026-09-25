@@ -1,5 +1,29 @@
-const DB_NAME = "evp-offline";
+const DB_PREFIX = "evp-offline";
 const DB_VERSION = 1;
+
+/**
+ * Offline data is partitioned per signed-in account: one IndexedDB database
+ * per auth user id. Phones are often shared between students — with a single
+ * shared store, student B signing in on A's phone would replay A's queued
+ * evidence under B's session, filing A's work as B's. Now B simply cannot
+ * see A's queue; it waits, intact, until A signs in again.
+ */
+let owner: string | null = null;
+const handles = new Map<string, Promise<IDBDatabase>>();
+
+export function setOfflineOwner(userId: string | null): void {
+  owner = userId;
+}
+
+export function getOfflineOwner(): string | null {
+  return owner;
+}
+
+function dbName(): string {
+  // Without a known account nothing may be read or queued — use a scratch
+  // store that sync never dispatches from (processOutbox requires an owner).
+  return owner ? `${DB_PREFIX}:${owner}` : `${DB_PREFIX}:anonymous`;
+}
 
 export type OutboxItem = {
   id: string;
@@ -12,8 +36,21 @@ export type OutboxItem = {
 };
 
 function openDb(): Promise<IDBDatabase> {
+  const name = dbName();
+  let handle = handles.get(name);
+  if (!handle) {
+    handle = openNamed(name).catch((err) => {
+      handles.delete(name);
+      throw err;
+    });
+    handles.set(name, handle);
+  }
+  return handle;
+}
+
+function openNamed(name: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDB.open(name, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv");
@@ -85,6 +122,15 @@ export async function blobPut(id: string, blob: Blob): Promise<void> {
 
 export async function blobGet(id: string): Promise<Blob | undefined> {
   return withStore("blobs", "readonly", (s) => s.get(id));
+}
+
+/** Small cached strings (e.g. evidence photo data URLs) keyed by id. */
+export async function cacheGet(id: string): Promise<string | undefined> {
+  return withStore<string | undefined>("blobs", "readonly", (s) => s.get(`c:${id}`));
+}
+
+export async function cachePut(id: string, value: string): Promise<void> {
+  await withStore("blobs", "readwrite", (s) => s.put(value, `c:${id}`));
 }
 
 export const SIMULATE_KEY = "simulateOffline";

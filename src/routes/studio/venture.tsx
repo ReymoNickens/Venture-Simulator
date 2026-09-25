@@ -5,6 +5,7 @@ import { AssumptionForm, LinkEvidenceForm } from "@/components/forms/AssumptionF
 import { EvidenceForm } from "@/components/forms/EvidenceForm";
 import { Badge, Card } from "@/components/ui/badge";
 import { DEFAULT_MAX_PHOTO_BYTES } from "@/lib/domain/config";
+import { EvidencePhoto } from "@/components/EvidencePhoto";
 
 export const Route = createFileRoute("/studio/venture")({ component: VenturePage });
 
@@ -58,10 +59,10 @@ function VenturePage() {
                 {ev.sourceType} · {ev.authorName}
                 {ev.syncState === "pending" ? " · saved locally" : ""}
               </p>
-              {ev.photoData ? (
-                <img
-                  src={ev.photoData}
-                  alt=""
+              {ev.hasPhoto ? (
+                <EvidencePhoto
+                  id={ev.id}
+                  localData={ev.photoData}
                   className="mt-2 max-h-40 rounded-[12px] border border-line"
                 />
               ) : null}

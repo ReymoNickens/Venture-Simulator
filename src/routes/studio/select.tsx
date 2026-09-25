@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
-import { recordPreference, createVenture } from "@/lib/server/mutations";
+import { recordPreference } from "@/lib/server/mutations";
+import { proposeVenture, voteOnProposal, withdrawProposal } from "@/lib/server/governance";
 import { AdvisorPanel } from "@/components/advisor/AdvisorPanel";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/input";
@@ -18,6 +19,7 @@ function SelectPage() {
   const [ventureName, setVentureName] = useState("");
   const [rationale, setRationale] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [voteComment, setVoteComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
 
@@ -60,35 +62,33 @@ function SelectPage() {
     }
   }
 
-  async function decide() {
-    const opportunityId = selectedId || data?.myPreference?.opportunityId;
-    if (!opportunityId) {
-      setError("Choose the opportunity the group is selecting.");
-      return;
-    }
-    setPending("venture");
+  async function act(kind: string, fn: () => Promise<unknown>) {
+    setPending(kind);
     setError(null);
     try {
-      await createVenture({
-        data: {
-          opportunityId,
-          name: ventureName,
-          selectionRationale: rationale,
-        },
-      });
+      await fn();
       await refresh();
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : typeof err === "object" && err && "message" in err
-            ? String((err as { message: unknown }).message)
-            : "Could not record the decision.";
-      setError(message);
+      setError(err instanceof Error ? err.message : "That did not work.");
     } finally {
       setPending(null);
     }
   }
+
+  function propose() {
+    const opportunityId = selectedId || data?.myPreference?.opportunityId;
+    if (!opportunityId) {
+      setError("Choose the opportunity you are proposing.");
+      return;
+    }
+    void act("propose", () =>
+      proposeVenture({ data: { opportunityId, name: ventureName, rationale } }),
+    );
+  }
+
+  const openProposal = data.proposals.find((p) => p.status === "open") ?? null;
+  const myVote = openProposal?.votes.find((v) => v.studentId === data.student?.id) ?? null;
+  const pastProposals = data.proposals.filter((p) => p.status !== "open");
 
   return (
     <div className="space-y-5">
@@ -181,13 +181,87 @@ function SelectPage() {
         </Card>
       ) : null}
 
-      {data.canRecordGroupDecision ? (
+      {openProposal && !data.venture ? (
         <Card className="space-y-3">
-          <h2 className="font-display text-xl">Group decision</h2>
+          <Badge tone="warn">Proposal on the table</Badge>
+          <h2 className="font-display text-xl">{openProposal.name}</h2>
           <p className="text-sm text-muted">
-            This records the group’s choice. It should not be silent. Write why this over the alternatives.
+            Proposed by {openProposal.proposedByName}. It becomes the group’s venture once{" "}
+            {openProposal.threshold} active members endorse it.
           </p>
-          <Field label="Selected opportunity">
+          <p className="text-sm leading-6">{openProposal.rationale}</p>
+          <ul className="space-y-1 text-sm">
+            {openProposal.votes.map((v) => (
+              <li key={v.studentId}>
+                <span className="font-medium">{v.studentName}</span>{" "}
+                <span className={v.vote === "endorse" ? "text-accent" : "text-bad"}>
+                  {v.vote === "endorse" ? "endorses" : "objects"}
+                </span>
+                {v.comment ? <span className="text-muted"> — {v.comment}</span> : null}
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted">
+            {openProposal.votes.filter((v) => v.vote === "endorse").length} of {openProposal.threshold}{" "}
+            endorsements needed.
+          </p>
+          <Field label={myVote ? "Change your vote (optional comment)" : "Your comment (required to object)"}>
+            <Textarea value={voteComment} onChange={(e) => setVoteComment(e.target.value)} />
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              disabled={Boolean(pending)}
+              onClick={() =>
+                void act("vote", () =>
+                  voteOnProposal({
+                    data: { proposalId: openProposal.id, vote: "endorse", comment: voteComment },
+                  }),
+                )
+              }
+            >
+              Endorse
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={Boolean(pending)}
+              onClick={() =>
+                void act("vote", () =>
+                  voteOnProposal({
+                    data: { proposalId: openProposal.id, vote: "object", comment: voteComment },
+                  }),
+                )
+              }
+            >
+              Object
+            </Button>
+            {openProposal.proposedByStudentId === data.student?.id ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={Boolean(pending)}
+                onClick={() =>
+                  void act("withdraw", () =>
+                    withdrawProposal({ data: { proposalId: openProposal.id } }),
+                  )
+                }
+              >
+                Withdraw
+              </Button>
+            ) : null}
+          </div>
+        </Card>
+      ) : null}
+
+      {data.canRecordGroupDecision && !openProposal ? (
+        <Card className="space-y-3">
+          <h2 className="font-display text-xl">Propose the group’s venture</h2>
+          <p className="text-sm text-muted">
+            One person proposes; the group decides. A majority of active members must endorse
+            before the venture exists. Objections, with reasons, stay on the record.
+          </p>
+          <Field label="Opportunity">
             <select
               className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
               value={selectedId || data.myPreference?.opportunityId || ""}
@@ -208,9 +282,25 @@ function SelectPage() {
             <Textarea value={rationale} onChange={(e) => setRationale(e.target.value)} />
             <Why text={WHY.rationale} />
           </Field>
-          <Button type="button" disabled={Boolean(pending)} onClick={() => void decide()}>
-            {pending === "venture" ? "Recording…" : "Record group decision"}
+          <Button type="button" disabled={Boolean(pending)} onClick={propose}>
+            {pending === "propose" ? "Proposing…" : "Put it to the group"}
           </Button>
+        </Card>
+      ) : null}
+
+      {pastProposals.length ? (
+        <Card className="space-y-2">
+          <h2 className="font-display text-lg">Earlier proposals</h2>
+          <ul className="space-y-1 text-sm">
+            {pastProposals.map((p) => (
+              <li key={p.id}>
+                <span className="font-medium">{p.name}</span>{" "}
+                <span className="text-muted">
+                  — {p.status} · proposed by {p.proposedByName}
+                </span>
+              </li>
+            ))}
+          </ul>
         </Card>
       ) : null}
 

@@ -2,7 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
-import type { AdvisorMetadata, AdvisorStage } from "@/lib/domain/types";
+import type { AdvisorMetadata, AdvisorStage, GroupStatus } from "@/lib/domain/types";
+import { canViewPeerOpportunities } from "@/lib/domain/state-machine";
+import { ADVISOR_MAX_CHARS } from "@/lib/domain/config";
 import { AppError, loadGroupForStudent, logEvent, requireStudent } from "./authz";
 
 const SYSTEM = `You are the AI advisor inside an experiential venture studio for university students in Ghana.
@@ -63,15 +65,21 @@ function parseAdvisor(raw: string): { message: string; metadata: AdvisorMetadata
   return { message: trimmed, metadata: {} };
 }
 
-async function assembleContext(groupId: string, stage: AdvisorStage): Promise<string> {
+async function assembleContext(
+  groupId: string,
+  studentId: string,
+  stage: AdvisorStage,
+): Promise<string> {
   const sql = await getSql();
   const group = await sql<{ status: string; group_name: string }>`
     select status, group_name from groups where id = ${groupId} limit 1
   `;
-  // The advisor's own curated context brief (never returned verbatim to the
-  // client) legitimately reasons about every submitted opportunity in the
-  // group — including peers' — even during opportunity_collection, before
-  // opportunities_select's privacy gate would otherwise allow it.
+  const status = (group[0]?.status ?? "forming") as GroupStatus;
+  // Peers' opportunities enter the brief only once the group itself could see
+  // them. Before selection opens the advisor sees the asking student's own
+  // opportunity and nothing else — otherwise "what did the others submit?"
+  // would leak ideas the privacy rule exists to protect.
+  const peersVisible = canViewPeerOpportunities(status);
   const opps = await withRlsBypass(
     () => sql<{
       problem: string;
@@ -86,7 +94,8 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
              o.current_alternatives, o.potential_customer, o.uncertainties
       from opportunities o
       join students s on s.id = o.student_id
-      where o.group_id = ${groupId} and o.status <> 'draft'
+      where o.group_id = ${groupId}
+        and (o.student_id = ${studentId} or (${peersVisible} and o.status <> 'draft'))
     `,
   );
   const venture = await sql<{ name: string; selection_rationale: string; opportunity_id: string }>`
@@ -123,6 +132,9 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
 
   return [
     `COURSE RULES: Students must back claims with evidence. The platform does not pick winners.`,
+    peersVisible
+      ? ""
+      : `PRIVACY: Selection has not opened. Only the asking student's own opportunity is shown. Never describe, hint at, or confirm what other members submitted — say it stays private until selection opens.`,
     `STAGE: ${stage}. Group status: ${group[0]?.status ?? "unknown"}. Group: ${group[0]?.group_name ?? ""}.`,
     opps.length
       ? `OPPORTUNITIES:\n${opps
@@ -144,7 +156,46 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
     assumptions.length
       ? `ASSUMPTIONS:\n${assumptions.map((a) => `- [${a.importance}/${a.confidence}] ${a.statement}`).join("\n")}`
       : "ASSUMPTIONS: none.",
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * Per-student and per-group daily caps. Thousands of students share one API
+ * budget; without these one enthusiastic (or scripted) account can drain it
+ * for everyone. Counted from the stored conversation itself, so there is no
+ * separate counter to drift.
+ */
+async function assertAdvisorQuota(studentId: string, groupId: string): Promise<void> {
+  const sql = await getSql();
+  const limits = await sql<{ ai_daily_student_limit: number; ai_daily_group_limit: number }>`
+    select o.ai_daily_student_limit, o.ai_daily_group_limit
+    from groups g join course_offerings o on o.id = g.course_offering_id
+    where g.id = ${groupId} limit 1
+  `;
+  const perStudent = Number(limits[0]?.ai_daily_student_limit ?? 25);
+  const perGroup = Number(limits[0]?.ai_daily_group_limit ?? 120);
+  const counts = await sql<{ mine: number; ours: number }>`
+    select
+      count(*) filter (where student_id = ${studentId})::int as mine,
+      count(*)::int as ours
+    from ai_advisor_messages
+    where group_id = ${groupId} and role = 'student'
+      and created_at >= date_trunc('day', now())
+  `;
+  if (Number(counts[0]?.mine ?? 0) >= perStudent) {
+    throw new AppError(
+      "AI_LIMIT",
+      `You have used today's ${perStudent} advisor questions. Go and collect evidence — the advisor resets tomorrow.`,
+    );
+  }
+  if (Number(counts[0]?.ours ?? 0) >= perGroup) {
+    throw new AppError(
+      "AI_LIMIT",
+      "Your group has used today's advisor allowance. Compare notes with your teammates and try again tomorrow.",
+    );
+  }
 }
 
 export const sendAdvisorMessage = createServerFn({ method: "POST" })
@@ -160,8 +211,15 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
     if (!group) throw new AppError("NO_GROUP", "Join a group first.");
     const content = data.content.trim();
     if (!content) throw new AppError("INVALID", "Write something to the advisor.");
+    if (content.length > ADVISOR_MAX_CHARS) {
+      throw new AppError(
+        "INVALID",
+        `Keep it under ${ADVISOR_MAX_CHARS} characters — ask one question at a time.`,
+      );
+    }
 
     const sql = await getSql();
+    await assertAdvisorQuota(student.id, group.id);
     let sessionId = data.sessionId;
     if (sessionId) {
       const found = await sql<{ id: string; group_id: string }>`
@@ -207,7 +265,7 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
       where session_id = ${sessionId}
       order by created_at asc
     `;
-    const brief = await assembleContext(group.id, data.stage);
+    const brief = await assembleContext(group.id, student.id, data.stage);
     const messages = [
       { role: "system", content: SYSTEM },
       { role: "user", content: `CONTEXT FOR THIS TURN:\n${brief}` },
@@ -223,6 +281,7 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
+      signal: AbortSignal.timeout(30_000),
       body: JSON.stringify({
         model: "grok-4.5",
         messages,

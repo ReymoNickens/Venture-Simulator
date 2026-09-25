@@ -57,31 +57,25 @@ export async function requireStudent(userId: string): Promise<Student> {
   return student;
 }
 
-export async function loadOfferingForStudent(studentId: string): Promise<CourseOffering | null> {
-  const sql = await getSql();
-  const rows = await sql<{
-    id: string;
-    course_id: string;
-    semester: string;
-    academic_year: string;
-    default_group_size: number;
-    selection_requires_all_active: boolean | string;
-    max_photo_bytes: number;
-    course_code: string;
-    course_name: string;
-  }>`
-    select o.id, o.course_id, o.semester, o.academic_year, o.default_group_size,
-           o.selection_requires_all_active, o.max_photo_bytes,
-           c.course_code, c.course_name
-    from course_enrolments e
-    join course_offerings o on o.id = e.course_offering_id
-    join courses c on c.id = o.course_id
-    where e.student_id = ${studentId} and e.status = 'active'
-    order by e.created_at desc
-    limit 1
-  `;
-  const row = rows[0];
-  if (!row) return null;
+export type OfferingRow = {
+  id: string;
+  course_id: string;
+  semester: string;
+  academic_year: string;
+  default_group_size: number;
+  selection_requires_all_active: boolean | string;
+  max_photo_bytes: number;
+  decision_quorum_pct: number;
+  ai_daily_student_limit: number;
+  course_code: string;
+  course_name: string;
+};
+
+export const OFFERING_COLUMNS = `o.id, o.course_id, o.semester, o.academic_year, o.default_group_size,
+  o.selection_requires_all_active, o.max_photo_bytes, o.decision_quorum_pct,
+  o.ai_daily_student_limit, c.course_code, c.course_name`;
+
+export function mapOffering(row: OfferingRow): CourseOffering {
   return {
     id: row.id,
     courseId: row.course_id,
@@ -91,9 +85,26 @@ export async function loadOfferingForStudent(studentId: string): Promise<CourseO
     selectionRequiresAllActive:
       row.selection_requires_all_active === true || row.selection_requires_all_active === "t",
     maxPhotoBytes: Number(row.max_photo_bytes),
+    decisionQuorumPct: Number(row.decision_quorum_pct ?? 51),
+    aiDailyStudentLimit: Number(row.ai_daily_student_limit ?? 25),
     courseCode: row.course_code,
     courseName: row.course_name,
   };
+}
+
+export async function loadOfferingForStudent(studentId: string): Promise<CourseOffering | null> {
+  const sql = await getSql();
+  const rows = await sql.query<OfferingRow>(
+    `select ${OFFERING_COLUMNS}
+     from course_enrolments e
+     join course_offerings o on o.id = e.course_offering_id
+     join courses c on c.id = o.course_id
+     where e.student_id = $1 and e.status = 'active'
+     order by e.created_at desc
+     limit 1`,
+    [studentId],
+  );
+  return rows[0] ? mapOffering(rows[0]) : null;
 }
 
 export async function loadGroupForStudent(studentId: string): Promise<Group | null> {

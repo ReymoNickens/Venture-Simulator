@@ -95,3 +95,34 @@ export function journeyState(input: {
     input.assumptionCount > 0 ? "done" : input.evidenceCount > 0 ? "current" : "todo";
   return result;
 }
+
+/**
+ * How many active members must endorse a venture proposal. At least one, never
+ * more than everyone. `quorumPct` 51 means "more than half".
+ */
+export function decisionThreshold(activeMembers: number, quorumPct: number): number {
+  const n = Math.max(0, activeMembers);
+  if (n === 0) return 1;
+  const pct = Math.min(100, Math.max(1, quorumPct));
+  return Math.min(n, Math.max(1, Math.ceil((n * pct) / 100)));
+}
+
+export type ProposalOutcome = "open" | "ratified" | "rejected";
+
+/**
+ * A proposal is ratified once enough members endorse it, and rejected as soon
+ * as the objections make that arithmetically impossible — so a group is never
+ * left waiting on a vote that cannot pass.
+ */
+export function evaluateProposal(input: {
+  activeMembers: number;
+  endorsements: number;
+  objections: number;
+  quorumPct: number;
+}): ProposalOutcome {
+  const needed = decisionThreshold(input.activeMembers, input.quorumPct);
+  if (input.endorsements >= needed) return "ratified";
+  const undecided = Math.max(0, input.activeMembers - input.endorsements - input.objections);
+  if (input.endorsements + undecided < needed) return "rejected";
+  return "open";
+}

@@ -5,7 +5,7 @@ export type GroupStatus =
   | "selection"
   | "venture_created";
 
-export type MembershipStatus = "active" | "left";
+export type MembershipStatus = "active" | "left" | "inactive";
 
 export type OpportunityStatus = "draft" | "submitted" | "rejected" | "selected";
 
@@ -75,6 +75,8 @@ export interface CourseOffering {
   defaultGroupSize: number;
   selectionRequiresAllActive: boolean;
   maxPhotoBytes: number;
+  decisionQuorumPct: number;
+  aiDailyStudentLimit: number;
   courseCode: string;
   courseName: string;
 }
@@ -97,6 +99,7 @@ export interface GroupMember {
   groupId: string;
   studentId: string;
   membershipStatus: MembershipStatus;
+  statusReason: string | null;
   joinedAt: string;
   fullName: string;
   isSynthetic: boolean;
@@ -136,6 +139,29 @@ export interface OpportunityPreference {
   studentName: string;
 }
 
+export type ProposalStatus = "open" | "ratified" | "rejected" | "withdrawn";
+
+export interface ProposalVote {
+  studentId: string;
+  studentName: string;
+  vote: "endorse" | "object";
+  comment: string;
+  createdAt: string;
+}
+
+export interface VentureProposal {
+  id: string;
+  opportunityId: string;
+  proposedByStudentId: string;
+  proposedByName: string;
+  name: string;
+  rationale: string;
+  status: ProposalStatus;
+  createdAt: string;
+  votes: ProposalVote[];
+  threshold: number;
+}
+
 export interface Venture {
   id: string;
   groupId: string;
@@ -155,8 +181,10 @@ export interface EvidenceItem {
   content: string;
   sourceType: EvidenceSourceType;
   classification: EvidenceClassification;
+  /** Only set for items still in the offline outbox; synced photos load lazily. */
   photoData: string | null;
   photoMime: string | null;
+  hasPhoto: boolean;
   observedAt: string | null;
   locationContext: string | null;
   createdAt: string;
@@ -259,6 +287,7 @@ export interface WorkspaceSnapshot {
   activity: ActivityEvent[];
   submissionProgress: { submitted: number; required: number };
   preferenceProgress: { recorded: number; required: number };
+  proposals: VentureProposal[];
   canOpenSelection: boolean;
   canRecordGroupDecision: boolean;
   aiAvailable: boolean;

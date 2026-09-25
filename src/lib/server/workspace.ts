@@ -14,9 +14,18 @@ import type {
   Opportunity,
   OpportunityPreference,
   Venture,
+  VentureProposal,
   WorkspaceSnapshot,
 } from "@/lib/domain/types";
-import { loadOfferingForStudent, loadStudent, loadGroupForStudent } from "./authz";
+import { decisionThreshold } from "@/lib/domain/state-machine";
+import {
+  loadOfferingForStudent,
+  loadStudent,
+  loadGroupForStudent,
+  mapOffering,
+  OFFERING_COLUMNS,
+  type OfferingRow,
+} from "./authz";
 
 function parseMeta(raw: string | null): Record<string, string | number | boolean | null> | null {
   if (!raw) return null;
@@ -49,6 +58,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       activity: [],
       submissionProgress: { submitted: 0, required: 0 },
       preferenceProgress: { recorded: 0, required: 0 },
+      proposals: [],
       canOpenSelection: false,
       canRecordGroupDecision: false,
       aiAvailable: Boolean(process.env.XAI_API_KEY),
@@ -65,11 +75,12 @@ export const getWorkspace = createServerFn({ method: "GET" })
       group_id: string;
       student_id: string;
       membership_status: string;
+      status_reason: string | null;
       joined_at: unknown;
       full_name: string;
       is_synthetic: boolean | string;
     }>`
-      select gm.id, gm.group_id, gm.student_id, gm.membership_status, gm.joined_at,
+      select gm.id, gm.group_id, gm.student_id, gm.membership_status, gm.status_reason, gm.joined_at,
              s.full_name, s.is_synthetic
       from group_members gm
       join students s on s.id = gm.student_id
@@ -191,6 +202,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       groupId: row.group_id,
       studentId: row.student_id,
       membershipStatus: row.membership_status as GroupMember["membershipStatus"],
+      statusReason: row.status_reason,
       joinedAt: String(row.joined_at ?? ""),
       fullName: row.full_name,
       isSynthetic: row.is_synthetic === true || row.is_synthetic === "t",
@@ -237,15 +249,18 @@ export const getWorkspace = createServerFn({ method: "GET" })
         content: string;
         source_type: string;
         classification: string;
-        photo_data: string | null;
         photo_mime: string | null;
+        has_photo: boolean;
         observed_at: string | null;
         location_context: string | null;
         created_at: unknown;
         updated_at: unknown;
         author_name: string;
       }>`
-        select e.*, s.full_name as author_name
+        select e.id, e.venture_id, e.student_id, e.title, e.content, e.source_type,
+               e.classification, e.photo_mime, (e.photo_data is not null) as has_photo,
+               e.observed_at, e.location_context, e.created_at, e.updated_at,
+               s.full_name as author_name
         from evidence_items e
         join students s on s.id = e.student_id
         where e.venture_id = ${venture.id}
@@ -259,8 +274,9 @@ export const getWorkspace = createServerFn({ method: "GET" })
         content: row.content,
         sourceType: row.source_type as EvidenceItem["sourceType"],
         classification: row.classification as EvidenceItem["classification"],
-        photoData: row.photo_data,
+        photoData: null,
         photoMime: row.photo_mime,
+        hasPhoto: Boolean(row.has_photo),
         observedAt: row.observed_at,
         locationContext: row.location_context,
         createdAt: String(row.created_at ?? ""),
@@ -391,6 +407,62 @@ export const getWorkspace = createServerFn({ method: "GET" })
       limit 40
     `;
 
+    const proposalRows = await sql<{
+      id: string;
+      opportunity_id: string;
+      proposed_by_student_id: string;
+      proposer_name: string;
+      name: string;
+      rationale: string;
+      status: string;
+      created_at: unknown;
+    }>`
+      select p.id, p.opportunity_id, p.proposed_by_student_id, s.full_name as proposer_name,
+             p.name, p.rationale, p.status, p.created_at
+      from venture_proposals p
+      join students s on s.id = p.proposed_by_student_id
+      where p.group_id = ${group.id}
+      order by p.created_at desc
+    `;
+    const voteRows = proposalRows.length
+      ? await sql<{
+          proposal_id: string;
+          student_id: string;
+          student_name: string;
+          vote: string;
+          comment: string;
+          created_at: unknown;
+        }>`
+          select v.proposal_id, v.student_id, s.full_name as student_name, v.vote, v.comment, v.created_at
+          from proposal_votes v
+          join students s on s.id = v.student_id
+          join venture_proposals p on p.id = v.proposal_id
+          where p.group_id = ${group.id}
+          order by v.created_at asc
+        `
+      : [];
+    const quorumPct = offering?.decisionQuorumPct ?? 51;
+    const proposals: VentureProposal[] = proposalRows.map((p) => ({
+      id: p.id,
+      opportunityId: p.opportunity_id,
+      proposedByStudentId: p.proposed_by_student_id,
+      proposedByName: p.proposer_name,
+      name: p.name,
+      rationale: p.rationale,
+      status: p.status as VentureProposal["status"],
+      createdAt: String(p.created_at ?? ""),
+      threshold: decisionThreshold(activeMembers.length, quorumPct),
+      votes: voteRows
+        .filter((v) => v.proposal_id === p.id)
+        .map((v) => ({
+          studentId: v.student_id,
+          studentName: v.student_name,
+          vote: v.vote as "endorse" | "object",
+          comment: v.comment,
+          createdAt: String(v.created_at ?? ""),
+        })),
+    }));
+
     const required = activeMembers.length;
     const canOpenSelection =
       group.status === "selection_ready" ||
@@ -430,6 +502,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       })),
       submissionProgress: { submitted, required },
       preferenceProgress: { recorded, required },
+      proposals,
       canOpenSelection,
       canRecordGroupDecision,
       aiAvailable: Boolean(process.env.XAI_API_KEY),
@@ -440,35 +513,11 @@ export const listOfferings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async (): Promise<CourseOffering[]> => {
     const sql = await getSql();
-    const rows = await sql<{
-      id: string;
-      course_id: string;
-      semester: string;
-      academic_year: string;
-      default_group_size: number;
-      selection_requires_all_active: boolean | string;
-      max_photo_bytes: number;
-      course_code: string;
-      course_name: string;
-    }>`
-      select o.id, o.course_id, o.semester, o.academic_year, o.default_group_size,
-             o.selection_requires_all_active, o.max_photo_bytes,
-             c.course_code, c.course_name
-      from course_offerings o
-      join courses c on c.id = o.course_id
-      order by o.academic_year desc
-    `;
-    return rows.map((row) => ({
-      id: row.id,
-      courseId: row.course_id,
-      semester: row.semester,
-      academicYear: row.academic_year,
-      defaultGroupSize: Number(row.default_group_size),
-      selectionRequiresAllActive:
-        row.selection_requires_all_active === true ||
-        row.selection_requires_all_active === "t",
-      maxPhotoBytes: Number(row.max_photo_bytes),
-      courseCode: row.course_code,
-      courseName: row.course_name,
-    }));
+    const rows = await sql.query<OfferingRow>(
+      `select ${OFFERING_COLUMNS}
+       from course_offerings o
+       join courses c on c.id = o.course_id
+       order by o.academic_year desc`,
+    );
+    return rows.map(mapOffering);
   });

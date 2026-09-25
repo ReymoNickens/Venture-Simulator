@@ -5,6 +5,8 @@ import {
   evaluateGroupStatus,
   opportunityVisibleToPeer,
   journeyState,
+  decisionThreshold,
+  evaluateProposal,
 } from "./state-machine.ts";
 
 describe("evaluateGroupStatus", () => {
@@ -98,5 +100,47 @@ describe("journeyState", () => {
     });
     assert.equal(j.group, "current");
     assert.equal(j.opportunity, "todo");
+  });
+});
+
+describe("decisionThreshold", () => {
+  it("needs more than half by default", () => {
+    assert.equal(decisionThreshold(10, 51), 6);
+    assert.equal(decisionThreshold(9, 51), 5);
+    assert.equal(decisionThreshold(3, 51), 2);
+    assert.equal(decisionThreshold(2, 51), 2);
+  });
+  it("is never zero and never more than the group", () => {
+    assert.equal(decisionThreshold(1, 51), 1);
+    assert.equal(decisionThreshold(0, 51), 1);
+    assert.equal(decisionThreshold(4, 100), 4);
+    assert.equal(decisionThreshold(4, 500), 4);
+  });
+});
+
+describe("evaluateProposal", () => {
+  it("ratifies once endorsements reach the threshold", () => {
+    assert.equal(
+      evaluateProposal({ activeMembers: 10, endorsements: 6, objections: 4, quorumPct: 51 }),
+      "ratified",
+    );
+  });
+  it("stays open while it can still pass", () => {
+    assert.equal(
+      evaluateProposal({ activeMembers: 10, endorsements: 3, objections: 4, quorumPct: 51 }),
+      "open",
+    );
+  });
+  it("rejects as soon as passing is impossible", () => {
+    assert.equal(
+      evaluateProposal({ activeMembers: 10, endorsements: 1, objections: 5, quorumPct: 51 }),
+      "rejected",
+    );
+  });
+  it("a single proposer cannot decide for a group of ten", () => {
+    assert.equal(
+      evaluateProposal({ activeMembers: 10, endorsements: 1, objections: 0, quorumPct: 51 }),
+      "open",
+    );
   });
 });

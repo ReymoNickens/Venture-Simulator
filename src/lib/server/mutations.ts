@@ -6,7 +6,6 @@ import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
 import { DEFAULT_GROUP_SIZE, DEFAULT_MAX_PHOTO_BYTES } from "@/lib/domain/config";
 import {
   AppError,
-  assertGroupMember,
   loadGroupForStudent,
   loadOfferingForStudent,
   loadStudent,
@@ -349,90 +348,6 @@ export const recordPreference = createServerFn({ method: "POST" })
     return { id };
   });
 
-export const createVenture = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .validator((input: { opportunityId: string; name: string; selectionRationale: string }) => input)
-  .handler(async ({ context, data }) => {
-    const student = await requireStudent(context.userId);
-    const group = await loadGroupForStudent(student.id);
-    if (!group) throw new AppError("NO_GROUP", "Join a group first.");
-    await assertGroupMember(student.id, group.id);
-    if (!["selection_ready", "selection"].includes(group.status)) {
-      throw new AppError("CLOSED", "The group is not in selection.");
-    }
-    const rationale = data.selectionRationale.trim();
-    if (rationale.length < 40) {
-      throw new AppError(
-        "INVALID",
-        "The selection rationale must explain why this opportunity rather than the alternatives.",
-      );
-    }
-    const sql = await getSql();
-    const already = await sql<{ id: string }>`select id from ventures where group_id = ${group.id} limit 1`;
-    if (already[0]) throw new AppError("EXISTS", "This group already has a venture.");
-
-    const memberCount = await sql<{ n: number }>`
-      select count(*)::int as n from group_members
-      where group_id = ${group.id} and membership_status = 'active'
-    `;
-    const prefCount = await sql<{ n: number }>`
-      select count(distinct p.student_id)::int as n
-      from opportunity_preferences p
-      where exists (
-        select 1 from opportunities o
-        where o.id = p.opportunity_id and o.group_id = ${group.id}
-      )
-    `;
-    if (Number(prefCount[0]?.n ?? 0) < Number(memberCount[0]?.n ?? 0)) {
-      throw new AppError("PREFERENCES", "Every active member must record a preference first.");
-    }
-    const opp = await sql<{ id: string; problem: string }>`
-      select id, problem from opportunities
-      where id = ${data.opportunityId} and group_id = ${group.id} and status <> 'draft'
-      limit 1
-    `;
-    if (!opp[0]) throw new AppError("NOT_FOUND", "That opportunity cannot be selected.");
-
-    const ventureId = newId();
-    const name = data.name.trim() || opp[0].problem.slice(0, 80);
-    await sql`
-      insert into ventures (id, group_id, opportunity_id, name, status, selection_rationale)
-      values (${ventureId}, ${group.id}, ${opp[0].id}, ${name}, 'active', ${rationale})
-    `;
-    // The group's decision, already fully validated above (preferences
-    // complete, rationale given, group in selection), transitions every
-    // member's opportunity — opportunities_write only allows writing your own
-    // row, so recording rejection of the alternatives needs the escape hatch.
-    await withRlsBypass(async () => {
-      await sql`
-        update opportunities set status = 'selected', updated_at = now()
-        where id = ${opp[0].id}
-      `;
-      await sql`
-        update opportunities set status = 'rejected', updated_at = now()
-        where group_id = ${group.id} and id <> ${opp[0].id} and status = 'submitted'
-      `;
-    });
-    await sql`update groups set status = 'venture_created', updated_at = now() where id = ${group.id}`;
-    await logEvent({
-      studentId: student.id,
-      groupId: group.id,
-      ventureId,
-      eventType: "VENTURE_CREATED",
-      entityType: "venture",
-      entityId: ventureId,
-    });
-    await logEvent({
-      studentId: student.id,
-      groupId: group.id,
-      ventureId,
-      eventType: "OPPORTUNITY_SELECTED",
-      entityType: "opportunity",
-      entityId: opp[0].id,
-    });
-    return { ventureId };
-  });
-
 export const createEvidence = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: {
@@ -457,8 +372,14 @@ export const createEvidence = createServerFn({ method: "POST" })
     if (!title) throw new AppError("INVALID", "Give this evidence a short title.");
     const offering = await loadOfferingForStudent(student.id);
     const maxBytes = offering?.maxPhotoBytes ?? DEFAULT_MAX_PHOTO_BYTES;
-    if (data.photoData && data.photoData.length > maxBytes * 1.4) {
-      throw new AppError("PHOTO", "The photo is too large. Compress it and try again.");
+    if (data.photoData) {
+      // Base64 inflates by 4/3; allow a little header slack on top.
+      if (data.photoData.length > maxBytes * 1.4) {
+        throw new AppError("PHOTO", "The photo is too large. Compress it and try again.");
+      }
+      if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(data.photoData)) {
+        throw new AppError("PHOTO", "Only JPEG, PNG or WebP photos can be attached.");
+      }
     }
     const id = data.clientId || newId();
     const existing = await sql<{ id: string }>`select id from evidence_items where id = ${id} limit 1`;
