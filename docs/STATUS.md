@@ -21,7 +21,10 @@ _Paused 25 September 2026 on branch `claude/gifted-euler-jn2g54`, which continue
   share files. The card shows crew totals only: no names, no rankings. Today
   offers last week's card until it has been opened, and has a "See your week"
   link under the team feed.
-- Checks: typecheck, lint (2 old warnings), 111 tests and the build all pass.
+- Sign-in: students activate a roster row (email + index number) and then
+  sign in with either; lecturers create an account with STAFF_ACCESS_CODE.
+  See README "Sign-in". No Grok code or services remain.
+- Checks: typecheck, lint (2 old warnings), tests and the build all pass.
   Student and lecturer walkthroughs in a browser showed no errors.
 
 ## Ideas not started yet
@@ -35,7 +38,8 @@ _Paused 25 September 2026 on branch `claude/gifted-euler-jn2g54`, which continue
 
 - Pilot with one lecturer and a few groups, and track the measures listed in
   `docs/UX-AUDIT.md`.
-- Set the production settings: database connection, sign-in secret, staff
-  access code and advisor API key (see `README.md`).
+- Set the production settings: database connection, BETTER_AUTH_URL and
+  secret, staff access code and ANTHROPIC_API_KEY (see `README.md`), and load
+  the student roster with `scripts/roster-import.mjs`.
 - Decide whether to keep the name "Experiential Venture Platform"
   (the `VITE_APP_NAME` setting).

@@ -154,7 +154,7 @@ function Join({ status, onDone }: { status: Status; onDone: () => void }) {
         {known ? null : (
           <Field
             label="Staff code"
-            hint={status.previewCodeHint ? `Preview only: the demo code is ${status.previewCodeHint}.` : undefined}
+            hint={status.previewCodeHint ? `Demo database only: the code is ${status.previewCodeHint}.` : undefined}
           >
             <Input value={code} onChange={(e) => setCode(e.target.value)} className="font-mono" />
           </Field>

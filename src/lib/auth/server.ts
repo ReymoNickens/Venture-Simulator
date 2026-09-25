@@ -13,16 +13,14 @@
  * `databaseHooks.user.create` below and `client.ts`'s `signIn`/`activateAccount`.
  *
  * Modes:
- *   - Deployed: set `BETTER_AUTH_URL` + `DATABASE_URL` (+ `BETTER_AUTH_SECRET`).
- *   - Sandbox live preview: no fixed URL (each preview gets a dynamic
- *     `https://*.grok-sandbox.com` host), so Better Auth derives the origin
- *     per-request (see `baseURL` below). Sessions persist in the embedded
- *     PGLite DB (same DB as app data); a process restart wipes both.
- *     Live-preview iframe clients use a bearer token (partitioned cookies) —
- *     see `client.ts`.
- *   - Off (`VITE_AUTH_ENABLED=false`, the shipped default): no providers;
- *     `requireUserId` resolves a dev user with no database configured, and
- *     throws fail-closed once `DATABASE_URL` is set (see `verify.server.ts`).
+ *   - Deployed: set `BETTER_AUTH_URL` + `DATABASE_URL` + `BETTER_AUTH_SECRET`.
+ *   - Local (`npm run dev` / `npm run preview`): no fixed URL needed; Better
+ *     Auth derives the origin from the loopback host (see `baseURL` below).
+ *     Sessions persist in the embedded PGLite DB (same DB as app data); a
+ *     process restart wipes both.
+ *   - Off (`VITE_AUTH_ENABLED=false`): no sign-in; `requireUserId` resolves a
+ *     dev user with no database configured, and throws fail-closed once
+ *     `DATABASE_URL` is set (see `verify.server.ts`).
  *
  * NEVER import this from client code — it pulls in `pg` + server-only Better
  * Auth internals. The client uses `@/lib/auth/client`; components read the
@@ -30,9 +28,8 @@
  * via `@/lib/auth/middleware`.
  */
 import { betterAuth } from "better-auth";
-import { bearer, username } from "better-auth/plugins";
+import { username } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
-import { getCookie } from "@tanstack/react-start/server";
 import { APIError } from "better-auth/api";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
@@ -40,25 +37,23 @@ import { ensureDbReady, getPglite, getSql, withRlsBypass } from "../db";
 import { newId } from "../utils";
 import { expectedStaffCode, staffCodeMatches } from "../server/staff-code";
 import { emailAndPasswordEnabled } from "./email-password";
-import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
 import { pgliteDialect } from "./pglite-dialect";
-import { PREVIEW_ALLOWED_HOSTS } from "./preview";
 
 // Kick (and share) PGLite bootstrap as soon as the auth server module loads.
 void ensureDbReady();
 
 /**
- * Preview secret must outlive module reloads: PGLite (and its session rows) is
+ * Local secret must outlive module reloads: PGLite (and its session rows) is
  * stored on `globalThis`, so an HMR re-eval of this file must NOT mint a new
  * signing secret or every existing session becomes invalid mid-dev. Process
  * restart clears both the secret and PGLite together.
  */
 const globalAuthRef = globalThis as typeof globalThis & {
-  __grokAuthPreviewSecret__?: string;
+  __localAuthSecret__?: string;
 };
-function previewAuthSecret(): string {
-  globalAuthRef.__grokAuthPreviewSecret__ ??= randomBytes(32).toString("hex");
-  return globalAuthRef.__grokAuthPreviewSecret__;
+function localAuthSecret(): string {
+  globalAuthRef.__localAuthSecret__ ??= randomBytes(32).toString("hex");
+  return globalAuthRef.__localAuthSecret__;
 }
 
 /** Read an env var, treating empty/whitespace as unset. */
@@ -73,15 +68,10 @@ const authDisabled = env("VITE_AUTH_ENABLED") === "false";
 /** True when real auth (email/index-number + password) is enforced. */
 export const authConfigured = !authDisabled;
 
-// This app's own Better Auth origin. Set `BETTER_AUTH_URL` when deployed. In the
-// sandbox live preview there's no fixed URL (each preview gets a dynamic
-// `*.grok-sandbox.com` host), so we hand Better Auth a dynamic baseURL: it
-// derives the origin per-request from the (proxied) host, validated against the
-// preview allowlist.
+// This app's own Better Auth origin. Set `BETTER_AUTH_URL` when deployed.
+// Locally there's no fixed URL, so Better Auth derives the origin per-request
+// from the host, validated against the loopback hosts below.
 const explicitBaseURL = env("BETTER_AUTH_URL");
-// Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
-// requires a mutable `allowedHosts: string[]`.
-const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
 // Local `npm run dev` (port 8080) and `npm run preview` (port 8081, the local
 // production build); both ports are fixed in vite.config.ts. Browsers may send
 // Origin as any of these for the same server — trusting only `localhost`
@@ -92,12 +82,8 @@ const LOCAL_DEV_ORIGINS: string[] = ["8080", "8081"].flatMap((port) => [
   `http://[::1]:${port}`,
 ]);
 const baseURL = explicitBaseURL ?? {
-  // Include loopback hosts so dynamic baseURL resolves for local email/password
-  // (not only the preview wildcard).
-  allowedHosts: [...previewAllowedHosts, "localhost", "127.0.0.1", "[::1]"],
-  // `auto` → trust both http:// and https:// expansions of allowedHosts
-  // (preview is https; local dev is http).
-  protocol: "auto" as const,
+  allowedHosts: ["localhost", "127.0.0.1", "[::1]"],
+  protocol: "http" as const,
   fallback: "http://localhost:8080",
 };
 
@@ -105,27 +91,20 @@ const baseURL = explicitBaseURL ?? {
 // Missing entries here surface as FORBIDDEN "Invalid origin".
 const trustedOrigins: string[] = explicitBaseURL
   ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
-  : [
-      // Host wildcards (matched against Origin's host)
-      ...previewAllowedHosts,
-      // Full-origin wildcards (matched against Origin)
-      ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
-      ...LOCAL_DEV_ORIGINS,
-    ];
+  : LOCAL_DEV_ORIGINS;
 
 const databaseUrl = env("DATABASE_URL");
 
 // Real Postgres when `DATABASE_URL` is set (deployed apps), else the app's
-// embedded PGLite (preview) via a Kysely dialect — so Better Auth persists to the
-// SAME DB as app data, including email/password users. Both use the Better Auth
-// schema from `migrations/auth/0001_auth.sql`, copied into `migrations/` when
-// the app turns sign-in on.
+// embedded PGLite (local) via a Kysely dialect — so Better Auth persists to the
+// SAME DB as app data. Both use the Better Auth schema in
+// `migrations/0001_auth.sql`.
 const database = databaseUrl
   ? new Pool({ connectionString: databaseUrl })
   : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
 
-/** Session token cookie name. */
-export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
+/** Prefix for this app's auth cookie names. */
+const COOKIE_PREFIX = "__Host-evp-auth";
 
 type RosterMatch = { id: string; full_name: string };
 
@@ -140,22 +119,15 @@ type CreatingUser = { email?: string; username?: string } & Record<string, unkno
 
 export const auth = betterAuth({
   baseURL,
-  // Deployed apps inject BETTER_AUTH_SECRET. Preview: process-stable secret on
+  // Deployed apps set BETTER_AUTH_SECRET. Locally: a process-stable secret on
   // globalThis so HMR doesn't invalidate PGLite-backed sessions (see above).
-  secret: env("BETTER_AUTH_SECRET") ?? previewAuthSecret(),
+  secret: env("BETTER_AUTH_SECRET") ?? localAuthSecret(),
   database,
 
   // CSRF / origin check for credentialed auth POSTs (email sign-up/sign-in, …).
-  // See `trustedOrigins` construction above — must cover live preview hosts AND
+  // See `trustedOrigins` construction above — must cover the deployed URL AND
   // local loopback variants, or clients get "Invalid origin".
   trustedOrigins,
-
-  account: {
-    accountLinking: {
-      enabled: true,
-      trustedProviders: [GATE_PROVIDER_ID],
-    },
-  },
 
   // Enforces "no self-serve sign-up". A `/sign-up/email` call succeeds only:
   //  - for a student, when it matches an UNCLAIMED roster row an instructor
@@ -239,8 +211,8 @@ export const auth = betterAuth({
   ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
 
   // `__Host-` prefixed cookies: the browser REFUSES any same-named cookie that
-  // carries a `Domain` attribute, so a sibling `*.grok.me` app cannot "toss" a
-  // `Domain=.grok.me` session cookie onto this app. `__Host-` requires Secure +
+  // carries a `Domain` attribute, so a sibling subdomain cannot "toss" a
+  // parent-domain session cookie onto this app. `__Host-` requires Secure +
   // Path=/ + no Domain; Better Auth otherwise uses `__Secure-` (which permits
   // Domain), so we drop its auto prefix (`useSecureCookies: false`) and set
   // Secure + the names ourselves. (Browsers allow Secure cookies on
@@ -249,16 +221,14 @@ export const auth = betterAuth({
     useSecureCookies: false,
     defaultCookieAttributes: { secure: true, sameSite: "lax", path: "/" },
     cookies: {
-      session_token: { name: SESSION_TOKEN_COOKIE },
-      session_data: { name: "__Host-grok-auth.session_data" },
-      account_data: { name: "__Host-grok-auth.account_data" },
-      dont_remember: { name: "__Host-grok-auth.dont_remember" },
+      session_token: { name: `${COOKIE_PREFIX}.session_token` },
+      session_data: { name: `${COOKIE_PREFIX}.session_data` },
+      account_data: { name: `${COOKIE_PREFIX}.account_data` },
+      dont_remember: { name: `${COOKIE_PREFIX}.dont_remember` },
     },
   },
 
   plugins: [
-    gateIdentitySessions(),
-
     // Index number doubles as the Better Auth "username", so sign-in accepts
     // either identifier (see `client.ts`'s `signIn`). Normalized/validated the
     // same way `upsertProfile` treats an index number: trimmed, uppercased, any
@@ -270,20 +240,9 @@ export const auth = betterAuth({
       usernameNormalization: (value) => value.trim().toUpperCase(),
     }),
 
-    // Accept `Authorization: Bearer <session-token>` as an alternative to the
-    // cookie. Needed for the LIVE PREVIEW: the app runs in an embedded iframe
-    // where cookies are partitioned, so sign-in also returns the token in its
-    // response body and the client stores it (see `client.ts`). The hook only
-    // fires when an Authorization header is present, so the cookie path
-    // (deployed apps) is unaffected.
-    bearer(),
-
     // Bridges Better Auth's Set-Cookie into TanStack Start responses. MUST be
     // last so it runs after every other plugin's hooks.
     tanstackStartCookies(),
   ],
 });
 
-export function readSessionToken(): string | null {
-  return getCookie(SESSION_TOKEN_COOKIE) ?? null;
-}

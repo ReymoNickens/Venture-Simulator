@@ -84,13 +84,13 @@ function Login() {
         <p className="mt-2 text-[15px] text-muted">{INTRO[mode]}</p>
         {hints && mode === "activate" ? (
           <p className="mt-2 text-sm text-muted">
-            Preview only: try <span className="font-mono">{hints.student.email}</span> with{" "}
+            Demo database only: try <span className="font-mono">{hints.student.email}</span> with{" "}
             <span className="font-mono">{hints.student.indexNumber}</span>.
           </p>
         ) : null}
         {hints?.staffCode && mode === "staff" ? (
           <p className="mt-2 text-sm text-muted">
-            Preview only: the staff access code is <span className="font-mono">{hints.staffCode}</span>.
+            Demo database only: the staff access code is <span className="font-mono">{hints.staffCode}</span>.
           </p>
         ) : null}
         <Card className="mt-6 space-y-4">

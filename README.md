@@ -40,7 +40,7 @@ Built for one lecturer to ~400 students — it works by exception:
 - **Group drill-down** — the conversation, contribution per member, confidential peer averages, private reflections, the full record; mark a member inactive (unblocks the group), feedback with rubric levels and reusable comments, take ownership of a group.
 - **Course set-up** — milestones, announcements, Ghana-grounded market shocks, CSV gradebook.
 
-Lecturers create their account with `STAFF_ACCESS_CODE` (preview database: `DEMO-STAFF`); see [Sign-in](#sign-in).
+Lecturers create their account with `STAFF_ACCESS_CODE` (local database: `DEMO-STAFF`); see [Sign-in](#sign-in).
 
 ## Demonstration group
 
@@ -51,11 +51,11 @@ Use **Rehearse offline** (tap the connection pill) to test local save and replay
 ## Stack
 
 - TanStack Start + Vite + Tailwind
-- Postgres (Neon when deployed, PGLite in preview)
+- Postgres (Neon when deployed, embedded PGLite locally)
 - Better Auth
 - Claude (`claude-opus-5`) for the advisor, server-side only
 
-The original concept named Next.js, Supabase, and Claude. Pedagogy follows the concept; runtime follows this host.
+The original concept named Next.js, Supabase, and Claude. Pedagogy follows the concept; the runtime differences are explained in [docs/DEVIATIONS.md](docs/DEVIATIONS.md).
 
 ## Sign-in
 
@@ -77,7 +77,7 @@ Index number doubles as Better Auth's `username`, matched case-insensitively.
 
 **Lecturers** tap **Lecturer without an account?** and create one with their
 email, name, a password and the staff access code (`STAFF_ACCESS_CODE`, issued
-by the course administrator; `DEMO-STAFF` on the preview database). On their
+by the course administrator; `DEMO-STAFF` on the local database). On their
 first visit to the staff room they pick the course they teach. From then on
 they sign in with their email and password and land in the staff room. With
 no `STAFF_ACCESS_CODE` set, lecturer sign-up is closed.
@@ -96,7 +96,21 @@ Do not put secrets in the client. Deployed apps receive:
 | `VITE_APP_NAME` | client + server | Optional display name, also the installed app's name |
 | `VITE_APP_SHORT_NAME` | client + server | Optional home-screen label (≤12 characters; default "Venture") |
 
-Copy [`.env.example`](.env.example) when running outside this host. Never commit a real `.env`.
+Copy [`.env.example`](.env.example) for the list. Never commit a real `.env`.
+
+## Running locally
+
+```
+npm install
+npm run dev        # http://localhost:8080
+npm run preview    # after `npm run build`: the production build on :8081
+```
+
+With no `DATABASE_URL`, the app uses an in-memory PGLite database that resets
+when the server restarts. It comes with five demo roster students: activate
+`ama@demo.ucc.edu.gh` with index number `DEMO/0001` (through `DEMO/0005`), or
+create a lecturer account with the code `DEMO-STAFF`. The login page shows
+these hints on the local database only.
 
 ## Repo map
 

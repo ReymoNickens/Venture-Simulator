@@ -1,19 +1,14 @@
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, Navigate } from "@tanstack/react-router";
 import { authEnabled, signOut } from "./client";
-import { hasGateSessionMarker } from "./gate-session-marker";
 import { resolveSignInGateState } from "./sign-in-gate";
 import { useCurrentUser, useCurrentUserState } from "./use-current-user";
-
-const subscribeToNothing = () => () => {};
-const noGateSessionOnServer = () => false;
 
 /**
  * Auth state components — plain wrappers around `useCurrentUserState()`.
  *
- * With auth on, visitors are signed out until they authenticate — in the sandbox
- * live preview too, which does real sign-in. The shared dev user appears only
- * when auth is disabled (`VITE_AUTH_ENABLED=false`, the shipped default).
+ * With auth on, visitors are signed out until they authenticate. The shared dev
+ * user appears only when auth is disabled (`VITE_AUTH_ENABLED=false`).
  * While the session is still resolving, gates that care about signed-out state
  * render nothing so there's no signed-out flash on hard reload.
  */
@@ -83,20 +78,13 @@ export function SignInButtons() {
 /**
  * Minimal signed-in identity chip + sign-out. Restyle freely (see the
  * `design-ui` skill). Sign-out is only shown when auth is enabled (the
- * disabled-auth dev user has nothing to sign out of) and the session is not
- * gate-materialized — behind the gate the next request signs the viewer
- * straight back in, so a sign-out control there is a broken loop.
+ * disabled-auth dev user has nothing to sign out of).
  */
 export function UserButton() {
   const user = useCurrentUser();
   // Sign-out can take a moment (and can fail when deployed), so the control
   // shows it is working and cannot be fired twice.
   const [signingOut, setSigningOut] = useState(false);
-  const gateSession = useSyncExternalStore(
-    subscribeToNothing,
-    hasGateSessionMarker,
-    noGateSessionOnServer,
-  );
   if (!user) return null;
   const label = user.displayName ?? user.primaryEmail ?? "Account";
   return (
@@ -113,7 +101,7 @@ export function UserButton() {
         </span>
       )}
       <span className="hidden text-sm font-medium md:inline">{label}</span>
-      {authEnabled && !gateSession && (
+      {authEnabled && (
         <button
           type="button"
           disabled={signingOut}

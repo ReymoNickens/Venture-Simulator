@@ -51,4 +51,4 @@ Automated grading, financing simulation beyond the stress tests, venture marketp
 
 ## Stack (documented deviation)
 
-The concept named Next.js, Supabase, and Claude. This workspace runs TanStack Start, Postgres (Neon / PGLite), Better Auth, and Claude `claude-opus-5`. Pedagogy and schema follow the concept; runtime follows the host. See [DEVIATIONS.md](./DEVIATIONS.md).
+The concept named Next.js, Supabase, and Claude. This build runs TanStack Start, Postgres (Neon / PGLite), Better Auth, and Claude `claude-opus-5`. Pedagogy and schema follow the concept. See [DEVIATIONS.md](./DEVIATIONS.md).
