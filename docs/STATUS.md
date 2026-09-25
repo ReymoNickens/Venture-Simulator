@@ -1,6 +1,6 @@
 # Where we left off
 
-_Paused 25 September 2026 on branch `claude/determined-keller-y1up9y`._
+_Paused 25 September 2026 on branch `claude/gifted-euler-jn2g54`, which continues `claude/determined-keller-y1up9y`._
 
 ## Done
 
@@ -13,16 +13,23 @@ _Paused 25 September 2026 on branch `claude/determined-keller-y1up9y`._
 - Visual direction: sticker-collage minimalism. Sections are folded until
   tapped, each screen has one main button, and there are no cultural symbols.
   See `docs/UX-AUDIT.md`.
-- Checks: typecheck, lint (2 old warnings), 101 tests and the build all pass.
+- Weekly recap cards (`/studio/recap`): each crew gets a card for each week,
+  from Monday to Sunday. It shows interviews, places, tests and notes, a
+  persona ("The Street Team", "The Makers"…), one interview quote given with
+  consent, and the week's big moments. Share makes a 1080×1920 status image
+  and opens the phone's share sheet, or saves the image when the phone can't
+  share files. The card shows crew totals only: no names, no rankings. Today
+  offers last week's card until it has been opened, and has a "See your week"
+  link under the team feed.
+- Checks: typecheck, lint (2 old warnings), 111 tests and the build all pass.
   Student and lecturer walkthroughs in a browser showed no errors.
 
 ## Ideas not started yet
 
-1. Weekly recap cards that students can share, like Spotify Wrapped.
-2. A sticker book: the 11 stop stickers plus rare ones for achievements.
-3. Crew streaks: a small flame counter that real fieldwork keeps alive each week.
-4. Voice-note feedback from lecturers.
-5. A Pitch Day live board with class votes.
+1. A sticker book: the 11 stop stickers plus rare ones for achievements.
+2. Crew streaks: a small flame counter that real fieldwork keeps alive each week.
+3. Voice-note feedback from lecturers.
+4. A Pitch Day live board with class votes.
 
 ## Before a real rollout
 

@@ -31,6 +31,7 @@ import { Route as StudioNumbersRouteImport } from './routes/studio/numbers'
 import { Route as StudioOpportunityRouteImport } from './routes/studio/opportunity'
 import { Route as StudioPitchRouteImport } from './routes/studio/pitch'
 import { Route as StudioPrototypeRouteImport } from './routes/studio/prototype'
+import { Route as StudioRecapRouteImport } from './routes/studio/recap'
 import { Route as StudioSelectRouteImport } from './routes/studio/select'
 import { Route as StudioVentureRouteImport } from './routes/studio/venture'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -146,6 +147,11 @@ const StudioPrototypeRoute = StudioPrototypeRouteImport.update({
   path: '/prototype',
   getParentRoute: () => StudioRoute,
 } as any)
+const StudioRecapRoute = StudioRecapRouteImport.update({
+  id: '/recap',
+  path: '/recap',
+  getParentRoute: () => StudioRoute,
+} as any)
 const StudioSelectRoute = StudioSelectRouteImport.update({
   id: '/select',
   path: '/select',
@@ -188,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/pitch': typeof StudioPitchRoute
   '/studio/prototype': typeof StudioPrototypeRoute
+  '/studio/recap': typeof StudioRecapRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
   '/lecturer/': typeof LecturerIndexRoute
@@ -214,6 +221,7 @@ export interface FileRoutesByTo {
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/pitch': typeof StudioPitchRoute
   '/studio/prototype': typeof StudioPrototypeRoute
+  '/studio/recap': typeof StudioRecapRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
   '/lecturer': typeof LecturerIndexRoute
@@ -243,6 +251,7 @@ export interface FileRoutesById {
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/pitch': typeof StudioPitchRoute
   '/studio/prototype': typeof StudioPrototypeRoute
+  '/studio/recap': typeof StudioRecapRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
   '/lecturer/': typeof LecturerIndexRoute
@@ -273,6 +282,7 @@ export interface FileRouteTypes {
     | '/studio/opportunity'
     | '/studio/pitch'
     | '/studio/prototype'
+    | '/studio/recap'
     | '/studio/select'
     | '/studio/venture'
     | '/lecturer/'
@@ -299,6 +309,7 @@ export interface FileRouteTypes {
     | '/studio/opportunity'
     | '/studio/pitch'
     | '/studio/prototype'
+    | '/studio/recap'
     | '/studio/select'
     | '/studio/venture'
     | '/lecturer'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
     | '/studio/opportunity'
     | '/studio/pitch'
     | '/studio/prototype'
+    | '/studio/recap'
     | '/studio/select'
     | '/studio/venture'
     | '/lecturer/'
@@ -500,6 +512,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioPrototypeRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/studio/recap': {
+      id: '/studio/recap'
+      path: '/recap'
+      fullPath: '/studio/recap'
+      preLoaderRoute: typeof StudioRecapRouteImport
+      parentRoute: typeof StudioRoute
+    }
     '/studio/select': {
       id: '/studio/select'
       path: '/select'
@@ -563,6 +582,7 @@ interface StudioRouteChildren {
   StudioOpportunityRoute: typeof StudioOpportunityRoute
   StudioPitchRoute: typeof StudioPitchRoute
   StudioPrototypeRoute: typeof StudioPrototypeRoute
+  StudioRecapRoute: typeof StudioRecapRoute
   StudioSelectRoute: typeof StudioSelectRoute
   StudioVentureRoute: typeof StudioVentureRoute
   StudioIndexRoute: typeof StudioIndexRoute
@@ -582,6 +602,7 @@ const StudioRouteChildren: StudioRouteChildren = {
   StudioOpportunityRoute: StudioOpportunityRoute,
   StudioPitchRoute: StudioPitchRoute,
   StudioPrototypeRoute: StudioPrototypeRoute,
+  StudioRecapRoute: StudioRecapRoute,
   StudioSelectRoute: StudioSelectRoute,
   StudioVentureRoute: StudioVentureRoute,
   StudioIndexRoute: StudioIndexRoute,

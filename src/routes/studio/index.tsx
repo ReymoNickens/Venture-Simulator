@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Lock, Megaphone, MessageCircle, Zap } from "lucide-react";
+import { ArrowRight, ChevronRight, Lock, Megaphone, MessageCircle, Zap } from "lucide-react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { useAction } from "@/hooks/use-action";
 import { progressFromSnapshot } from "@/lib/domain/stage-input";
 import { currentStage, STAGE_BY_ID, STAGES } from "@/lib/domain/stages";
 import { activitySentence, timeAgo } from "@/lib/domain/activity";
+import { RECAP_SEEN_KEY, recapInputFrom, recapTeaser, recapWeeks, weeklyRecap } from "@/lib/domain/recap";
+import { PERSONA_COLORS } from "@/lib/recap-image";
 import type { MarketEvent, WorkspaceSnapshot } from "@/lib/domain/types";
 import { saveOffline } from "@/lib/offline/actions";
 import { dueLabel, isOverdue } from "@/lib/dates";
@@ -125,6 +127,8 @@ function Today() {
         </section>
       ) : null}
 
+      {data.group && data.student ? <RecapTeaser data={data} owner={data.student.id} /> : null}
+
       {ahead && def ? (
         <section className="flex items-center gap-3 rounded-[22px] border-2 border-dashed border-line-strong p-4">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-bg-subtle text-faint">
@@ -153,6 +157,40 @@ function daysSince(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 }
 
+/**
+ * Last week's card, offered once: it shows from Monday until the student
+ * opens it, and only when the crew actually did something worth posting.
+ */
+function RecapTeaser({ data, owner }: { data: WorkspaceSnapshot; owner: string }) {
+  const last = useMemo(() => {
+    const input = recapInputFrom(data);
+    const week = recapWeeks(input)[1];
+    return week ? weeklyRecap(input, week) : null;
+  }, [data]);
+  const [seen, setSeen] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    try {
+      setSeen(localStorage.getItem(RECAP_SEEN_KEY(owner)));
+    } catch {
+      setSeen(null);
+    }
+  }, [owner]);
+  const line = last ? recapTeaser(last) : "";
+  if (!last || !line || seen === undefined || (seen && seen >= last.weekStart)) return null;
+  const c = PERSONA_COLORS[last.persona.key];
+  return (
+    <Link to="/studio/recap" className="flex items-center gap-3 rounded-[22px] p-4" style={{ background: c.bg, color: c.ink }}>
+      <Sparkle className="size-6 shrink-0" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold opacity-80">Your week is ready · {last.label}</span>
+        <span className="block font-display text-lg leading-tight font-extrabold">{last.persona.title}</span>
+        <span className="block text-sm opacity-80">{line}</span>
+      </span>
+      <ChevronRight className="size-5 shrink-0" aria-hidden />
+    </Link>
+  );
+}
+
 function TeamFeed({ data }: { data: WorkspaceSnapshot }) {
   const names = new Map(data.members.map((m) => [m.studentId, m.fullName.split(" ")[0]]));
   const me = data.student?.id;
@@ -175,6 +213,9 @@ function TeamFeed({ data }: { data: WorkspaceSnapshot }) {
           </li>
         ))}
       </ul>
+      <Link to="/studio/recap" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-accent">
+        See your week <ChevronRight className="size-4" aria-hidden />
+      </Link>
     </section>
   );
 }
