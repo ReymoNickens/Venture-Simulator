@@ -66,7 +66,8 @@ Do not put secrets in the client. Deployed apps receive:
 | `DATABASE_URL` | server | Neon Postgres |
 | `XAI_API_KEY` | server | Advisor (never `VITE_`-prefixed) |
 | `STAFF_ACCESS_CODE` | server | Code lecturers enter to join the staff room |
-| `VITE_APP_NAME` | client | Optional display name |
+| `VITE_APP_NAME` | client + server | Optional display name, also the installed app's name |
+| `VITE_APP_SHORT_NAME` | client + server | Optional home-screen label (≤12 characters; default "Venture") |
 | Auth credentials | server | Injected by the host |
 
 Copy [`.env.example`](.env.example) when running outside this host. Never commit a real `.env`.

@@ -153,28 +153,62 @@ export function stripInstallParams(url) {
 
 export function renderInstallPageHtml(template, { host, url } = {}) {
   return String(template)
-    .replaceAll("{{APP_NAME}}", escapeHtml(appNameFromHost(host)))
+    .replaceAll("{{APP_NAME}}", escapeHtml(pwaAppName(host)))
     .replaceAll("{{APP_URL}}", escapeHtml(stripInstallParams(url)));
 }
 
+/** Mirrors APP_NAME in src/lib/brand.ts: the name when VITE_APP_NAME isn't set. */
+export const PRODUCT_NAME = "Experiential Venture Platform";
+/** Home-screen label for PRODUCT_NAME; launchers cut anything past ~12 characters. */
+const PRODUCT_SHORT_NAME = "Venture";
+
+/** The paper background and ink, so the splash screen and status bar match the app. */
+export const PWA_BACKGROUND = "#fbf9f5";
+export const PWA_THEME = "#fbf9f5";
+
+function envValue(key) {
+  return String((typeof process !== "undefined" ? process.env?.[key] : "") ?? "").trim();
+}
+
+/**
+ * The installed app's name: VITE_APP_NAME when it is set, then a published
+ * *.grok.me host's name, then the product name. It is never "Grok App": this
+ * app runs on its own domains.
+ */
+export function pwaAppName(hostHeader) {
+  const fromEnv = envValue("VITE_APP_NAME");
+  if (fromEnv) return fromEnv;
+  const fromHost = appNameFromHost(hostHeader);
+  return fromHost !== DEFAULT_APP_NAME ? fromHost : PRODUCT_NAME;
+}
+
+export function pwaShortName(name) {
+  const fromEnv = envValue("VITE_APP_SHORT_NAME");
+  if (fromEnv) return fromEnv;
+  if (name === PRODUCT_NAME) return PRODUCT_SHORT_NAME;
+  return name.length <= 12 ? name : name.split(" ")[0];
+}
+
 export function renderWebManifest(hostHeader) {
-  const name = appNameFromHost(hostHeader);
+  const name = pwaAppName(hostHeader);
   return JSON.stringify(
     {
       name,
-      short_name: name,
+      short_name: pwaShortName(name),
+      description: "Investigate real problems. Defend every claim with evidence.",
       id: "/",
-      start_url: "/",
+      // The studio: it sends signed-out students to sign-in and staff to the
+      // lecturer console, and it is the page the offline shell keeps cached.
+      start_url: "/studio",
       scope: "/",
       display: "standalone",
-      background_color: "#000000",
-      theme_color: "#000000",
+      background_color: PWA_BACKGROUND,
+      theme_color: PWA_THEME,
       icons: [
-        {
-          src: "/__grok/icon-180.png",
-          sizes: "180x180",
-          type: "image/png",
-        },
+        { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+        { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+        { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        { src: "/__grok/icon-180.png", sizes: "180x180", type: "image/png" },
       ],
     },
     null,
@@ -194,9 +228,9 @@ export function grokPwaHeadTags(appName = DEFAULT_APP_NAME) {
     ],
     [
       "apple-mobile-web-app-status-bar-style",
-      '<meta name="apple-mobile-web-app-status-bar-style" content="black">',
+      '<meta name="apple-mobile-web-app-status-bar-style" content="default">',
     ],
-    ["theme-color", '<meta name="theme-color" content="#000000">'],
+    ["theme-color", `<meta name="theme-color" content="${PWA_THEME}">`],
   ];
 }
 

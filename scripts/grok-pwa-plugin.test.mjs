@@ -485,11 +485,62 @@ test("escapes host-derived values in the install page", () => {
   assert.equal(html.includes("<script>alert(1)</script>"), false);
 });
 
+function withEnv(vars, fn) {
+  const saved = Object.fromEntries(Object.keys(vars).map((k) => [k, process.env[k]]));
+  for (const [k, v] of Object.entries(vars)) {
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
+  }
+  try {
+    return fn();
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+}
+
+const NO_NAME_ENV = { VITE_APP_NAME: undefined, VITE_APP_SHORT_NAME: undefined };
+
 test("renders the manifest with the per-app name", () => {
-  const manifest = JSON.parse(renderWebManifest("wild-race.grok.me"));
+  const manifest = withEnv(NO_NAME_ENV, () => JSON.parse(renderWebManifest("wild-race.grok.me")));
   assert.equal(manifest.name, "Wild Race");
   assert.equal(manifest.short_name, "Wild Race");
-  assert.equal(manifest.icons[0].src, "/__grok/icon-180.png");
+});
+
+test("names the installed app after the product off grok.me, never Grok App", () => {
+  const manifest = withEnv(NO_NAME_ENV, () => JSON.parse(renderWebManifest("venture.example.edu.gh")));
+  assert.equal(manifest.name, "Experiential Venture Platform");
+  assert.equal(manifest.short_name, "Venture");
+});
+
+test("VITE_APP_NAME and VITE_APP_SHORT_NAME name the installed app", () => {
+  const named = withEnv({ VITE_APP_NAME: "Oguaa Ventures", VITE_APP_SHORT_NAME: undefined }, () =>
+    JSON.parse(renderWebManifest("wild-race.grok.me")),
+  );
+  assert.equal(named.name, "Oguaa Ventures");
+  assert.equal(named.short_name, "Oguaa");
+  const short = withEnv({ VITE_APP_NAME: "Oguaa Ventures", VITE_APP_SHORT_NAME: "Oguaa V" }, () =>
+    JSON.parse(renderWebManifest("x.vercel.app")),
+  );
+  assert.equal(short.short_name, "Oguaa V");
+});
+
+test("the manifest meets Chrome's install criteria with on-brand colours", () => {
+  const manifest = withEnv(NO_NAME_ENV, () => JSON.parse(renderWebManifest("x.vercel.app")));
+  assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.start_url, "/studio");
+  assert.equal(manifest.theme_color, "#fbf9f5");
+  assert.equal(manifest.background_color, "#fbf9f5");
+  const sizes = manifest.icons.filter((i) => i.purpose !== "maskable").map((i) => i.sizes);
+  assert.ok(sizes.includes("192x192") && sizes.includes("512x512"));
+  assert.ok(manifest.icons.some((i) => i.purpose === "maskable"));
+  for (const icon of manifest.icons) {
+    const png = readFileSync(join(TEMPLATE_ROOT, "public", icon.src));
+    // PNG IHDR: width and height are big-endian at bytes 16 and 20.
+    assert.equal(`${png.readUInt32BE(16)}x${png.readUInt32BE(20)}`, icon.sizes, icon.src);
+  }
 });
 
 // Tripwires: the deployed-app path only works if Nitro scans server/ — an

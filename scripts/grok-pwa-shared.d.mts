@@ -13,6 +13,11 @@ export declare function renderInstallPageHtml(
   template: string,
   context?: { host?: string | null; url?: string | null },
 ): string;
+export declare const PRODUCT_NAME: string;
+export declare const PWA_BACKGROUND: string;
+export declare const PWA_THEME: string;
+export declare function pwaAppName(hostHeader: string | null | undefined): string;
+export declare function pwaShortName(name: string): string;
 export declare function renderWebManifest(hostHeader: string | null | undefined): string;
 export declare function grokPwaHeadTags(appName?: string): Array<[string, string]>;
 export declare const GROK_EXTENSIONS_SCRIPT_SRC: string;

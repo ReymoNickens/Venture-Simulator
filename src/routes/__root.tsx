@@ -2,7 +2,7 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-r
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { OfflineShell } from "@/components/offline-shell";
-import { APP_NAME } from "@/lib/brand";
+import { APP_NAME, APP_SHORT_NAME } from "@/lib/brand";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -12,6 +12,8 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
       { name: "theme-color", content: "#fbf9f5" },
+      { name: "apple-mobile-web-app-title", content: APP_SHORT_NAME },
+      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       {
         name: "description",
         content: "Investigate real problems. Defend every claim with evidence.",
