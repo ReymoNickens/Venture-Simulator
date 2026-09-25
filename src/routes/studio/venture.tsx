@@ -55,15 +55,15 @@ function VenturePage() {
           </button>
         </div>
         {adding || !data.assumptions.length ? (
-          <Card>
+          <div>
             <AssumptionForm
+              onCancel={data.assumptions.length ? () => setAdding(false) : undefined}
               onSaved={() => {
-                // Keep the form open: groups usually list several at once.
-                setAdding(true);
+                setAdding(false);
                 void refresh();
               }}
             />
-          </Card>
+          </div>
         ) : null}
         {data.assumptions.length ? (
           <ul className="space-y-2">

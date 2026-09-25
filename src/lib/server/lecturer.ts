@@ -11,6 +11,25 @@ import { resettleOpenProposal } from "./governance-core";
 
 // Server functions for the lecturer console. Exports server functions only.
 
+const FEED_EVENTS = [
+  "OPPORTUNITY_SUBMITTED",
+  "PROPOSAL_CREATED",
+  "VENTURE_CREATED",
+  "INTERVIEW_LOGGED",
+  "EVIDENCE_CREATED",
+  "CANVAS_ENTRY_ADDED",
+  "FEASIBILITY_ASSESSED",
+  "FINANCE_SAVED",
+  "PROTOTYPE_CREATED",
+  "PROTOTYPE_TESTED",
+  "DECISION_PROPOSED",
+  "DECISION_RATIFIED",
+  "PLAN_SECTION_SAVED",
+  "MARKET_EVENT_RESPONDED",
+  "MESSAGE_SENT",
+  "GROUP_LEFT",
+];
+
 /** Demo code, accepted only on the embedded preview database. */
 const PREVIEW_STAFF_CODE = "DEMO-STAFF";
 
@@ -82,7 +101,7 @@ export const getCohort = createServerFn({ method: "GET" })
     const staff = await requireStaff(context.userId, data.offeringId);
     const sql = await getSql();
     const [groups, enrolled, milestones, announcements, events, staffList] = await Promise.all([
-      loadCohort(data.offeringId),
+      loadCohort(data.offeringId, undefined, context.userId),
       sql<{ n: number; ungrouped: number }>`
         select count(*)::int as n,
           count(*) filter (where not exists (
@@ -195,7 +214,17 @@ export const getGroupDetail = createServerFn({ method: "GET" })
       from ai_advisor_messages m left join students s on s.id = m.student_id
       where m.group_id = ${data.groupId} order by m.created_at desc limit 30
     `;
-    const [summary] = await loadCohort(staff.offeringId, data.groupId);
+    const [summary] = await loadCohort(staff.offeringId, data.groupId, context.userId);
+    const thread = await sql<Record<string, unknown>>`
+      select m.id, m.body, m.created_at, m.author_staff_id, m.author_student_id, m.recipient_student_id,
+             coalesce(st.full_name, s.full_name) as author_name, r.full_name as recipient_name
+      from messages m
+      left join staff st on st.id = m.author_staff_id
+      left join students s on s.id = m.author_student_id
+      left join students r on r.id = m.recipient_student_id
+      where m.group_id = ${data.groupId}
+      order by m.created_at asc
+    `;
     const ventureId = g?.venture_id ? String(g.venture_id) : null;
     const activeCount = members.filter((m) => m.membership_status === "active").length;
     const work = ventureId ? await loadVentureWork(ventureId, activeCount, 51) : null;
@@ -219,6 +248,16 @@ export const getGroupDetail = createServerFn({ method: "GET" })
     return {
       offeringId: staff.offeringId,
       flags: summary?.flags ?? [],
+      pulse: summary?.pulse ?? "",
+      thread: thread.map((m) => ({
+        id: String(m.id),
+        body: String(m.body),
+        createdAt: iso(m.created_at),
+        authorKind: (m.author_staff_id ? "staff" : "student") as "staff" | "student",
+        authorName: String(m.author_name ?? ""),
+        recipientName: m.recipient_name ? String(m.recipient_name) : null,
+        recipientStudentId: m.recipient_student_id ? String(m.recipient_student_id) : null,
+      })),
       currentStage: summary?.currentStage ?? null,
       stagesDone: summary?.stagesDone ?? 0,
       group: {
@@ -488,3 +527,34 @@ export const getGradebook = createServerFn({ method: "GET" })
       };
     });
   });
+
+/** The cohort's notable moments as sentences — what groups are actually doing. */
+export const getCohortFeed = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator((input: { offeringId: string; mineOnly?: boolean }) => input)
+  .handler(async ({ context, data }) => {
+    const staff = await requireStaff(context.userId, data.offeringId);
+    const sql = await getSql();
+    const rows = await sql<Record<string, unknown>>`
+      select a.event_type, a.created_at, a.metadata, g.id as group_id, g.group_number, g.group_name,
+             v.name as venture_name, s.full_name
+      from activity_events a
+      join groups g on g.id = a.group_id
+      left join ventures v on v.group_id = g.id
+      left join students s on s.id = a.student_id
+      where g.course_offering_id = ${data.offeringId}
+        and a.event_type = any(${FEED_EVENTS}::text[])
+        and (${Boolean(data.mineOnly)} = false or g.assigned_staff_id = ${staff.staffId})
+        and coalesce(s.is_synthetic, false) = false
+      order by a.created_at desc
+      limit 80
+    `;
+    return rows.map((r) => ({
+      eventType: String(r.event_type),
+      createdAt: iso(r.created_at),
+      groupId: String(r.group_id),
+      groupLabel: `Group ${r.group_number} · ${r.venture_name ?? r.group_name}`,
+      who: r.full_name ? String(r.full_name) : null,
+    }));
+  });
+

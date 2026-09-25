@@ -290,3 +290,46 @@ describe("RLS for the later venture stages", () => {
     }
   });
 });
+
+describe("RLS for messages", () => {
+  it("keeps a private staff-to-student message from the rest of the group", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      await pg.query(`insert into staff (id, auth_user_id, full_name) values ('staff-1','auth-staff','Dr. X')`);
+      await pg.query(
+        `insert into messages (id, group_id, author_staff_id, recipient_student_id, body) values ('m-priv','group-a','staff-1','student-a','private note')`,
+      );
+      await pg.query(`insert into messages (id, group_id, author_staff_id, body) values ('m-all','group-a','staff-1','to everyone')`);
+      const teammate = await asUser(pg, "auth-a2", (tx) => tx.query<{ id: string }>("select id from messages order by id"));
+      assert.deepEqual(teammate.rows.map((r) => r.id), ["m-all"]);
+      const recipient = await asUser(pg, "auth-a", (tx) => tx.query<{ id: string }>("select id from messages order by id"));
+      assert.deepEqual(recipient.rows.map((r) => r.id), ["m-all", "m-priv"]);
+      const otherGroup = await asUser(pg, "auth-b", (tx) => tx.query("select id from messages"));
+      assert.equal(otherGroup.rows.length, 0);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("stops a student from posting as staff or into another group", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      await assert.rejects(() =>
+        asUser(pg, "auth-a", (tx) =>
+          tx.query(`insert into messages (id, group_id, author_student_id, body) values ('x','group-b','student-a','hi')`),
+        ),
+      );
+      await assert.rejects(() =>
+        asUser(pg, "auth-a", (tx) =>
+          tx.query(
+            `insert into messages (id, group_id, author_student_id, recipient_student_id, body) values ('y','group-a','student-a','student-a2','psst')`,
+          ),
+        ),
+      );
+    } finally {
+      await pg.close();
+    }
+  });
+});

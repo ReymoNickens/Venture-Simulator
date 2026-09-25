@@ -44,7 +44,7 @@ export function RouteMap({
                 {p.state === "done" ? (
                   <Check className="size-4" strokeWidth={3} aria-hidden />
                 ) : p.state === "current" ? (
-                  <Bus className="size-4" aria-hidden />
+                  <Bus className="bus-idle size-4" aria-hidden />
                 ) : locked ? (
                   <Lock className="size-3.5" aria-hidden />
                 ) : (
@@ -71,8 +71,8 @@ export function RouteMap({
                 ) : null}
               </div>
               {!compact ? (
-                <p className={cn("mt-0.5 text-xs", locked ? "text-faint" : "text-muted")}>
-                  {def.short}
+                <p className={cn("mt-0.5 text-xs", locked ? "text-faint italic" : "text-muted")}>
+                  {locked ? def.teaser : def.short}
                   {!locked ? ` · ${p.met}/${p.criteria.length}` : ""}
                   {due && p.state !== "done" ? (
                     <span className="ml-1 font-medium text-clay">· {dueLabel(due.dueAt)}</span>

@@ -61,9 +61,9 @@ function Onboarding() {
       <KenteBand />
       <div className="mx-auto max-w-md px-5 py-10">
         <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">{APP_NAME}</p>
-        <h1 className="mt-2 font-display text-3xl">Your academic identity</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          This is separate from how you signed in. Index numbers are not passwords, and they must be unique.
+        <h1 className="mt-2 font-display text-4xl font-extrabold">Akwaaba.</h1>
+        <p className="mt-2 text-[15px] leading-6 text-ink-soft">
+          Three details so your lecturer knows it’s you. Your index number is not a password.
         </p>
         <Card className="mt-6">
           <form className="space-y-4" onSubmit={(e) => void submit(e)}>
@@ -75,7 +75,7 @@ function Onboarding() {
                 required
                 value={indexNumber}
                 onChange={(e) => setIndexNumber(e.target.value)}
-                placeholder="e.g. 10987654"
+                placeholder="e.g. PS/ITC/22/0001"
               />
             </Field>
             <Field label="Programme">
@@ -86,7 +86,8 @@ function Onboarding() {
                 placeholder="e.g. Business Administration"
               />
             </Field>
-            <Field label="Course offering">
+            <div className={offerings.length > 1 ? "" : "hidden"}>
+            <Field label="Course">
               <select
                 required
                 className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
@@ -100,9 +101,10 @@ function Onboarding() {
                 ))}
               </select>
             </Field>
+            </div>
             {error ? <p className="text-sm text-bad">{error}</p> : null}
             <Button type="submit" className="w-full" disabled={saving}>
-              {saving ? "Saving…" : "Continue"}
+              {saving ? "Saving…" : "Enter the studio"}
             </Button>
           </form>
         </Card>

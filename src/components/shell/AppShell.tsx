@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { BookOpenText, Home, MessageCircleQuestion, Route as RouteIcon } from "lucide-react";
+import { Bell, BookOpenText, Home, MessageCircleQuestion, Route as RouteIcon } from "lucide-react";
 import { UserButton } from "@/lib/auth/gates";
 import { APP_NAME } from "@/lib/brand";
 import type { WorkspaceSnapshot } from "@/lib/domain/types";
@@ -9,6 +9,7 @@ import { KenteBand } from "@/components/ui/kente";
 import { Emblem } from "@/components/ui/emblem";
 import { ConnectionPill } from "./ConnectionBar";
 import { RouteMap } from "./RouteMap";
+import { StopComplete } from "@/components/stage/StopComplete";
 
 const TABS = [
   { to: "/studio", label: "Today", icon: Home, exact: true },
@@ -24,10 +25,11 @@ export function AppShell({
   children: ReactNode;
   data: WorkspaceSnapshot | null;
 }) {
-  const progress = data?.student ? progressFromSnapshot(data) : null;
+  const progress = useMemo(() => (data?.student ? progressFromSnapshot(data) : null), [data]);
   return (
     <div className="min-h-dvh text-ink">
       <KenteBand />
+      {progress && data?.student ? <StopComplete owner={data.student.id} progress={progress} /> : null}
       <header className="sticky top-0 z-30 border-b-2 border-ink bg-bg/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
           <Link to="/studio" className="flex min-w-0 items-center gap-2.5">
@@ -46,6 +48,20 @@ export function AppShell({
             </span>
           </Link>
           <div className="flex shrink-0 items-center gap-2">
+            {data?.group ? (
+              <Link
+                to="/studio/messages"
+                aria-label={data.life.unreadMessages ? `${data.life.unreadMessages} unread messages` : "Messages"}
+                className="relative flex size-9 items-center justify-center rounded-full border-2 border-ink/70 bg-bg-elevated"
+              >
+                <Bell className="size-4" aria-hidden />
+                {data.life.unreadMessages ? (
+                  <span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-bg bg-clay font-mono text-[10px] font-bold text-accent-fg">
+                    {Math.min(9, data.life.unreadMessages)}
+                  </span>
+                ) : null}
+              </Link>
+            ) : null}
             <ConnectionPill />
             <UserButton />
           </div>

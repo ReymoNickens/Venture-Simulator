@@ -26,15 +26,15 @@ function Home() {
         <div className="mt-10 grid gap-10 lg:grid-cols-[1.2fr_1fr] lg:items-end">
           <div>
             <Stamp tone="clay" tilt={-4} size="sm">
-              Entrepreneurship, practised
+              Made for UCC · Cape Coast
             </Stamp>
             <h1 className="mt-4 font-display text-[2.6rem] leading-[0.98] font-extrabold tracking-[-0.03em] sm:text-6xl">
               {APP_TAGLINE}
             </h1>
             <p className="mt-5 max-w-[46ch] text-lg leading-8 text-ink-soft">
-              Find a real problem in your hostel, market or lorry station. Talk to the people who have it.
-              Build the cheapest test you can. Run the numbers with real prices. Then defend every claim
-              — with evidence — on pitch day.
+              Find a real problem between your hall and Kotokuraba. Talk to the people who have it. Build
+              the cheapest test you can. Price it with real Cape Coast prices. Then defend every claim — with
+              evidence — on pitch day.
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
               {isPending ? (

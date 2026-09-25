@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { FormMessages } from "@/components/ui/feedback";
 import { shortDate } from "@/lib/dates";
+import { progressFromSnapshot } from "@/lib/domain/stage-input";
 
 /**
  * Private, individual reflection at the end of a stop. Only the student and
@@ -27,6 +28,17 @@ export function Reflect({
   const mine = data.life.myReflections.filter((r) => r.stage === stage);
   const [body, setBody] = useState("");
   const { pending, error, notice, run } = useAction();
+  const done = progressFromSnapshot(data).find((p) => p.id === stage)?.state === "done";
+  // Reflecting on unfinished work is noise — the prompt stays sealed until the
+  // stop is done (the final decision stop needs it as part of the work).
+  if (!done && stage !== "decide" && !mine.length) {
+    return (
+      <div className="flex items-center gap-3 rounded-[10px] border-2 border-dashed border-line-strong px-4 py-3 text-sm text-muted">
+        <Lock className="size-4 shrink-0" aria-hidden />
+        <span>A short private reflection unlocks when this stop is done.</span>
+      </div>
+    );
+  }
   return (
     <section className="notebook rounded-[10px] border-2 border-ink/80 py-4 pr-4 pl-10">
       <p className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.16em] text-muted">

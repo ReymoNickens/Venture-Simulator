@@ -77,7 +77,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       return {
         ...empty,
         offering,
-        life: await loadCourseLife({ studentId: student.id, groupId: null, offeringId: offering?.id ?? null }),
+        life: await loadCourseLife({ studentId: student.id, authUserId: context.userId, groupId: null, offeringId: offering?.id ?? null }),
       };
     }
 
@@ -485,6 +485,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       : emptyWork();
     const life = await loadCourseLife({
       studentId: student.id,
+      authUserId: context.userId,
       groupId: group.id,
       offeringId: offering?.id ?? null,
     });

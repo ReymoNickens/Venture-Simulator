@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, MessageCircle, Search, Send } from "lucide-react";
 import { useStaff } from "@/hooks/lecturer-context";
 import { getCohort } from "@/lib/server/lecturer";
 import { STAGES, STAGE_BY_ID } from "@/lib/domain/stages";
 import { FlagList } from "@/components/lecturer/FlagList";
+import { QuickMessage } from "@/components/lecturer/QuickMessage";
+import { Feed } from "@/components/lecturer/Feed";
 import { errorMessage } from "@/hooks/use-action";
 import { Emblem } from "@/components/ui/emblem";
 import { Card, Eyebrow, EmptyNote } from "@/components/ui/badge";
@@ -15,7 +17,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/lecturer/")({ component: Queue });
 
 type Cohort = Awaited<ReturnType<typeof getCohort>>;
-type Filter = "attention" | "mine" | "unassigned" | "all";
+type Filter = "attention" | "replies" | "mine" | "unassigned" | "all";
 
 function Queue() {
   const { offeringId, staff } = useStaff();
@@ -24,6 +26,10 @@ function Queue() {
   const [filter, setFilter] = useState<Filter>("attention");
   const [stage, setStage] = useState<string>("");
   const [q, setQ] = useState("");
+  const [messaging, setMessaging] = useState<
+    { kind: "one"; groupId: string; label: string } | { kind: "many"; offeringId: string; groupIds: string[]; label: string } | null
+  >(null);
+  const [sentNote, setSentNote] = useState<string | null>(null);
 
   useEffect(() => {
     if (!offeringId) return;
@@ -38,6 +44,7 @@ function Queue() {
       if (filter === "attention" && g.score < 30) return false;
       if (filter === "mine" && g.assignedStaffId !== staff.id) return false;
       if (filter === "unassigned" && g.assignedStaffId) return false;
+      if (filter === "replies" && !g.unreadReplies) return false;
       if (stage && g.currentStage !== stage) return false;
       if (needle && !`${g.groupNumber} ${g.groupName} ${g.ventureName ?? ""}`.toLowerCase().includes(needle)) return false;
       return true;
@@ -71,6 +78,8 @@ function Queue() {
         <Tile n={attention} label="urgent groups" tone={attention ? "bad" : undefined} />
       </div>
 
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-6">
       <Card as="section">
         <Eyebrow>Where the groups are</Eyebrow>
         <ul className="mt-3 space-y-1.5">
@@ -106,6 +115,7 @@ function Queue() {
           {(
             [
               ["attention", "Needs attention"],
+              ["replies", `Replies${data.groups.some((g) => g.unreadReplies) ? ` (${data.groups.filter((g) => g.unreadReplies).length})` : ""}`],
               ["mine", "My groups"],
               ["unassigned", "Unassigned"],
               ["all", "All groups"],
@@ -137,16 +147,36 @@ function Queue() {
         </div>
 
         {rows.length ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="text-muted">{rows.length} group{rows.length === 1 ? "" : "s"} in this view</span>
+            <button
+              type="button"
+              onClick={() =>
+                setMessaging({
+                  kind: "many",
+                  offeringId,
+                  groupIds: rows.map((r) => r.id),
+                  label: `All ${rows.length} group${rows.length === 1 ? "" : "s"} in this view`,
+                })
+              }
+              className="inline-flex items-center gap-1.5 font-semibold text-indigo underline underline-offset-2"
+            >
+              <Send className="size-3.5" aria-hidden /> Message all of them
+            </button>
+          </div>
+        ) : null}
+        {sentNote ? <p className="text-sm font-semibold text-accent">{sentNote}</p> : null}
+        {rows.length ? (
           <ul className="overflow-hidden rounded-[10px] border-2 border-ink bg-bg-elevated">
             {rows.map((g) => {
               const def = g.currentStage ? STAGE_BY_ID[g.currentStage] : null;
               const last = g.lastActivityAt ? daysAgo(g.lastActivityAt) : null;
               return (
-                <li key={g.id} className="border-b border-line last:border-0">
+                <li key={g.id} className="flex items-stretch border-b border-line last:border-0">
                   <Link
                     to="/lecturer/groups/$groupId"
                     params={{ groupId: g.id }}
-                    className="grid gap-2 px-3 py-3 hover:bg-bg-subtle/60 md:grid-cols-[3rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.6fr)_1.25rem] md:items-center"
+                    className="grid min-w-0 flex-1 gap-2 px-3 py-3 hover:bg-bg-subtle/60 md:grid-cols-[3rem_minmax(0,1.3fr)_minmax(0,1.1fr)_minmax(0,1.5fr)_1.25rem] md:items-center"
                   >
                     <span className="font-display text-2xl font-extrabold tabular text-muted">{g.groupNumber}</span>
                     <span className="min-w-0">
@@ -162,13 +192,28 @@ function Queue() {
                       <span className="min-w-0">
                         <span className="block truncate">{def ? `${def.stop}. ${def.title}` : "Route finished"}</span>
                         <span className="block text-xs text-muted">
-                          {g.stagesDone}/11 done · {last === null ? "no activity" : last === 0 ? "active today" : `quiet ${last}d`}
+                          {g.pulse || `${g.stagesDone}/11 done`} · {last === null ? "no activity" : last === 0 ? "active today" : `quiet ${last}d`}
                         </span>
                       </span>
                     </span>
-                    <FlagList flags={g.flags} />
+                    <span className="space-y-1">
+                      {g.unreadReplies ? (
+                        <span className="flex items-center gap-1 text-xs font-semibold text-indigo">
+                          <MessageCircle className="size-3.5" aria-hidden /> {g.unreadReplies} new message{g.unreadReplies === 1 ? "" : "s"}
+                        </span>
+                      ) : null}
+                      <FlagList flags={g.flags} />
+                    </span>
                     <ChevronRight className="hidden size-5 text-muted md:block" aria-hidden />
                   </Link>
+                  <button
+                    type="button"
+                    onClick={() => setMessaging({ kind: "one", groupId: g.id, label: `Group ${g.groupNumber} · ${g.ventureName ?? g.groupName}` })}
+                    aria-label={`Message group ${g.groupNumber}`}
+                    className="flex w-12 shrink-0 items-center justify-center border-l border-line text-muted hover:bg-indigo-soft hover:text-indigo"
+                  >
+                    <Send className="size-4" aria-hidden />
+                  </button>
                 </li>
               );
             })}
@@ -179,6 +224,18 @@ function Queue() {
           </EmptyNote>
         )}
       </section>
+        </div>
+        <aside className="lg:sticky lg:top-4 lg:self-start">
+          <Feed offeringId={offeringId} />
+        </aside>
+      </div>
+      {messaging ? (
+        <QuickMessage
+          target={messaging}
+          onClose={() => setMessaging(null)}
+          onSent={() => setSentNote(`Sent to ${messaging.label}.`)}
+        />
+      ) : null}
     </div>
   );
 }

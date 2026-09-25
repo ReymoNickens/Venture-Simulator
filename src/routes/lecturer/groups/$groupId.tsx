@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ChevronDown, Lock } from "lucide-react";
 import { assignGroup, getGroupDetail, giveFeedback, setMemberStatus } from "@/lib/server/lecturer";
+import { markThreadRead, sendStaffMessage } from "@/lib/server/messages";
+import { Thread } from "@/components/messages/Thread";
 import { useStaff } from "@/hooks/lecturer-context";
 import { errorMessage, useAction } from "@/hooks/use-action";
 import { STAGES, STAGE_BY_ID, CANVAS_BLOCKS, type StageId } from "@/lib/domain/stages";
@@ -46,6 +48,9 @@ function GroupDetail() {
     getGroupDetail({ data: { groupId } }).then(setD, (e) => setError(errorMessage(e)));
   }, [groupId]);
   useEffect(load, [load]);
+  useEffect(() => {
+    void markThreadRead({ data: { groupId } }).catch(() => undefined);
+  }, [groupId]);
 
   if (error) return <FormMessages error={error} />;
   if (!d) return <Loading />;
@@ -64,7 +69,7 @@ function GroupDetail() {
           <h1 className="mt-1 font-display text-3xl font-extrabold">{g.ventureName ?? g.groupName}</h1>
           <p className="text-sm text-muted">
             {g.ventureName ? `${g.groupName} · ` : ""}
-            {d.stagesDone}/11 stops done
+            {d.stagesDone}/11 stops done{d.pulse ? ` · ${d.pulse}` : ""}
             {g.ventureStatus && g.ventureStatus !== "active" ? ` · venture ${g.ventureStatus}` : ""}
           </p>
         </div>
@@ -85,6 +90,7 @@ function GroupDetail() {
         </div>
       </Card>
 
+      <Conversation d={d} onSent={load} />
       <Members d={d} onChanged={load} />
       <FeedbackComposer d={d} onSaved={load} />
 
@@ -440,5 +446,51 @@ function Work({ work }: { work: NonNullable<Detail["work"]> }) {
         ) : null}
       </Section>
     </>
+  );
+}
+
+function Conversation({ d, onSent }: { d: Detail; onSent: () => void }) {
+  const [body, setBody] = useState("");
+  const [to, setTo] = useState("");
+  const { pending, error, run } = useAction();
+  const students = d.members.filter((m) => !m.isSynthetic && m.status === "active");
+  return (
+    <Card as="section" className="space-y-3 border-indigo/60">
+      <Eyebrow>Conversation with the group</Eyebrow>
+      <div className="rounded-[10px] bg-bg px-2">
+        <Thread messages={d.thread} viewer="staff" />
+      </div>
+      <textarea
+        aria-label="Message"
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        rows={3}
+        placeholder={to ? "Only this student will see it…" : "The whole group will see it…"}
+        className="w-full rounded-[10px] border-2 border-line-strong/70 bg-bg px-3 py-2.5 text-[15px] focus-visible:border-accent focus-visible:outline-none"
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={to} onChange={(e) => setTo(e.target.value)} className="h-10 w-auto text-sm" aria-label="Send to">
+          <option value="">Whole group</option>
+          {students.map((m) => (
+            <option key={m.studentId} value={m.studentId}>
+              Only {m.fullName}
+            </option>
+          ))}
+        </Select>
+        <Button
+          disabled={Boolean(pending) || !body.trim()}
+          onClick={() =>
+            void run("send", async () => {
+              await sendStaffMessage({ data: { groupId: d.group.id, body, recipientStudentId: to || null } });
+              setBody("");
+              onSent();
+            })
+          }
+        >
+          {pending ? "Sending…" : "Send"}
+        </Button>
+      </div>
+      <FormMessages error={error} />
+    </Card>
   );
 }

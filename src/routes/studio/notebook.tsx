@@ -17,6 +17,7 @@ export const Route = createFileRoute("/studio/notebook")({ component: NotebookPa
 function NotebookPage() {
   const { data, loading, refresh } = useStudioWorkspace();
   const [adding, setAdding] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<string>("all");
   const evidence = data?.evidence;
@@ -38,6 +39,20 @@ function NotebookPage() {
           Go to selection
         </Link>
       </EmptyNote>
+    );
+  }
+
+  if (adding) {
+    return (
+      <EvidenceForm
+        maxPhotoBytes={data.offering?.maxPhotoBytes ?? DEFAULT_MAX_PHOTO_BYTES}
+        onCancel={() => setAdding(false)}
+        onSaved={(queued) => {
+          setAdding(false);
+          setSaved(queued ? "Saved on this phone — it will sync when you are back online." : "In the notebook.");
+          void refresh();
+        }}
+      />
     );
   }
 
@@ -65,13 +80,17 @@ function NotebookPage() {
       </div>
 
       {adding ? (
-        <div className="notebook rounded-[10px] border-2 border-ink py-4 pr-4 pl-10">
-          <EvidenceForm
-            maxPhotoBytes={data.offering?.maxPhotoBytes ?? DEFAULT_MAX_PHOTO_BYTES}
-            onSaved={() => void refresh()}
-          />
-        </div>
+        <EvidenceForm
+          maxPhotoBytes={data.offering?.maxPhotoBytes ?? DEFAULT_MAX_PHOTO_BYTES}
+          onCancel={() => setAdding(false)}
+          onSaved={(queued) => {
+            setAdding(false);
+            setSaved(queued ? "Saved on this phone — it will sync when you are back online." : "In the notebook.");
+            void refresh();
+          }}
+        />
       ) : null}
+      {saved && !adding ? <p className="text-sm font-semibold text-accent">{saved}</p> : null}
 
       {data.evidence.length ? (
         <div className="space-y-2">

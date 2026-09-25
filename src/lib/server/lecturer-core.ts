@@ -66,6 +66,11 @@ export interface CohortGroup {
   currentStage: StageId | null;
   stagesDone: number;
   lastActivityAt: string | null;
+  /** This week in one line: "3 interviews · 2 notes this week". */
+  pulse: string;
+  /** Student messages the viewing lecturer hasn't read. */
+  unreadReplies: number;
+  lastMessageAt: string | null;
   flags: Flag[];
   score: number;
 }
@@ -79,7 +84,11 @@ const days = (from: string | null, now: number) =>
  * built from a fixed number of set-based queries (not one per group), so the
  * console stays fast at hundreds of groups.
  */
-export async function loadCohort(offeringId: string, onlyGroupId?: string): Promise<CohortGroup[]> {
+export async function loadCohort(
+  offeringId: string,
+  onlyGroupId?: string,
+  viewerUserId?: string,
+): Promise<CohortGroup[]> {
   const sql = await getSql();
   const now = Date.now();
   return withRlsBypass(async () => {
@@ -162,6 +171,19 @@ export async function loadCohort(offeringId: string, onlyGroupId?: string): Prom
       group by g.id
     `;
 
+    const threads = await sql<{ group_id: string; unread: number; last_at: unknown }>`
+      select m.group_id,
+        count(*) filter (
+          where m.author_student_id is not null
+            and m.created_at > coalesce(
+              (select r.last_read_at from message_reads r where r.user_id = ${viewerUserId ?? ""} and r.group_id = m.group_id),
+              'epoch'::timestamptz)
+        )::int as unread,
+        max(m.created_at) as last_at
+      from messages m join groups g on g.id = m.group_id
+      where g.course_offering_id = ${offeringId}
+      group by m.group_id
+    `;
     const perMember = Number(config[0]?.interviews_per_member ?? 2);
     const minTests = Number(config[0]?.min_prototype_tests ?? 5);
     const parse = (raw: unknown): string[] => {
@@ -246,8 +268,18 @@ export async function loadCohort(offeringId: string, onlyGroupId?: string): Prom
             .map((m) => STAGE_BY_ID[m.stage as StageId]?.title ?? m.stage),
           unansweredShocks: shocks.find((s) => s.group_id === gid)?.missing ? 1 : 0,
         });
+        const week = [
+          [Number(vs?.interviews_7d ?? 0), "interview", "interviews"],
+          [Number(vs?.evidence_7d ?? 0) - Number(vs?.interviews_7d ?? 0) - Number(vs?.tests_7d ?? 0), "note", "notes"],
+          [Number(vs?.tests_7d ?? 0), "test", "tests"],
+        ] as const;
+        const bits = week.filter(([n]) => n > 0).map(([n, one, many]) => `${n} ${n === 1 ? one : many}`);
+        const thread = threads.find((t) => t.group_id === gid);
         return {
           id: gid,
+          pulse: bits.length ? `${bits.join(" · ")} this week` : g.venture_id ? "No field work this week" : "",
+          unreadReplies: Number(thread?.unread ?? 0),
+          lastMessageAt: iso(thread?.last_at),
           groupNumber: Number(g.group_number),
           groupName: String(g.group_name),
           status: String(g.status),

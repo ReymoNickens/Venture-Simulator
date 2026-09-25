@@ -71,7 +71,7 @@ function Editor({
       <div className="space-y-5">
         <Card as="section" className="space-y-3">
           <Eyebrow>1 · What you sell</Eyebrow>
-          <Field label="One unit is…" hint="Be concrete: “one weekly laundry bag”, “one plate of waakye”, “one month’s subscription”.">
+          <Field label="One unit is…" hint="Be concrete: “one weekly laundry bag”, “one plate of kenkey and fish”, “one month’s subscription”.">
             <Input value={f.unitName} onChange={(e) => set("unitName", e.target.value)} />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -138,7 +138,7 @@ function Editor({
         ) : null}
         <Card className="space-y-2">
           <Field label="What changed in this version?" optional>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Got real quotes from Makola" />
+            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Got real quotes at Kotokuraba" />
           </Field>
           <FormMessages error={error} notice={notice} />
           <Button

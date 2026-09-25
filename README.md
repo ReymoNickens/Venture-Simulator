@@ -26,14 +26,18 @@ Eleven stops, each with a field mission, a “done” checklist computed from th
 10. **Persevere, pivot or stop** — look-back summary, majority decision, confidential peer ratings
 11. **Pitch day** — business plan assembled from the record (printable) and a pitch-slide mode
 
-Also: **Today** (next move, deadlines, market shocks, announcements, team activity), **Notebook** (all evidence), **Advisor** (challenging AI with daily caps). Everything but the advisor works offline.
+Also: **Today** (next move, what changed, a sealed glimpse of the next stop, team activity), **Notebook** (all evidence), **Messages** (group thread with lecturers, private option), **Advisor** (challenging AI with daily caps). Everything but the advisor and messages works offline.
+
+Every long form is a one-question-per-screen flow with autosave. Finishing a stop is stamped and reveals the next one. Places, examples, demo classmates and market shocks are set in Cape Coast and around UCC. The reasoning behind every screen is in [docs/UX-AUDIT.md](docs/UX-AUDIT.md).
 
 ## The staff room (lecturer side, `/lecturer`)
 
 Built for one lecturer to ~400 students — it works by exception:
 
 - **Attention queue** — groups ranked by readable rules (stalled, blocked on named members, silent members, untested critical assumptions, opinion-heavy evidence, advisor use without fieldwork, missed milestones, unanswered shocks) and a stage funnel.
-- **Group drill-down** — contribution per member, confidential peer averages, private reflections, the full record; mark a member inactive (unblocks the group), feedback with rubric levels and reusable comments, take ownership of a group.
+- **What's happening** — the cohort's activity as sentences, beside the queue.
+- **Messages** — message any group (or one student privately) from the queue in one tap, or every group in the current view at once; replies surface as a filter.
+- **Group drill-down** — the conversation, contribution per member, confidential peer averages, private reflections, the full record; mark a member inactive (unblocks the group), feedback with rubric levels and reusable comments, take ownership of a group.
 - **Course set-up** — milestones, announcements, Ghana-grounded market shocks, CSV gradebook.
 
 Staff join with `STAFF_ACCESS_CODE` (preview database: `DEMO-STAFF`).

@@ -1,18 +1,17 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ChevronDown, Quote } from "lucide-react";
+import { ChevronDown, Mic, Quote } from "lucide-react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
-import { useAction } from "@/hooks/use-action";
 import { saveOffline } from "@/lib/offline/actions";
 import type { WorkspaceSnapshot, WouldPay } from "@/lib/domain/types";
 import { StageHeader } from "@/components/stage/StageHeader";
 import { Reflect } from "@/components/stage/Reflect";
 import { NeedsVenture } from "@/components/stage/NeedsVenture";
-import { Button } from "@/components/ui/button";
-import { Choice, Field, Input, Select, Textarea } from "@/components/ui/input";
+import { BigInput, BigText, Pick, Scale, StepFlow, Suggest, type Step } from "@/components/flow/StepFlow";
+import { ALL_PLACES, PEOPLE_TO_ASK, SUGGESTED_PLACES } from "@/lib/domain/places";
 import { Card, Eyebrow, EmptyNote } from "@/components/ui/badge";
 import { Stamp } from "@/components/ui/stamp";
-import { FormMessages, Loading } from "@/components/ui/feedback";
+import { Loading } from "@/components/ui/feedback";
 import { shortDate } from "@/lib/dates";
 
 export const Route = createFileRoute("/studio/listen")({ component: ListenPage });
@@ -33,17 +32,42 @@ const CHANNELS = [
 
 function ListenPage() {
   const { data, loading, refresh } = useStudioWorkspace();
+  const [saved, setSaved] = useState<string | null>(null);
+  const [logging, setLogging] = useState(false);
   if (loading || !data) return <Loading />;
   if (!data.venture) return <NeedsVenture />;
   const interviews = data.work.interviews;
+  // Focus mode: while logging, the interview is the only thing on screen.
+  if (logging) {
+    return (
+      <InterviewForm
+        data={data}
+        open
+        setOpen={setLogging}
+        onSaved={(queued) => {
+          setSaved(queued ? "Saved on this phone — it will sync when you are back online." : "Interview saved. It is in your notebook as evidence.");
+          void refresh();
+        }}
+      />
+    );
+  }
   return (
     <div className="space-y-6">
       <StageHeader stage="listen" data={data} />
+      <InterviewForm
+        data={data}
+        open={false}
+        setOpen={setLogging}
+        onSaved={(queued) => {
+          setSaved(queued ? "Saved on this phone — it will sync when you are back online." : "Interview saved. It is in your notebook as evidence.");
+          void refresh();
+        }}
+      />
+      {saved ? <p className="text-sm font-semibold text-accent">{saved}</p> : null}
       <Guide />
       <Patterns data={data} />
-      <InterviewForm data={data} onSaved={() => void refresh()} />
       <section className="space-y-3">
-        <h2 className="font-display text-xl font-bold">Interview log ({interviews.length})</h2>
+        <h2 className="font-display text-xl font-bold">What you have heard ({interviews.length})</h2>
         {interviews.length ? (
           <ul className="space-y-3">
             {interviews.map((i) => (
@@ -69,7 +93,6 @@ function ListenPage() {
                   <span>{i.keyQuotes}</span>
                 </blockquote>
                 <dl className="mt-2 grid gap-1 text-sm">
-                  {i.pains ? <Row k="Pains" v={i.pains} /> : null}
                   {i.currentSolution ? <Row k="Today they" v={i.currentSolution} /> : null}
                   {i.spendSignal ? <Row k="Spend" v={i.spendSignal} /> : null}
                   {i.surprise ? <Row k="Surprise" v={i.surprise} /> : null}
@@ -79,7 +102,7 @@ function ListenPage() {
             ))}
           </ul>
         ) : (
-          <EmptyNote>No interviews yet. The first one is the hardest — go and knock.</EmptyNote>
+          <EmptyNote>Nothing yet. The first conversation is the hardest — go and knock.</EmptyNote>
         )}
       </section>
       <Reflect
@@ -140,7 +163,7 @@ function Guide() {
             </p>
             <p className="mt-1 text-xs text-muted">
               Use whichever language they are most comfortable in. Record who they are (“Level 200
-              student, Pentagon hostel”), not their name or number.
+              student, Kwaprow hostel”), not their name or number.
             </p>
           </div>
           <ul className="list-disc space-y-1 pl-4">
@@ -195,154 +218,247 @@ function Stat({ n, label }: { n: string; label: string }) {
   );
 }
 
-function InterviewForm({ data, onSaved }: { data: WorkspaceSnapshot; onSaved: () => void }) {
-  const blank = {
-    intervieweeProfile: "",
-    segment: "",
-    location: "",
-    conductedOn: new Date().toISOString().slice(0, 10),
-    channel: "in_person",
-    consent: false,
-    keyQuotes: "",
-    pains: "",
-    currentSolution: "",
-    spendSignal: "",
-    wouldPay: "not_asked" as WouldPay,
-    painLevel: 3,
-    surprise: "",
-    assumptionId: "",
-    relationship: "supports",
-  };
-  const [f, setF] = useState(blank);
-  const [open, setOpen] = useState(data.work.interviews.length === 0);
-  const { pending, error, notice, run, setNotice } = useAction();
-  const set = <K extends keyof typeof blank>(k: K, v: (typeof blank)[K]) => setF((x) => ({ ...x, [k]: v }));
-  const segments = [...new Set(data.work.interviews.map((i) => i.segment).filter(Boolean))];
+type IV = {
+  consent: boolean;
+  intervieweeProfile: string;
+  segment: string;
+  location: string;
+  conductedOn: string;
+  channel: "in_person" | "phone" | "whatsapp" | "other";
+  keyQuotes: string;
+  currentSolution: string;
+  spendSignal: string;
+  painLevel: number | null;
+  wouldPay: WouldPay | "";
+  surprise: string;
+  assumptionId: string;
+  relationship: "supports" | "challenges";
+};
 
+function interviewSteps(data: WorkspaceSnapshot): Step<IV>[] {
+  const segments = [...new Set(data.work.interviews.map((i) => i.segment).filter(Boolean))];
+  const steps: Step<IV>[] = [
+    {
+      id: "consent",
+      question: "Did they agree to talk to you?",
+      hint: "Tell them it is a class project, you won’t use their name, and they can stop any time.",
+      render: (v, set, next) => (
+        <Pick
+          value={v.consent ? "yes" : ""}
+          onChange={(x) => set({ consent: x === "yes" })}
+          onPicked={next}
+          options={[{ value: "yes", label: "Yes, they agreed", hint: "and I am not recording their name" }]}
+        />
+      ),
+      valid: (v) => v.consent || "Only log interviews with people who agreed.",
+      summary: (v) => (v.consent ? "Yes" : ""),
+    },
+    {
+      id: "who",
+      question: "Who did you talk to?",
+      hint: "Describe them, don’t name them: “Level 200 nursing student, Adehye Hall”.",
+      render: (v, set) => (
+        <>
+          <BigInput label="Who" value={v.intervieweeProfile} onChange={(intervieweeProfile) => set({ intervieweeProfile })} placeholder="Fish seller, Kotokuraba, about 40" />
+          <p className="mt-4 text-sm font-semibold text-ink-soft">Which group do they belong to?</p>
+          <Suggest items={segments.length ? segments : PEOPLE_TO_ASK.slice(0, 6)} onPick={(segment) => set({ segment })} />
+          <input
+            aria-label="Customer segment"
+            value={v.segment}
+            onChange={(e) => set({ segment: e.target.value })}
+            placeholder="or type a group"
+            className="mt-2 h-10 w-full rounded-[8px] border-2 border-line-strong/70 bg-bg px-3 text-sm"
+          />
+        </>
+      ),
+      valid: (v) => v.intervieweeProfile.trim().length >= 5 || "Describe who they are.",
+      summary: (v) => [v.intervieweeProfile, v.segment].filter(Boolean).join(" · "),
+    },
+    {
+      id: "where",
+      question: "Where and how?",
+      render: (v, set) => (
+        <div className="space-y-3">
+          <BigInput label="Where" value={v.location} onChange={(location) => set({ location })} placeholder="Kotokuraba Market" list="places-iv" />
+          <datalist id="places-iv">
+            {ALL_PLACES.map((p) => (
+              <option key={p} value={p} />
+            ))}
+          </datalist>
+          <Suggest items={SUGGESTED_PLACES} onPick={(location) => set({ location })} />
+          <div className="flex flex-wrap gap-2 pt-2">
+            {CHANNELS.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                aria-pressed={v.channel === c.value}
+                onClick={() => set({ channel: c.value })}
+                className={`rounded-full border-2 px-3 py-1 text-sm ${v.channel === c.value ? "border-ink bg-ink text-bg-elevated" : "border-line-strong"}`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ),
+      summary: (v) => [v.location, CHANNELS.find((c) => c.value === v.channel)?.label].filter(Boolean).join(" · "),
+      optional: true,
+    },
+    {
+      id: "quote",
+      section: "The part that matters",
+      question: "What did they say? Their exact words.",
+      hint: "Quotes are evidence. Your summary is not.",
+      render: (v, set) => (
+        <BigText label="Their words" value={v.keyQuotes} onChange={(keyQuotes) => set({ keyQuotes })} rows={5} placeholder="“Last Friday I waited from 6 till 7 and still missed my quiz…”" />
+      ),
+      valid: (v) => v.keyQuotes.trim().length >= 15 || "Write down at least one thing they said.",
+      summary: (v) => v.keyQuotes,
+    },
+    {
+      id: "cope",
+      question: "What do they do about it today?",
+      render: (v, set) => (
+        <BigInput label="What they do today" value={v.currentSolution} onChange={(currentSolution) => set({ currentSolution })} placeholder="Buys sachet water, walks to Old Site…" />
+      ),
+      optional: true,
+      summary: (v) => v.currentSolution,
+    },
+    {
+      id: "spend",
+      question: "What does it already cost them?",
+      hint: "Money or time they already spend is the strongest signal you can find.",
+      render: (v, set) => (
+        <BigInput label="What it costs them" value={v.spendSignal} onChange={(spendSignal) => set({ spendSignal })} placeholder="GH₵20 a week on dropping taxis" />
+      ),
+      optional: true,
+      summary: (v) => v.spendSignal,
+    },
+    {
+      id: "pain",
+      question: "How much does it bother them?",
+      render: (v, set, next) => (
+        <Scale value={v.painLevel} onChange={(painLevel) => set({ painLevel })} low="Barely" high="Desperate" onPicked={next} />
+      ),
+      summary: (v) => (v.painLevel ? `${v.painLevel} of 5` : ""),
+      valid: (v) => Boolean(v.painLevel) || "Tap a number.",
+    },
+    {
+      id: "pay",
+      question: "Did they show they would pay?",
+      hint: "“Yes” counts only if they did something — named a price, asked when, offered a deposit.",
+      render: (v, set, next) => (
+        <Pick value={v.wouldPay} onChange={(wouldPay) => set({ wouldPay })} onPicked={next} options={WOULD_PAY} />
+      ),
+      valid: (v) => Boolean(v.wouldPay) || "Pick one.",
+      summary: (v) => WOULD_PAY.find((w) => w.value === v.wouldPay)?.label ?? "",
+    },
+    {
+      id: "surprise",
+      question: "What surprised you?",
+      hint: "The surprise is usually the most valuable thing you heard.",
+      render: (v, set) => <BigInput label="Surprise" value={v.surprise} onChange={(surprise) => set({ surprise })} />,
+      optional: true,
+      summary: (v) => v.surprise,
+    },
+  ];
+  if (data.assumptions.length) {
+    steps.push({
+      id: "assumption",
+      question: "Did it test one of your assumptions?",
+      optional: true,
+      render: (v, set) => (
+        <div className="space-y-2">
+          <Pick
+            value={v.assumptionId}
+            onChange={(assumptionId) => set({ assumptionId })}
+            options={data.assumptions.map((a) => ({ value: a.id, label: a.statement }))}
+          />
+          {v.assumptionId ? (
+            <div className="flex gap-2 pt-2">
+              {(["supports", "challenges"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  aria-pressed={v.relationship === r}
+                  onClick={() => set({ relationship: r })}
+                  className={`flex-1 rounded-[10px] border-2 py-3 font-semibold ${v.relationship === r ? (r === "supports" ? "border-ink bg-accent text-accent-fg" : "border-ink bg-clay text-accent-fg") : "border-line-strong"}`}
+                >
+                  It {r === "supports" ? "supports" : "challenges"} it
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ),
+      summary: (v) => {
+        const a = data.assumptions.find((x) => x.id === v.assumptionId);
+        return a ? `${v.relationship}: ${a.statement}` : "";
+      },
+    });
+  }
+  return steps;
+}
+
+function InterviewForm({
+  data,
+  onSaved,
+  open,
+  setOpen,
+}: {
+  data: WorkspaceSnapshot;
+  onSaved: (queued: boolean) => void;
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}) {
   if (!open) {
     return (
-      <Button variant="gold" size="lg" className="w-full" onClick={() => setOpen(true)}>
-        + Log an interview
-      </Button>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center justify-between rounded-[14px] border-2 border-ink bg-gold p-5 text-left shadow-[4px_4px_0_0_var(--color-ink)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+      >
+        <span>
+          <span className="block font-display text-2xl font-extrabold">Log an interview</span>
+          <span className="block text-sm text-ink-soft">Two minutes, right after you talk. Works offline.</span>
+        </span>
+        <Mic className="size-8" aria-hidden />
+      </button>
     );
   }
   return (
-    <section className="notebook rounded-[10px] border-2 border-ink py-4 pr-4 pl-10">
-      <h2 className="font-display text-xl font-bold">Log an interview</h2>
-      <p className="text-xs text-muted">Works without a connection — it syncs later.</p>
-      <div className="mt-3 space-y-4">
-        <label className="flex items-start gap-2 rounded-[8px] border-2 border-ink bg-bg-elevated p-3 text-sm">
-          <input
-            type="checkbox"
-            checked={f.consent}
-            onChange={(e) => set("consent", e.target.checked)}
-            className="mt-1 size-4 accent-[var(--color-accent)]"
-          />
-          <span>They agreed to be interviewed for a class project, and I am not recording their name.</span>
-        </label>
-        <Field label="Who did you speak to?" hint="A description, not a name: “Level 200 student, commutes from Madina”.">
-          <Input value={f.intervieweeProfile} onChange={(e) => set("intervieweeProfile", e.target.value)} />
-        </Field>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Customer segment" optional>
-            <Input list="segments" value={f.segment} onChange={(e) => set("segment", e.target.value)} placeholder="Commuting students" />
-            <datalist id="segments">
-              {segments.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
-          </Field>
-          <Field label="Where" optional>
-            <Input value={f.location} onChange={(e) => set("location", e.target.value)} placeholder="Night market, Hall B…" />
-          </Field>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="When">
-            <Input type="date" value={f.conductedOn} onChange={(e) => set("conductedOn", e.target.value)} />
-          </Field>
-          <Choice label="How" value={f.channel as (typeof CHANNELS)[number]["value"]} options={CHANNELS} onChange={(v) => set("channel", v)} />
-        </div>
-        <Field label="What did they actually say? Their words, in quotes.">
-          <Textarea value={f.keyQuotes} onChange={(e) => set("keyQuotes", e.target.value)} className="min-h-28" placeholder="“Last Tuesday I waited forty minutes and still missed my 8am…”" />
-        </Field>
-        <Field label="What problems or frustrations came up?" optional>
-          <Textarea value={f.pains} onChange={(e) => set("pains", e.target.value)} />
-        </Field>
-        <Field label="How do they deal with it today?" optional>
-          <Input value={f.currentSolution} onChange={(e) => set("currentSolution", e.target.value)} />
-        </Field>
-        <Field label="What do they already spend on it — money or time?" optional hint="GH₵ per week, hours lost, trips made.">
-          <Input value={f.spendSignal} onChange={(e) => set("spendSignal", e.target.value)} />
-        </Field>
-        <Choice
-          label="How painful is it for them?"
-          value={String(f.painLevel) as "1" | "2" | "3" | "4" | "5"}
-          options={[
-            { value: "1", label: "1 · barely" },
-            { value: "2", label: "2" },
-            { value: "3", label: "3" },
-            { value: "4", label: "4" },
-            { value: "5", label: "5 · desperate" },
-          ]}
-          onChange={(v) => set("painLevel", Number(v))}
-        />
-        <Choice label="Did they show they would pay?" value={f.wouldPay} options={WOULD_PAY} onChange={(v) => set("wouldPay", v)} />
-        <Field label="What surprised you?" optional>
-          <Input value={f.surprise} onChange={(e) => set("surprise", e.target.value)} />
-        </Field>
-        {data.assumptions.length ? (
-          <div className="space-y-2 rounded-[8px] border-2 border-dashed border-line-strong p-3">
-            <Field label="Did this test one of your assumptions?" optional>
-              <Select value={f.assumptionId} onChange={(e) => set("assumptionId", e.target.value)}>
-                <option value="">No / not sure</option>
-                {data.assumptions.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.statement.slice(0, 90)}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            {f.assumptionId ? (
-              <Choice
-                label="It…"
-                value={f.relationship as "supports" | "challenges"}
-                options={[
-                  { value: "supports", label: "supports it" },
-                  { value: "challenges", label: "challenges it" },
-                ]}
-                onChange={(v) => set("relationship", v)}
-              />
-            ) : null}
-          </div>
-        ) : null}
-        <FormMessages error={error} notice={notice} />
-        <div className="flex flex-wrap gap-2">
-          <Button
-            disabled={Boolean(pending) || !f.consent}
-            onClick={() =>
-              void run("save", async () => {
-                const r = await saveOffline("logInterview", {
-                  ...f,
-                  conductedOn: f.conductedOn || null,
-                  assumptionId: f.assumptionId || null,
-                });
-                setF(blank);
-                onSaved();
-                setNotice(
-                  r.queued
-                    ? "Saved on this phone — it will sync when you are connected."
-                    : "Interview logged — and added to your notebook as evidence.",
-                );
-              })
-            }
-          >
-            {pending ? "Saving…" : "Save interview"}
-          </Button>
-          <Button variant="ghost" onClick={() => setOpen(false)}>
-            Close
-          </Button>
-        </div>
-      </div>
-    </section>
+    <StepFlow<IV>
+      steps={interviewSteps(data)}
+      draftKey="interview"
+      initial={{
+        consent: false,
+        intervieweeProfile: "",
+        segment: "",
+        location: "",
+        conductedOn: new Date().toISOString().slice(0, 10),
+        channel: "in_person",
+        keyQuotes: "",
+        currentSolution: "",
+        spendSignal: "",
+        painLevel: null,
+        wouldPay: "",
+        surprise: "",
+        assumptionId: "",
+        relationship: "supports",
+      }}
+      finishLabel="Save interview"
+      reviewTitle="Good. Anything to fix?"
+      onCancel={() => setOpen(false)}
+      onFinish={async (v) => {
+        const r = await saveOffline("logInterview", {
+          ...v,
+          wouldPay: v.wouldPay || "not_asked",
+          conductedOn: v.conductedOn || null,
+          assumptionId: v.assumptionId || null,
+        });
+        setOpen(false);
+        onSaved(r.queued);
+      }}
+    />
   );
 }

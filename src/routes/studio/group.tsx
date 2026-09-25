@@ -185,7 +185,7 @@ function GroupPage() {
       <Card className="space-y-3">
         <h2 className="font-display text-xl font-bold">Start a new group</h2>
         <Field label="Group name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Hall B investigators" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Oguaa Road Crew" />
         </Field>
         <Button
           variant="secondary"

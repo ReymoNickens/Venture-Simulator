@@ -24,6 +24,7 @@ import { Route as StudioFeasibilityRouteImport } from './routes/studio/feasibili
 import { Route as StudioGroupRouteImport } from './routes/studio/group'
 import { Route as StudioListenRouteImport } from './routes/studio/listen'
 import { Route as StudioMapRouteImport } from './routes/studio/map'
+import { Route as StudioMessagesRouteImport } from './routes/studio/messages'
 import { Route as StudioNotebookRouteImport } from './routes/studio/notebook'
 import { Route as StudioNumbersRouteImport } from './routes/studio/numbers'
 import { Route as StudioOpportunityRouteImport } from './routes/studio/opportunity'
@@ -109,6 +110,11 @@ const StudioMapRoute = StudioMapRouteImport.update({
   path: '/map',
   getParentRoute: () => StudioRoute,
 } as any)
+const StudioMessagesRoute = StudioMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => StudioRoute,
+} as any)
 const StudioNotebookRoute = StudioNotebookRouteImport.update({
   id: '/notebook',
   path: '/notebook',
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/studio/group': typeof StudioGroupRoute
   '/studio/listen': typeof StudioListenRoute
   '/studio/map': typeof StudioMapRoute
+  '/studio/messages': typeof StudioMessagesRoute
   '/studio/notebook': typeof StudioNotebookRoute
   '/studio/numbers': typeof StudioNumbersRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
@@ -193,6 +200,7 @@ export interface FileRoutesByTo {
   '/studio/group': typeof StudioGroupRoute
   '/studio/listen': typeof StudioListenRoute
   '/studio/map': typeof StudioMapRoute
+  '/studio/messages': typeof StudioMessagesRoute
   '/studio/notebook': typeof StudioNotebookRoute
   '/studio/numbers': typeof StudioNumbersRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/studio/group': typeof StudioGroupRoute
   '/studio/listen': typeof StudioListenRoute
   '/studio/map': typeof StudioMapRoute
+  '/studio/messages': typeof StudioMessagesRoute
   '/studio/notebook': typeof StudioNotebookRoute
   '/studio/numbers': typeof StudioNumbersRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/studio/group'
     | '/studio/listen'
     | '/studio/map'
+    | '/studio/messages'
     | '/studio/notebook'
     | '/studio/numbers'
     | '/studio/opportunity'
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/studio/group'
     | '/studio/listen'
     | '/studio/map'
+    | '/studio/messages'
     | '/studio/notebook'
     | '/studio/numbers'
     | '/studio/opportunity'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/studio/group'
     | '/studio/listen'
     | '/studio/map'
+    | '/studio/messages'
     | '/studio/notebook'
     | '/studio/numbers'
     | '/studio/opportunity'
@@ -427,6 +439,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioMapRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/studio/messages': {
+      id: '/studio/messages'
+      path: '/messages'
+      fullPath: '/studio/messages'
+      preLoaderRoute: typeof StudioMessagesRouteImport
+      parentRoute: typeof StudioRoute
+    }
     '/studio/notebook': {
       id: '/studio/notebook'
       path: '/notebook'
@@ -517,6 +536,7 @@ interface StudioRouteChildren {
   StudioGroupRoute: typeof StudioGroupRoute
   StudioListenRoute: typeof StudioListenRoute
   StudioMapRoute: typeof StudioMapRoute
+  StudioMessagesRoute: typeof StudioMessagesRoute
   StudioNotebookRoute: typeof StudioNotebookRoute
   StudioNumbersRoute: typeof StudioNumbersRoute
   StudioOpportunityRoute: typeof StudioOpportunityRoute
@@ -535,6 +555,7 @@ const StudioRouteChildren: StudioRouteChildren = {
   StudioGroupRoute: StudioGroupRoute,
   StudioListenRoute: StudioListenRoute,
   StudioMapRoute: StudioMapRoute,
+  StudioMessagesRoute: StudioMessagesRoute,
   StudioNotebookRoute: StudioNotebookRoute,
   StudioNumbersRoute: StudioNumbersRoute,
   StudioOpportunityRoute: StudioOpportunityRoute,

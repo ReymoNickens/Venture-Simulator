@@ -14,7 +14,7 @@ export interface MarketEventTemplate {
   prompt: string;
 }
 
-export const MARKET_EVENTS: MarketEventTemplate[] = [
+const GENERAL_EVENTS: MarketEventTemplate[] = [
   {
     key: "cedi_depreciation",
     title: "The cedi has fallen 15% this month",
@@ -24,7 +24,7 @@ export const MARKET_EVENTS: MarketEventTemplate[] = [
   {
     key: "dumsor",
     title: "Dumsor is back: 12-hour power cuts for two weeks",
-    body: "ECG has announced load-shedding across your area. Evening and morning outages will run for at least two weeks.",
+    body: "ECG has announced load-shedding across Cape Coast, campus included. Evening and morning outages will run for at least two weeks.",
     prompt: "What part of your venture depends on power or charging? What is your fallback, and what does it cost?",
   },
   {
@@ -53,14 +53,14 @@ export const MARKET_EVENTS: MarketEventTemplate[] = [
   },
   {
     key: "fuel_price",
-    title: "Fuel prices up — tro-tro fares rising",
-    body: "Transport unions have announced a fare increase after the latest fuel price hike.",
+    title: "Fuel prices up — taxi and trotro fares rising",
+    body: "Drivers at Pedu Junction and on the campus routes have raised fares after the latest fuel price hike.",
     prompt: "Where does transport sit in your costs — deliveries, buying stock, reaching customers? Rework the numbers that depend on it.",
   },
   {
     key: "supplier_stockout",
     title: "Your main supplier is out of stock for a month",
-    body: "The market trader you buy from says the next consignment is delayed at the port.",
+    body: "The Kotokuraba trader you buy from says the next consignment is delayed at Takoradi port.",
     prompt: "Do you have a second supplier? What did you learn about your key partners from this?",
   },
   {
@@ -76,5 +76,28 @@ export const MARKET_EVENTS: MarketEventTemplate[] = [
     prompt: "What is the strongest evidence of demand you could submit today? What is still missing?",
   },
 ];
+
+const CAPE_COAST_EVENTS: MarketEventTemplate[] = [
+  {
+    key: "fetu_afahye",
+    title: "Fetu Afahye week — Cape Coast fills up",
+    body: "The festival brings visitors from across Ghana and abroad. Streets close for the procession, traffic slows, and prices at the markets climb for the week.",
+    prompt: "Is this a week to pause, or your best week of sales? What changes for your customers, suppliers and deliveries?",
+  },
+  {
+    key: "heavy_rains",
+    title: "Heavy rains flood the roads to Pedu and Kotokuraba",
+    body: "Two days of downpour have left low roads under water. Taxis are refusing some routes; traders are staying home.",
+    prompt: "Which part of your venture needs people or goods to move? What is your wet-season plan?",
+  },
+  {
+    key: "closed_season",
+    title: "The closed fishing season begins",
+    body: "Artisanal fishing pauses for the national closed season. Fish becomes scarce at the Cape Coast landing site and prices rise.",
+    prompt: "Does your venture depend on fish, fishing families’ income, or food prices? What happens to your costs and your customers’ spending?",
+  },
+];
+
+export const MARKET_EVENTS: MarketEventTemplate[] = [...CAPE_COAST_EVENTS, ...GENERAL_EVENTS];
 
 export const MARKET_EVENT_BY_KEY = Object.fromEntries(MARKET_EVENTS.map((e) => [e.key, e]));

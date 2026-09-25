@@ -1,28 +1,13 @@
-import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea } from "@/components/ui/input";
-import { Why } from "@/components/ui/why";
-import { CONTEXTS, WHY } from "@/lib/domain/copy";
-import { ASSUMPTION_LANGUAGE } from "@/lib/domain/config";
 import type { Opportunity, OpportunityFields } from "@/lib/domain/types";
+import { CONTEXTS } from "@/lib/domain/copy";
+import { ALL_PLACES, PEOPLE_TO_ASK } from "@/lib/domain/places";
+import { ASSUMPTION_LANGUAGE } from "@/lib/domain/config";
 import { saveOpportunity } from "@/lib/offline/actions";
-import { FormMessages } from "@/components/ui/feedback";
+import { BigInput, BigText, Pick, StepFlow, Suggest, type Step } from "@/components/flow/StepFlow";
 
-function SectionHead({ n, title, sub }: { n: string; title: string; sub: string }) {
-  return (
-    <div className="flex items-start gap-3 pt-2">
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-gold font-display text-sm font-extrabold">
-        {n}
-      </span>
-      <div>
-        <h2 className="font-display text-lg leading-tight font-extrabold">{title}</h2>
-        <p className="text-xs text-muted">{sub}</p>
-      </div>
-    </div>
-  );
-}
+type V = OpportunityFields;
 
-const empty: OpportunityFields = {
+const empty: V = {
   problem: "",
   affectedPeople: "",
   context: "",
@@ -35,187 +20,192 @@ const empty: OpportunityFields = {
   uncertainties: "",
 };
 
-function fromOpp(o: Opportunity | null): OpportunityFields {
+function fromOpp(o: Opportunity | null): V {
   if (!o) return empty;
-  return {
-    problem: o.problem,
-    affectedPeople: o.affectedPeople,
-    context: o.context,
-    observedEvidence: o.observedEvidence,
-    currentAlternatives: o.currentAlternatives,
-    whyItMatters: o.whyItMatters,
-    possibleSolution: o.possibleSolution,
-    potentialCustomer: o.potentialCustomer,
-    revenueMechanism: o.revenueMechanism,
-    uncertainties: o.uncertainties,
-  };
+  const { problem, affectedPeople, context, observedEvidence, currentAlternatives, whyItMatters, possibleSolution, potentialCustomer, revenueMechanism, uncertainties } = o;
+  return { problem, affectedPeople, context, observedEvidence, currentAlternatives, whyItMatters, possibleSolution, potentialCustomer, revenueMechanism, uncertainties };
 }
+
+const min = (n: number, msg: string) => (v: string) => v.trim().length >= n || msg;
+
+const assumedWarning = (text: string) =>
+  ASSUMPTION_LANGUAGE.test(text) ? (
+    <p className="mt-2 rounded-[8px] border-2 border-gold/60 bg-gold-soft px-3 py-2 text-sm">
+      “Everyone”, “most students”, “will buy” — that is a guess, not something you saw. It is allowed, but
+      say what you actually observed.
+    </p>
+  ) : null;
+
+// Ordered like fieldwork: what you saw → who → where → the proof → how they
+// cope → why it matters → your hunch → what you don't know.
+const STEPS: Step<V>[] = [
+  {
+    id: "problem",
+    section: "What you saw",
+    question: "What problem did you notice?",
+    hint: "Something you saw happen — not a business you wish existed.",
+    render: (v, set) => (
+      <>
+        <BigText label="The problem" value={v.problem} onChange={(problem) => set({ problem })} placeholder="Every morning the shuttle stop at Science is packed and students miss their 8am…" />
+        {assumedWarning(v.problem)}
+      </>
+    ),
+    valid: (v) => min(20, "Describe it in a full sentence or two.")(v.problem),
+    summary: (v) => v.problem,
+  },
+  {
+    id: "who",
+    section: "What you saw",
+    question: "Who has this problem?",
+    hint: "Be specific. “Students” is too broad — which students, when?",
+    render: (v, set) => (
+      <>
+        <BigInput label="Who has it" value={v.affectedPeople} onChange={(affectedPeople) => set({ affectedPeople })} placeholder="Level 100 students in the halls with early lectures" />
+        <Suggest items={PEOPLE_TO_ASK} onPick={(p) => set({ affectedPeople: v.affectedPeople ? `${v.affectedPeople}, ${p}` : p })} />
+      </>
+    ),
+    valid: (v) => min(5, "Name who it affects.")(v.affectedPeople),
+    summary: (v) => v.affectedPeople,
+  },
+  {
+    id: "where",
+    section: "What you saw",
+    question: "Where did you see it?",
+    hint: "Tap a place or type your own.",
+    render: (v, set) => (
+      <>
+        <BigInput label="Where" value={v.context} onChange={(context) => set({ context })} placeholder="Science Market" list="places" />
+        <datalist id="places">
+          {ALL_PLACES.map((p) => (
+            <option key={p} value={p} />
+          ))}
+        </datalist>
+        <Suggest items={CONTEXTS} onPick={(context) => set({ context })} />
+      </>
+    ),
+    valid: (v) => min(3, "Say where.")(v.context),
+    summary: (v) => v.context,
+  },
+  {
+    id: "evidence",
+    section: "The proof",
+    question: "What did you actually see, hear or count?",
+    hint: "Numbers, times, quotes. If you haven’t looked yet, go and look — then come back.",
+    render: (v, set) => (
+      <BigText label="What you observed" value={v.observedEvidence} onChange={(observedEvidence) => set({ observedEvidence })} placeholder="Counted 40+ people at 7:10am on Tuesday and Thursday. Two buses in 25 minutes." />
+    ),
+    valid: (v) => min(20, "Write what you observed — this is the heart of it.")(v.observedEvidence),
+    summary: (v) => v.observedEvidence,
+  },
+  {
+    id: "cope",
+    section: "How they cope",
+    question: "What do people do about it today?",
+    hint: "They already manage somehow. That is your real competition.",
+    render: (v, set) => (
+      <BigText label="Current alternatives" value={v.currentAlternatives} onChange={(currentAlternatives) => set({ currentAlternatives })} placeholder="Walk to Old Site, take a dropping taxi, or skip the lecture." rows={3} />
+    ),
+    valid: (v) => min(10, "How do they get by today?")(v.currentAlternatives),
+    summary: (v) => v.currentAlternatives,
+  },
+  {
+    id: "why",
+    section: "How they cope",
+    question: "Why does it matter to them?",
+    hint: "What does it cost them — money, time, marks, safety?",
+    render: (v, set) => (
+      <BigText label="Why it matters" value={v.whyItMatters} onChange={(whyItMatters) => set({ whyItMatters })} rows={3} />
+    ),
+    valid: (v) => min(10, "Say what it costs them.")(v.whyItMatters),
+    summary: (v) => v.whyItMatters,
+  },
+  {
+    id: "hunch",
+    section: "Your hunch",
+    question: "If you had to guess — what might help?",
+    hint: "A rough guess is fine. You are not committing to anything.",
+    optional: true,
+    render: (v, set) => (
+      <BigText label="Possible solution" value={v.possibleSolution} onChange={(possibleSolution) => set({ possibleSolution })} rows={3} />
+    ),
+    summary: (v) => v.possibleSolution,
+  },
+  {
+    id: "customer",
+    section: "Your hunch",
+    question: "Who would pay for it?",
+    hint: "Sometimes the person with the problem isn’t the one who pays.",
+    optional: true,
+    render: (v, set) => (
+      <BigInput label="Who would pay" value={v.potentialCustomer} onChange={(potentialCustomer) => set({ potentialCustomer })} placeholder="Students, hall management, parents…" />
+    ),
+    summary: (v) => v.potentialCustomer,
+  },
+  {
+    id: "money",
+    section: "Your hunch",
+    question: "How might money change hands?",
+    optional: true,
+    render: (v, set, next) => (
+      <Pick
+        value={(v.revenueMechanism as string) || ""}
+        onChange={(revenueMechanism) => set({ revenueMechanism })}
+        onPicked={next}
+        options={[
+          { value: "Pay each time (cash or MoMo)", label: "Pay each time", hint: "cash or MoMo" },
+          { value: "Weekly or monthly subscription", label: "Weekly or monthly subscription" },
+          { value: "Someone else pays (hall, sponsor, advertiser)", label: "Someone else pays", hint: "hall, sponsor, advertiser" },
+          { value: "Not sure yet", label: "Not sure yet" },
+        ]}
+      />
+    ),
+    summary: (v) => v.revenueMechanism,
+  },
+  {
+    id: "unknown",
+    section: "Be honest",
+    question: "What don’t you know yet?",
+    hint: "This is not a weakness. The whole course is about finding out.",
+    render: (v, set) => (
+      <BigText label="Uncertainties" value={v.uncertainties} onChange={(uncertainties) => set({ uncertainties })} placeholder="Whether it happens every day, or only at exam time…" rows={3} />
+    ),
+    valid: (v) => min(10, "Name at least one thing you are unsure about.")(v.uncertainties),
+    summary: (v) => v.uncertainties,
+  },
+];
 
 export function OpportunityForm({
   existing,
   onSaved,
+  onCancel,
 }: {
   existing: Opportunity | null;
-  onSaved: () => void;
+  onSaved: (result: { submitted: boolean; queued: boolean }) => void;
+  onCancel?: () => void;
 }) {
-  const [fields, setFields] = useState<OpportunityFields>(() => fromOpp(existing));
-  const [pending, setPending] = useState<"save" | "submit" | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  const assumptionHit = useMemo(() => {
-    const blob = `${fields.problem} ${fields.observedEvidence} ${fields.whyItMatters}`;
-    return ASSUMPTION_LANGUAGE.test(blob);
-  }, [fields]);
-
-  function set<K extends keyof OpportunityFields>(key: K, value: string) {
-    setFields((f) => ({ ...f, [key]: value }));
-  }
-
-  async function save(submit: boolean) {
-    setError(null);
-    setNotice(null);
-    setPending(submit ? "submit" : "save");
-    try {
-      const result = await saveOpportunity(fields, submit);
-      if ("queued" in result && result.queued) {
-        setNotice("Saved locally — will sync when connected.");
-      } else {
-        setNotice(submit ? "Submitted. Your group can only see this once selection opens." : "Draft saved.");
-      }
-      onSaved();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save.");
-    } finally {
-      setPending(null);
-    }
-  }
-
-  const submitted = existing?.status && existing.status !== "draft";
-
   return (
-    <form
-      className="space-y-5"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void save(true);
+    <StepFlow<V>
+      steps={STEPS}
+      initial={fromOpp(existing)}
+      draftKey="opportunity"
+      finishLabel={existing && existing.status !== "draft" ? "Update my submission" : "Seal and submit"}
+      reviewTitle="Read it once more. Then seal it."
+      onCancel={onCancel}
+      onFinish={async (v) => {
+        const r = await saveOpportunity(v, true);
+        onSaved({ submitted: true, queued: "queued" in r && Boolean(r.queued) });
       }}
-    >
-      <SectionHead n="1" title="What you saw" sub="Facts from the field — what, who, where, and what you counted." />
-      <Field label="What problem, gap, or unmet need did you notice?">
-        <Textarea
-          required
-          value={fields.problem}
-          onChange={(e) => set("problem", e.target.value)}
-          placeholder="Something you observed — not a business you wish existed."
-        />
-        <Why text={WHY.problem} />
-      </Field>
-      <Field label="Who experiences this?">
-        <Input
-          required
-          value={fields.affectedPeople}
-          onChange={(e) => set("affectedPeople", e.target.value)}
-          placeholder="Be specific. “Students” is too broad."
-        />
-        <Why text={WHY.affectedPeople} />
-      </Field>
-      <Field label="Where did you observe this?">
-        <Input
-          required
-          list="contexts"
-          value={fields.context}
-          onChange={(e) => set("context", e.target.value)}
-        />
-        <datalist id="contexts">
-          {CONTEXTS.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-        <Why text={WHY.context} />
-      </Field>
-      <Field label="What did you actually see, hear, or count?">
-        <Textarea
-          required
-          value={fields.observedEvidence}
-          onChange={(e) => set("observedEvidence", e.target.value)}
-        />
-        <Why text={WHY.observedEvidence} />
-      </Field>
-      <SectionHead n="2" title="How people cope today" sub="If they already manage somehow, you are competing with that." />
-      <Field label="How do people deal with this today?">
-        <Textarea
-          required
-          value={fields.currentAlternatives}
-          onChange={(e) => set("currentAlternatives", e.target.value)}
-        />
-        <Why text={WHY.currentAlternatives} />
-      </Field>
-      <Field label="Why does this matter to them?">
-        <Textarea
-          required
-          value={fields.whyItMatters}
-          onChange={(e) => set("whyItMatters", e.target.value)}
-        />
-        <Why text={WHY.whyItMatters} />
-      </Field>
-      <SectionHead n="3" title="Your hunch — and what you don’t know" sub="Guesses are allowed here, as long as you call them guesses." />
-      <Field label="What might help — if you had to guess?" optional>
-        <Textarea
-          value={fields.possibleSolution}
-          onChange={(e) => set("possibleSolution", e.target.value)}
-          placeholder="Treat this as an assumption, not a plan."
-        />
-        <Why text={WHY.possibleSolution} />
-      </Field>
-      <Field label="Who would use or pay for a solution?" optional>
-        <Input
-          value={fields.potentialCustomer}
-          onChange={(e) => set("potentialCustomer", e.target.value)}
-        />
-        <Why text={WHY.potentialCustomer} />
-      </Field>
-      <Field label="If this became a venture, how might it be paid for?" optional>
-        <Input
-          value={fields.revenueMechanism}
-          onChange={(e) => set("revenueMechanism", e.target.value)}
-        />
-        <Why text={WHY.revenueMechanism} />
-      </Field>
-      <Field label="What do you not know yet?">
-        <Textarea
-          required
-          value={fields.uncertainties}
-          onChange={(e) => set("uncertainties", e.target.value)}
-        />
-        <Why text={WHY.uncertainties} />
-      </Field>
-
-      {assumptionHit ? (
-        <p className="rounded-[8px] border-2 border-gold/60 bg-gold-soft px-3 py-2 text-sm">
-          Some of this language reads like an assumption (“everyone”, “will buy”, “most students”).
-          That is allowed — but it is not evidence. Name it in uncertainties.
-        </p>
-      ) : null}
-      <FormMessages error={error} notice={notice} />
-
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={Boolean(pending)}
-          onClick={() => void save(false)}
-        >
-          {pending === "save" ? "Saving…" : "Save draft"}
-        </Button>
-        <Button type="submit" disabled={Boolean(pending) || Boolean(submitted)}>
-          {pending === "submit" ? "Submitting…" : submitted ? "Already submitted" : "Submit opportunity"}
-        </Button>
-      </div>
-      <p className="text-xs leading-5 text-muted">
-        Submissions stay private until every active member has submitted and selection opens.
-        A submitted opportunity is not deleted.
-      </p>
-    </form>
+      extraFinish={
+        existing && existing.status !== "draft"
+          ? undefined
+          : {
+              label: "Save as draft",
+              run: async (v) => {
+                const r = await saveOpportunity(v, false);
+                onSaved({ submitted: false, queued: "queued" in r && Boolean(r.queued) });
+              },
+            }
+      }
+    />
   );
 }

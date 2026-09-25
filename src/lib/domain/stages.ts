@@ -62,8 +62,14 @@ export interface StageDef {
   title: string;
   /** One line for the route map. */
   short: string;
-  /** What the group must go out and do. */
+  /** What to do, in one or two short sentences. */
   mission: string;
+  /** Where in Cape Coast this stop tends to happen. */
+  setting: string;
+  /** Shown while the stop is still ahead: enough to want it, not enough to know it. */
+  teaser: string;
+  /** Said when the stop is done — the payoff. */
+  payoff: string;
   emblem: EmblemKey;
   href:
     | "/studio/group"
@@ -87,7 +93,10 @@ export const STAGES: StageDef[] = [
     stop: 1,
     title: "Team up",
     short: "Form your group",
-    mission: "Create a group or join one with a code. Nobody is the boss yet — leadership is earned later.",
+    mission: "Start a group or join one with a code. Nobody is the boss yet.",
+    setting: "Sam Jonah Library",
+    teaser: "Every venture starts with the people around the table.",
+    payoff: "Your crew is set. Now each of you goes out alone.",
     emblem: "nkonsonkonson",
     href: "/studio/group",
     needsVenture: false,
@@ -97,8 +106,10 @@ export const STAGES: StageDef[] = [
     stop: 2,
     title: "Spot a problem",
     short: "Your own opportunity",
-    mission:
-      "Go out — hostel, market, lorry station, farm — and find a real problem you can see or count. Alone. Your teammates will not see it until everyone has submitted.",
+    mission: "Go out and find one real problem you can see or count. Alone — your group sees it only when everyone is done.",
+    setting: "Your hall, Science Market, Kotokuraba",
+    teaser: "Somewhere between your hall and Kotokuraba, someone is losing time or money every day.",
+    payoff: "Sealed. When the last teammate submits, every idea opens at once.",
     emblem: "ohene_aniwa",
     href: "/studio/opportunity",
     needsVenture: false,
@@ -108,8 +119,10 @@ export const STAGES: StageDef[] = [
     stop: 3,
     title: "Choose together",
     short: "Compare and decide",
-    mission:
-      "Compare every submission, record your own preference first, then put one forward. A majority must endorse it.",
+    mission: "Read every idea. Pick yours first, then the group votes. A majority decides.",
+    setting: "Wherever your group meets",
+    teaser: "Ten ideas go in. One comes out.",
+    payoff: "You have a venture. Now find out if it is true.",
     emblem: "akoma_ntoaso",
     href: "/studio/select",
     needsVenture: false,
@@ -119,8 +132,10 @@ export const STAGES: StageDef[] = [
     stop: 4,
     title: "What must be true?",
     short: "Assumptions & evidence",
-    mission:
-      "List what must be true for this venture to work. Mark the ones that would kill it. Start logging what you actually know.",
+    mission: "Write down what must be true for this to work. Mark the ones that would sink it.",
+    setting: "Your group chat",
+    teaser: "Every idea hides a guess that could sink it. You will find yours.",
+    payoff: "You know what could kill it. Next: go and ask.",
     emblem: "hwe_mu_dua",
     href: "/studio/venture",
     needsVenture: true,
@@ -130,8 +145,10 @@ export const STAGES: StageDef[] = [
     stop: 5,
     title: "Go and listen",
     short: "Customer interviews",
-    mission:
-      "Talk to the people who have the problem. Ask about the last time it happened and what they spent — never “would you buy my idea?”.",
+    mission: "Talk to the people with the problem. Ask what happened last time — not whether they like your idea.",
+    setting: "Kotokuraba, Science Market, the halls",
+    teaser: "You leave the classroom. Someone in Cape Coast has the answer you need.",
+    payoff: "You heard it from them, not from your head. That changes everything after this.",
     emblem: "mate_masie",
     href: "/studio/listen",
     needsVenture: true,
@@ -141,8 +158,10 @@ export const STAGES: StageDef[] = [
     stop: 6,
     title: "Model the business",
     short: "Business model canvas",
-    mission:
-      "Fill the nine blocks — and link each one to evidence. A block with no evidence is still a guess, and the canvas will say so.",
+    mission: "Fill nine blocks. Link each to evidence — anything unlinked stays a guess.",
+    setting: "On one page",
+    teaser: "Nine blocks. Most businesses leave half of them as wishes.",
+    payoff: "Your whole business on one page — and you know which parts are real.",
     emblem: "ananse_ntontan",
     href: "/studio/canvas",
     needsVenture: true,
@@ -152,8 +171,10 @@ export const STAGES: StageDef[] = [
     stop: 7,
     title: "Can it work?",
     short: "Feasibility",
-    mission:
-      "Judge the venture through four lenses — market, technical, organisational, financial — and cite evidence for each verdict.",
+    mission: "Judge it four ways: market, delivery, team, money. Back every verdict.",
+    setting: "Four honest questions",
+    teaser: "Four questions every investor asks. Better you ask them first.",
+    payoff: "You have looked at it from every side.",
     emblem: "dame_dame",
     href: "/studio/feasibility",
     needsVenture: true,
@@ -163,8 +184,10 @@ export const STAGES: StageDef[] = [
     stop: 8,
     title: "Run the numbers",
     short: "Costs, price, break-even",
-    mission:
-      "Price every cost in the real market — get quotes, keep receipts. Find the number of sales where the venture stops losing money.",
+    mission: "Price every cost for real — ask at Kotokuraba, keep receipts. Find the sales that cover your costs.",
+    setting: "Kotokuraba and Science Market stalls",
+    teaser: "One number decides whether this is a business or a hobby.",
+    payoff: "You know your break-even. Most student plans never do.",
     emblem: "bese_saka",
     href: "/studio/numbers",
     needsVenture: true,
@@ -174,8 +197,10 @@ export const STAGES: StageDef[] = [
     stop: 9,
     title: "Build & test",
     short: "Prototype and user tests",
-    mission:
-      "Build the cheapest thing that tests your riskiest assumption — a paper mock-up, a WhatsApp catalogue, a one-day trial stall — and put it in front of real people.",
+    mission: "Make the cheapest version you can this week. Put it in front of five real people. Watch what they do.",
+    setting: "A table at Science, a hall corridor, a WhatsApp status",
+    teaser: "You will put something real in someone’s hands. Their face tells you more than any survey.",
+    payoff: "Real people touched it. Now you decide with your eyes open.",
     emblem: "aya",
     href: "/studio/prototype",
     needsVenture: true,
@@ -185,8 +210,10 @@ export const STAGES: StageDef[] = [
     stop: 10,
     title: "Persevere, pivot or stop",
     short: "The honest decision",
-    mission:
-      "Look back at everything you learned. Decide as a group whether to carry on, change direction, or stop — stopping on good evidence is a success.",
+    mission: "Look back at everything you found. Decide together: carry on, change, or stop.",
+    setting: "Looking back",
+    teaser: "The hardest call in business. Stopping can be the right answer.",
+    payoff: "You made the call on evidence. That is the skill.",
     emblem: "sankofa",
     href: "/studio/decide",
     needsVenture: true,
@@ -196,8 +223,10 @@ export const STAGES: StageDef[] = [
     stop: 11,
     title: "Pitch day",
     short: "Plan and pitch",
-    mission:
-      "Your business plan is assembled from your record — every claim traceable to evidence. Write the parts only you can write, then pitch it.",
+    mission: "Your plan is already built from your record. Write the four parts only you can write, then pitch.",
+    setting: "In front of the room",
+    teaser: "Everything you gathered becomes one story. You tell it.",
+    payoff: "Route complete. You did the real thing.",
     emblem: "adinkrahene",
     href: "/studio/pitch",
     needsVenture: true,
@@ -209,12 +238,12 @@ export const STAGE_BY_ID = Object.fromEntries(STAGES.map((s) => [s.id, s])) as R
 export const CANVAS_BLOCKS = [
   { key: "segments", title: "Customer segments", prompt: "Who exactly has this problem? Which ones will pay first?" },
   { key: "value", title: "Value proposition", prompt: "What gets better for them — in their words, not yours?" },
-  { key: "channels", title: "Channels", prompt: "How do they hear about you and get it? WhatsApp status, hall reps, the market queen?" },
+  { key: "channels", title: "Channels", prompt: "How do they hear about you and get it? WhatsApp status, hall reps, a stall at Science?" },
   { key: "relationships", title: "Customer relationships", prompt: "Why do they come back — and what makes them trust you?" },
   { key: "revenue", title: "Revenue streams", prompt: "Who pays, how much, how often, and by what means — cash, MoMo?" },
   { key: "resources", title: "Key resources", prompt: "What must you have: equipment, space, skills, stock?" },
   { key: "activities", title: "Key activities", prompt: "What must you do every week for this to work?" },
-  { key: "partners", title: "Key partners", prompt: "Who must say yes: hall management, suppliers, drivers, assembly?" },
+  { key: "partners", title: "Key partners", prompt: "Who must say yes: hall management, Kotokuraba suppliers, drivers, the Metro Assembly?" },
   { key: "costs", title: "Cost structure", prompt: "What costs the most — and which costs rise when the cedi falls?" },
 ] as const;
 

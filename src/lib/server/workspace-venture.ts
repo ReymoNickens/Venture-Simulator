@@ -257,11 +257,14 @@ export async function loadVentureWork(
 
 export async function loadCourseLife(input: {
   studentId: string;
+  authUserId?: string;
   groupId: string | null;
   offeringId: string | null;
 }): Promise<CourseLife> {
   const sql = await getSql();
   const empty: CourseLife = {
+    messages: [],
+    unreadMessages: 0,
     myReflections: [],
     myPeerRatings: [],
     milestones: [],
@@ -344,7 +347,42 @@ export async function loadCourseLife(input: {
       `
     : [];
 
+  const messageRows = input.groupId
+    ? await sql<Record<string, unknown>>`
+        select m.id, m.body, m.created_at, m.author_staff_id, m.author_student_id, m.recipient_student_id,
+               coalesce(st.full_name, s.full_name) as author_name
+        from messages m
+        left join staff st on st.id = m.author_staff_id
+        left join students s on s.id = m.author_student_id
+        where m.group_id = ${input.groupId}
+        order by m.created_at desc
+        limit 60
+      `
+    : [];
+  const lastRead = input.groupId && input.authUserId
+    ? await sql<{ last_read_at: unknown }>`
+        select last_read_at from message_reads where user_id = ${input.authUserId} and group_id = ${input.groupId}
+      `
+    : [];
+  const readAt = lastRead[0] ? new Date(str(lastRead[0].last_read_at)).getTime() : 0;
+  const messages = messageRows
+    .map((m) => ({
+      id: str(m.id),
+      body: str(m.body),
+      createdAt: str(m.created_at),
+      authorKind: (m.author_staff_id ? "staff" : "student") as "staff" | "student",
+      authorName: str(m.author_name),
+      authorStudentId: m.author_student_id ? str(m.author_student_id) : null,
+      recipientStudentId: m.recipient_student_id ? str(m.recipient_student_id) : null,
+    }))
+    .reverse();
+  const unreadMessages = messages.filter(
+    (m) => m.authorStudentId !== input.studentId && new Date(m.createdAt).getTime() > readAt,
+  ).length;
+
   return {
+    messages,
+    unreadMessages,
     myReflections: reflections.map((r) => ({
       id: str(r.id),
       stage: str(r.stage),

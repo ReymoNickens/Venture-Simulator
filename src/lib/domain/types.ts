@@ -464,7 +464,20 @@ export interface VentureWork {
   plan: PlanSection[];
 }
 
+export interface Message {
+  id: string;
+  body: string;
+  createdAt: string;
+  authorKind: "staff" | "student";
+  authorName: string;
+  authorStudentId: string | null;
+  /** Private between staff and one student. */
+  recipientStudentId: string | null;
+}
+
 export interface CourseLife {
+  messages: Message[];
+  unreadMessages: number;
   myReflections: Reflection[];
   myPeerRatings: PeerRating[];
   milestones: Milestone[];

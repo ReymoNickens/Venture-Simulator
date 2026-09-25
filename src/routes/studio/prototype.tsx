@@ -2,7 +2,6 @@ import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Camera, FlaskConical } from "lucide-react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
-import { useAction } from "@/hooks/use-action";
 import { createPrototype } from "@/lib/server/venture-work";
 import { saveOffline } from "@/lib/offline/actions";
 import { compressPhoto } from "@/lib/offline/photos";
@@ -15,10 +14,10 @@ import { Reflect } from "@/components/stage/Reflect";
 import { NeedsVenture } from "@/components/stage/NeedsVenture";
 import { EvidencePhoto } from "@/components/EvidencePhoto";
 import { Button } from "@/components/ui/button";
-import { Choice, Field, Input, Select, Textarea } from "@/components/ui/input";
+import { BigInput, BigText, Pick, StepFlow, type Step } from "@/components/flow/StepFlow";
 import { Card, Eyebrow, EmptyNote } from "@/components/ui/badge";
 import { Stamp } from "@/components/ui/stamp";
-import { FormMessages, Loading } from "@/components/ui/feedback";
+import { Loading } from "@/components/ui/feedback";
 
 export const Route = createFileRoute("/studio/prototype")({ component: PrototypePage });
 
@@ -50,7 +49,14 @@ function PrototypePage() {
       </Card>
 
       {building || !prototypes.length ? (
-        <BuildForm onDone={() => { setBuilding(false); void refresh(); }} maxPhotoBytes={data.offering?.maxPhotoBytes ?? DEFAULT_MAX_PHOTO_BYTES} />
+        <BuildForm
+          onCancel={prototypes.length ? () => setBuilding(false) : undefined}
+          onDone={() => {
+            setBuilding(false);
+            void refresh();
+          }}
+          maxPhotoBytes={data.offering?.maxPhotoBytes ?? DEFAULT_MAX_PHOTO_BYTES}
+        />
       ) : (
         <Button variant="secondary" onClick={() => setBuilding(true)}>
           + Record another prototype
@@ -77,69 +83,98 @@ function PrototypePage() {
   );
 }
 
-function BuildForm({ onDone, maxPhotoBytes }: { onDone: () => void; maxPhotoBytes: number }) {
-  const [title, setTitle] = useState("");
-  const [kind, setKind] = useState<Kind>("paper");
-  const [description, setDescription] = useState("");
-  const [learningGoal, setLearningGoal] = useState("");
-  const [cost, setCost] = useState(0);
-  const [photo, setPhoto] = useState<{ dataUrl: string; mime: string } | null>(null);
-  const { pending, error, run, setError } = useAction();
+type BV = {
+  title: string;
+  kind: Kind | "";
+  learningGoal: string;
+  description: string;
+  cost: string;
+  photo: { dataUrl: string; mime: string } | null;
+};
+
+function BuildForm({ onDone, onCancel, maxPhotoBytes }: { onDone: () => void; onCancel?: () => void; maxPhotoBytes: number }) {
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const steps: Step<BV>[] = [
+    {
+      id: "goal",
+      question: "Which assumption will this test?",
+      hint: "And what result would change your mind? A prototype is a question you can hold.",
+      render: (v, set) => (
+        <BigText label="What it tests" value={v.learningGoal} onChange={(learningGoal) => set({ learningGoal })} rows={3} placeholder="Whether Casford residents will pay GH₵10 upfront. If fewer than 3 of 10 do, we rethink." />
+      ),
+      valid: (v) => v.learningGoal.trim().length >= 10 || "Say what it should teach you.",
+      summary: (v) => v.learningGoal,
+    },
+    {
+      id: "kind",
+      question: "What will you make?",
+      hint: "Pick the cheapest thing that answers the question.",
+      render: (v, set, next) => <Pick value={v.kind} onChange={(kind) => set({ kind })} onPicked={next} options={PROTOTYPE_KINDS} />,
+      valid: (v) => Boolean(v.kind) || "Pick one.",
+      summary: (v) => PROTOTYPE_KINDS.find((k) => k.value === v.kind)?.label ?? "",
+    },
+    {
+      id: "name",
+      question: "Give it a name",
+      render: (v, set) => (
+        <>
+          <BigInput label="Name" value={v.title} onChange={(title) => set({ title })} placeholder="Paper booking card" />
+          <p className="mt-4 text-sm font-semibold text-ink-soft">Describe it in a line (optional)</p>
+          <BigInput label="Description" value={v.description} onChange={(description) => set({ description })} />
+        </>
+      ),
+      valid: (v) => v.title.trim().length >= 3 || "Name it.",
+      summary: (v) => [v.title, v.description].filter(Boolean).join(" — "),
+    },
+    {
+      id: "cost",
+      question: "What did it cost to make?",
+      hint: "In cedis. Zero is a great answer.",
+      render: (v, set) => (
+        <>
+          <BigInput label="Cost in cedis" value={v.cost} onChange={(cost) => set({ cost })} inputMode="decimal" placeholder="0" />
+          <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-[10px] border-2 border-dashed border-line-strong px-4 py-3 text-sm font-semibold">
+            <Camera className="size-5" aria-hidden /> {v.photo ? "Change photo" : "Add a photo of it"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) compressPhoto(file, maxPhotoBytes).then((photo) => set({ photo }), (err: Error) => setPhotoError(err.message));
+              }}
+            />
+          </label>
+          {photoError ? <p className="mt-1 text-sm text-clay">{photoError}</p> : null}
+          {v.photo ? <img src={v.photo.dataUrl} alt="Prototype" className="mt-2 max-h-40 rounded-[8px] border-2 border-ink" /> : null}
+        </>
+      ),
+      summary: (v) => `GH₵ ${Number(v.cost) || 0}${v.photo ? " · photo" : ""}`,
+    },
+  ];
   return (
-    <section className="rounded-[10px] border-2 border-ink bg-bg-elevated p-4">
-      <h2 className="font-display text-xl font-bold">Record a prototype</h2>
-      <div className="mt-3 space-y-4">
-        <Field label="What is it called?">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Paper booking card for the water roster" />
-        </Field>
-        <Choice label="What kind?" value={kind} options={PROTOTYPE_KINDS} onChange={setKind} />
-        <Field label="Which assumption is it meant to test — and what result would change your mind?">
-          <Textarea value={learningGoal} onChange={(e) => setLearningGoal(e.target.value)} />
-        </Field>
-        <Field label="Describe it" optional>
-          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
-        </Field>
-        <Field label="What did it cost to make? (GH₵)">
-          <Input type="number" inputMode="decimal" min={0} value={cost || ""} onChange={(e) => setCost(Number(e.target.value) || 0)} />
-        </Field>
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-[8px] border-2 border-dashed border-line-strong px-3 py-2 text-sm font-medium">
-          <Camera className="size-4" aria-hidden /> {photo ? "Change photo" : "Add a photo"}
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            capture="environment"
-            className="sr-only"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) compressPhoto(file, maxPhotoBytes).then(setPhoto).catch((err: Error) => setError(err.message));
-            }}
-          />
-        </label>
-        {photo ? <img src={photo.dataUrl} alt="Prototype" className="max-h-40 rounded-[8px] border-2 border-ink" /> : null}
-        <FormMessages error={error} />
-        <Button
-          disabled={Boolean(pending) || !title.trim()}
-          onClick={() =>
-            void run("build", async () => {
-              await createPrototype({
-                data: {
-                  title,
-                  kind,
-                  description,
-                  learningGoal,
-                  costGhs: cost,
-                  photoData: photo?.dataUrl ?? null,
-                  photoMime: photo?.mime ?? null,
-                },
-              });
-              onDone();
-            })
-          }
-        >
-          {pending ? "Saving…" : "Save prototype"}
-        </Button>
-      </div>
-    </section>
+    <StepFlow<BV>
+      steps={steps}
+      initial={{ title: "", kind: "", learningGoal: "", description: "", cost: "", photo: null }}
+      finishLabel="Save prototype"
+      reviewTitle="Ready to put it in front of people?"
+      onCancel={onCancel}
+      onFinish={async (v) => {
+        await createPrototype({
+          data: {
+            title: v.title,
+            kind: v.kind || "other",
+            description: v.description,
+            learningGoal: v.learningGoal,
+            costGhs: Number(v.cost) || 0,
+            photoData: v.photo?.dataUrl ?? null,
+            photoMime: v.photo?.mime ?? null,
+          },
+        });
+        onDone();
+      }}
+    />
   );
 }
 
@@ -184,7 +219,17 @@ function PrototypeCard({
             {testing ? "Close" : "+ Log a test"}
           </Button>
         </div>
-        {testing ? <TestForm prototypeId={p.id} data={data} onSaved={() => { setTesting(false); onSaved(); }} /> : null}
+        {testing ? (
+          <TestForm
+            prototypeId={p.id}
+            data={data}
+            onCancel={() => setTesting(false)}
+            onSaved={() => {
+              setTesting(false);
+              onSaved();
+            }}
+          />
+        ) : null}
         {tests.length ? (
           <ul className="divide-y divide-line">
             {tests.map((t) => (
@@ -213,92 +258,123 @@ function PrototypeCard({
   );
 }
 
-function TestForm({ prototypeId, data, onSaved }: { prototypeId: string; data: WorkspaceSnapshot; onSaved: () => void }) {
-  const [tester, setTester] = useState("");
-  const [task, setTask] = useState("");
-  const [observed, setObserved] = useState("");
-  const [quote, setQuote] = useState("");
-  const [outcome, setOutcome] = useState<(typeof OUTCOMES)[number]["value"]>("struggled");
-  const [wouldPay, setWouldPay] = useState<WouldPay>("not_asked");
-  const [assumptionId, setAssumptionId] = useState("");
-  const [relationship, setRelationship] = useState<"supports" | "challenges">("supports");
-  const { pending, error, notice, run, setNotice } = useAction();
-  return (
-    <div className="notebook space-y-3 rounded-[8px] border-2 border-ink/70 py-3 pr-3 pl-10">
-      <Field label="Who tested it?" hint="A description, not a name.">
-        <Input value={tester} onChange={(e) => setTester(e.target.value)} placeholder="Final-year nursing student, Hall C" />
-      </Field>
-      <Field label="What did you ask them to do?" optional>
-        <Input value={task} onChange={(e) => setTask(e.target.value)} placeholder="Book tomorrow’s 6am slot" />
-      </Field>
-      <Field label="What did you see happen?">
-        <Textarea value={observed} onChange={(e) => setObserved(e.target.value)} />
-      </Field>
-      <Field label="Anything they said, word for word" optional>
-        <Input value={quote} onChange={(e) => setQuote(e.target.value)} />
-      </Field>
-      <Choice label="Outcome" value={outcome} options={OUTCOMES} onChange={setOutcome} />
-      <Choice
-        label="Did they show they would pay?"
-        value={wouldPay}
-        options={[
-          { value: "not_asked", label: "Didn’t ask" },
-          { value: "yes", label: "Yes" },
-          { value: "maybe", label: "Maybe" },
-          { value: "no", label: "No" },
-        ]}
-        onChange={setWouldPay}
-      />
-      {data.assumptions.length ? (
+type TV = {
+  testerProfile: string;
+  task: string;
+  observed: string;
+  quote: string;
+  outcome: (typeof OUTCOMES)[number]["value"] | "";
+  wouldPay: WouldPay | "";
+  assumptionId: string;
+  relationship: "supports" | "challenges";
+};
+
+function TestForm({ prototypeId, data, onSaved, onCancel }: { prototypeId: string; data: WorkspaceSnapshot; onSaved: (queued: boolean) => void; onCancel: () => void }) {
+  const steps: Step<TV>[] = [
+    {
+      id: "who",
+      question: "Who tried it?",
+      hint: "Describe them, don’t name them.",
+      render: (v, set) => (
         <>
-          <Field label="Did it test an assumption?" optional>
-            <Select value={assumptionId} onChange={(e) => setAssumptionId(e.target.value)}>
-              <option value="">No / not sure</option>
-              {data.assumptions.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.statement.slice(0, 90)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          {assumptionId ? (
-            <Choice
-              label="It…"
-              value={relationship}
-              options={[
-                { value: "supports", label: "supports it" },
-                { value: "challenges", label: "challenges it" },
-              ]}
-              onChange={setRelationship}
-            />
-          ) : null}
+          <BigInput label="Tester" value={v.testerProfile} onChange={(testerProfile) => set({ testerProfile })} placeholder="Final-year student, Valco Hall" />
+          <p className="mt-4 text-sm font-semibold text-ink-soft">What did you ask them to do? (optional)</p>
+          <BigInput label="Task" value={v.task} onChange={(task) => set({ task })} placeholder="Book tomorrow’s 6am slot" />
         </>
-      ) : null}
-      <FormMessages error={error} notice={notice} />
-      <Button
-        size="sm"
-        disabled={Boolean(pending)}
-        onClick={() =>
-          void run("test", async () => {
-            const r = await saveOffline("logPrototypeTest", {
-              prototypeId,
-              testerProfile: tester,
-              task,
-              observed,
-              quote,
-              outcome,
-              wouldPay,
-              assumptionId: assumptionId || null,
-              relationship,
-            });
-            // The list marks queued tests "saved on phone", so closing is safe either way.
-            if (r.queued) setNotice("Saved on this phone — it will sync when you are connected.");
-            onSaved();
-          })
-        }
-      >
-        {pending ? "Saving…" : "Save test"}
-      </Button>
-    </div>
+      ),
+      valid: (v) => v.testerProfile.trim().length >= 5 || "Describe who tried it.",
+      summary: (v) => [v.testerProfile, v.task].filter(Boolean).join(" · "),
+    },
+    {
+      id: "outcome",
+      question: "How did it go?",
+      render: (v, set, next) => <Pick value={v.outcome} onChange={(outcome) => set({ outcome })} onPicked={next} options={OUTCOMES} />,
+      valid: (v) => Boolean(v.outcome) || "Pick one.",
+      summary: (v) => OUTCOMES.find((o) => o.value === v.outcome)?.label ?? "",
+    },
+    {
+      id: "saw",
+      question: "What did you see them do?",
+      hint: "Hesitations, questions, the moment they got stuck. Actions beat opinions.",
+      render: (v, set) => (
+        <>
+          <BigText label="What happened" value={v.observed} onChange={(observed) => set({ observed })} rows={4} />
+          <p className="mt-4 text-sm font-semibold text-ink-soft">Anything they said, word for word (optional)</p>
+          <BigInput label="Quote" value={v.quote} onChange={(quote) => set({ quote })} />
+        </>
+      ),
+      valid: (v) => v.observed.trim().length >= 15 || "Write what you saw happen.",
+      summary: (v) => [v.observed, v.quote && `“${v.quote}”`].filter(Boolean).join("\n"),
+    },
+    {
+      id: "pay",
+      question: "Did they show they would pay?",
+      render: (v, set, next) => (
+        <Pick
+          value={v.wouldPay}
+          onChange={(wouldPay) => set({ wouldPay })}
+          onPicked={next}
+          options={[
+            { value: "yes", label: "Yes — they acted on it", hint: "paid, booked, asked when" },
+            { value: "maybe", label: "Maybe" },
+            { value: "no", label: "No" },
+            { value: "not_asked", label: "Didn’t ask" },
+          ]}
+        />
+      ),
+      valid: (v) => Boolean(v.wouldPay) || "Pick one.",
+      summary: (v) => v.wouldPay,
+    },
+  ];
+  if (data.assumptions.length) {
+    steps.push({
+      id: "assumption",
+      question: "Did it test an assumption?",
+      optional: true,
+      render: (v, set) => (
+        <div className="space-y-2">
+          <Pick value={v.assumptionId} onChange={(assumptionId) => set({ assumptionId })} options={data.assumptions.map((a) => ({ value: a.id, label: a.statement }))} />
+          {v.assumptionId ? (
+            <div className="flex gap-2 pt-2">
+              {(["supports", "challenges"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  aria-pressed={v.relationship === r}
+                  onClick={() => set({ relationship: r })}
+                  className={`flex-1 rounded-[10px] border-2 py-3 font-semibold ${v.relationship === r ? (r === "supports" ? "border-ink bg-accent text-accent-fg" : "border-ink bg-clay text-accent-fg") : "border-line-strong"}`}
+                >
+                  It {r}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ),
+      summary: (v) => data.assumptions.find((a) => a.id === v.assumptionId)?.statement ?? "",
+    });
+  }
+  return (
+    <StepFlow<TV>
+      steps={steps}
+      initial={{ testerProfile: "", task: "", observed: "", quote: "", outcome: "", wouldPay: "", assumptionId: "", relationship: "supports" }}
+      finishLabel="Save test"
+      reviewTitle="Log this test?"
+      onCancel={onCancel}
+      onFinish={async (v) => {
+        const r = await saveOffline("logPrototypeTest", {
+          prototypeId,
+          testerProfile: v.testerProfile,
+          task: v.task,
+          observed: v.observed,
+          quote: v.quote,
+          outcome: v.outcome || "struggled",
+          wouldPay: v.wouldPay || "not_asked",
+          assumptionId: v.assumptionId || null,
+          relationship: v.relationship,
+        });
+        onSaved(r.queued);
+      }}
+    />
   );
 }
