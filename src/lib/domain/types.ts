@@ -272,6 +272,8 @@ export interface OpportunityFields {
 
 export interface WorkspaceSnapshot {
   appName: string;
+  /** Signed in as teaching staff (the studio sends them to the staff room). */
+  isStaff: boolean;
   student: Student | null;
   offering: CourseOffering | null;
   group: Group | null;

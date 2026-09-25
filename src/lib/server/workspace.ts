@@ -19,6 +19,7 @@ import type {
 } from "@/lib/domain/types";
 import { decisionThreshold } from "@/lib/domain/state-machine";
 import { emptyWork, loadCourseLife, loadVentureWork } from "./workspace-venture";
+import { loadStaff } from "./lecturer-core";
 import {
   loadOfferingForStudent,
   loadStudent,
@@ -41,8 +42,10 @@ export const getWorkspace = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<WorkspaceSnapshot> => {
     const student = await loadStudent(context.userId);
+    const isStaff = student ? false : Boolean(await loadStaff(context.userId));
     const empty: WorkspaceSnapshot = {
       appName: APP_NAME,
+      isStaff,
       student,
       offering: null,
       group: null,
@@ -499,6 +502,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
 
     return {
       appName: APP_NAME,
+      isStaff: false,
       student,
       offering,
       group,
