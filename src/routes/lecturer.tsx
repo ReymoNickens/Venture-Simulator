@@ -120,7 +120,8 @@ function Shell({ children, nav, offering }: { children: React.ReactNode; nav?: R
 }
 
 function Join({ status, onDone }: { status: Status; onDone: () => void }) {
-  const [fullName, setFullName] = useState("");
+  const known = status.staffRecordName;
+  const [fullName, setFullName] = useState(known ?? "");
   const title = "";
   const [code, setCode] = useState("");
   const [offeringId, setOfferingId] = useState(status.allOfferings[0]?.id ?? "");
@@ -130,7 +131,9 @@ function Join({ status, onDone }: { status: Status; onDone: () => void }) {
       <div>
         <h1 className="font-display text-4xl font-extrabold">Welcome, lecturer.</h1>
         <p className="mt-2 text-[15px] leading-6 text-muted">
-          Enter the staff code from your course administrator. You only do this once.
+          {known
+            ? "Confirm your name and course to open the staff room. You only do this once."
+            : "Enter the staff code from your course administrator. You only do this once."}
         </p>
       </div>
       <Card className="space-y-3">
@@ -148,12 +151,14 @@ function Join({ status, onDone }: { status: Status; onDone: () => void }) {
           </Select>
         </Field>
         </div>
-        <Field
-          label="Staff code"
-          hint={status.previewCodeHint ? `Preview only: the demo code is ${status.previewCodeHint}.` : undefined}
-        >
-          <Input value={code} onChange={(e) => setCode(e.target.value)} className="font-mono" />
-        </Field>
+        {known ? null : (
+          <Field
+            label="Staff code"
+            hint={status.previewCodeHint ? `Preview only: the demo code is ${status.previewCodeHint}.` : undefined}
+          >
+            <Input value={code} onChange={(e) => setCode(e.target.value)} className="font-mono" />
+          </Field>
+        )}
         <FormMessages error={error} />
         <Button
           disabled={Boolean(pending)}

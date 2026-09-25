@@ -40,7 +40,7 @@ Built for one lecturer to ~400 students — it works by exception:
 - **Group drill-down** — the conversation, contribution per member, confidential peer averages, private reflections, the full record; mark a member inactive (unblocks the group), feedback with rubric levels and reusable comments, take ownership of a group.
 - **Course set-up** — milestones, announcements, Ghana-grounded market shocks, CSV gradebook.
 
-Staff join with `STAFF_ACCESS_CODE` (preview database: `DEMO-STAFF`).
+Lecturers create their account with `STAFF_ACCESS_CODE` (preview database: `DEMO-STAFF`); see [Sign-in](#sign-in).
 
 ## Demonstration group
 
@@ -53,9 +53,34 @@ Use **Rehearse offline** (tap the connection pill) to test local save and replay
 - TanStack Start + Vite + Tailwind
 - Postgres (Neon when deployed, PGLite in preview)
 - Better Auth
-- xAI (`grok-4.5`) for the advisor, server-side only
+- Claude (`claude-opus-5`) for the advisor, server-side only
 
 The original concept named Next.js, Supabase, and Claude. Pedagogy follows the concept; runtime follows this host.
+
+## Sign-in
+
+There is no open self-registration. Everyone signs in at `/login` with a password.
+
+**Students** come from a roster. A lecturer or administrator pre-loads it
+(email + index number + name + programme) with:
+
+```
+node scripts/roster-import.mjs roster.csv [courseOfferingId]
+```
+
+(CSV columns: `email,index_number,full_name,programme`.) On their first visit a
+student taps **Activate your account** and enters the email and index number
+on file plus a password of their choosing; this only succeeds against an
+unclaimed roster row, and their name comes from the roster. From then on they
+sign in with EITHER their email or their index number, plus that password.
+Index number doubles as Better Auth's `username`, matched case-insensitively.
+
+**Lecturers** tap **Lecturer without an account?** and create one with their
+email, name, a password and the staff access code (`STAFF_ACCESS_CODE`, issued
+by the course administrator; `DEMO-STAFF` on the preview database). On their
+first visit to the staff room they pick the course they teach. From then on
+they sign in with their email and password and land in the staff room. With
+no `STAFF_ACCESS_CODE` set, lecturer sign-up is closed.
 
 ## Environment
 
@@ -63,12 +88,13 @@ Do not put secrets in the client. Deployed apps receive:
 
 | Variable | Where | Purpose |
 |---|---|---|
-| `DATABASE_URL` | server | Neon Postgres |
-| `XAI_API_KEY` | server | Advisor (never `VITE_`-prefixed) |
-| `STAFF_ACCESS_CODE` | server | Code lecturers enter to join the staff room |
+| `DATABASE_URL` | server | Postgres (Neon or Supabase) |
+| `ANTHROPIC_API_KEY` | server | Advisor (never `VITE_`-prefixed) |
+| `BETTER_AUTH_URL` | server | This app's public URL |
+| `BETTER_AUTH_SECRET` | server | Session signing secret |
+| `STAFF_ACCESS_CODE` | server | Code lecturers enter to create their account |
 | `VITE_APP_NAME` | client + server | Optional display name, also the installed app's name |
 | `VITE_APP_SHORT_NAME` | client + server | Optional home-screen label (≤12 characters; default "Venture") |
-| Auth credentials | server | Injected by the host |
 
 Copy [`.env.example`](.env.example) when running outside this host. Never commit a real `.env`.
 

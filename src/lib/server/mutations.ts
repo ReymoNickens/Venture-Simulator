@@ -28,11 +28,9 @@ export const upsertProfile = createServerFn({ method: "POST" })
     offeringId: string;
   }) => input)
   .handler(async ({ context, data }) => {
-    const fullName = data.fullName.trim();
-    const indexNumber = data.indexNumber.trim().toUpperCase();
     const programme = data.programme.trim();
-    if (!fullName || !indexNumber || !programme) {
-      throw new AppError("INVALID", "Name, index number and programme are required.");
+    if (!programme) {
+      throw new AppError("INVALID", "Programme is required.");
     }
     const sql = await getSql();
     const offering = await sql<{ id: string }>`
@@ -41,22 +39,30 @@ export const upsertProfile = createServerFn({ method: "POST" })
     if (!offering[0]) throw new AppError("NOT_FOUND", "That course offering does not exist.");
 
     const existing = await loadStudent(context.userId);
-    const taken = await sql<{ id: string; auth_user_id: string }>`
-      select id, auth_user_id from students where index_number = ${indexNumber} limit 1
-    `;
-    if (taken[0] && taken[0].auth_user_id !== context.userId) {
-      throw new AppError("DUPLICATE", "That index number is already registered.");
-    }
 
-    const studentId = existing?.id ?? newId();
+    // Name and index number are set once — at roster activation (real sign-in)
+    // or below (dev/demo fallback, when auth is disabled and there is no
+    // roster to claim) — and are never editable afterward.
+    let studentId: string;
     if (existing) {
+      studentId = existing.id;
       await sql`
-        update students
-        set full_name = ${fullName}, index_number = ${indexNumber},
-            programme = ${programme}, updated_at = now()
+        update students set programme = ${programme}, updated_at = now()
         where id = ${studentId}
       `;
     } else {
+      const fullName = data.fullName.trim();
+      const indexNumber = data.indexNumber.trim().toUpperCase();
+      if (!fullName || !indexNumber) {
+        throw new AppError("INVALID", "Name and index number are required.");
+      }
+      const taken = await sql<{ id: string }>`
+        select id from students where index_number = ${indexNumber} limit 1
+      `;
+      if (taken[0]) {
+        throw new AppError("DUPLICATE", "That index number is already registered.");
+      }
+      studentId = newId();
       await sql`
         insert into students (id, auth_user_id, full_name, index_number, programme, is_synthetic)
         values (${studentId}, ${context.userId}, ${fullName}, ${indexNumber}, ${programme}, false)

@@ -8,6 +8,7 @@ import { AppError, logEvent, mapOffering, OFFERING_COLUMNS, refreshGroupStatus, 
 import { loadCohort, loadStaff, requireStaff, requireStaffForGroup } from "./lecturer-core";
 import { loadVentureWork } from "./workspace-venture";
 import { resettleOpenProposal } from "./governance-core";
+import { expectedStaffCode, PREVIEW_STAFF_CODE, staffCodeMatches } from "./staff-code";
 
 // Server functions for the lecturer console. Exports server functions only.
 
@@ -30,9 +31,6 @@ const FEED_EVENTS = [
   "GROUP_LEFT",
 ];
 
-/** Demo code, accepted only on the embedded preview database. */
-const PREVIEW_STAFF_CODE = "DEMO-STAFF";
-
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v ? String(v) : "");
 
 export const getStaffStatus = createServerFn({ method: "GET" })
@@ -40,6 +38,11 @@ export const getStaffStatus = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const staff = await loadStaff(context.userId);
     const sql = await getSql();
+    // Lecturers who created their account with the staff code already have a
+    // staff record; they only pick a course here, with no second code.
+    const record = await sql<{ full_name: string }>`
+      select full_name from staff where auth_user_id = ${context.userId} limit 1
+    `;
     const offerings = await sql.query<OfferingRow>(
       `select ${OFFERING_COLUMNS} from course_offerings o join courses c on c.id = o.course_id order by o.academic_year desc`,
     );
@@ -47,6 +50,7 @@ export const getStaffStatus = createServerFn({ method: "GET" })
       staff: staff ? { id: staff.staffId, fullName: staff.fullName, offeringIds: staff.offeringIds } : null,
       offerings: offerings.map(mapOffering).filter((o) => !staff || staff.offeringIds.includes(o.id)),
       allOfferings: offerings.map(mapOffering),
+      staffRecordName: record[0]?.full_name ?? null,
       previewCodeHint: dbSource === "pglite" && !process.env.STAFF_ACCESS_CODE ? PREVIEW_STAFF_CODE : null,
     };
   });
@@ -55,23 +59,26 @@ export const getStaffStatus = createServerFn({ method: "GET" })
  * Register the signed-in account as teaching staff for an offering. The
  * access code is issued by the course administrator (STAFF_ACCESS_CODE on the
  * server). With no code configured, staff registration is closed — except on
- * the embedded preview database, where a demo code lets people try it.
+ * the embedded preview database, where a demo code lets people try it. An
+ * account created on the login page with the code already has a staff record
+ * and only picks its course here.
  */
 export const registerStaff = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { fullName: string; title?: string; accessCode: string; offeringId: string }) => input)
+  .validator((input: { fullName: string; title?: string; accessCode?: string; offeringId: string }) => input)
   .handler(async ({ context, data }) => {
-    const configured = process.env.STAFF_ACCESS_CODE?.trim();
-    const expected = configured || (dbSource === "pglite" ? PREVIEW_STAFF_CODE : null);
-    if (!expected) {
-      throw new AppError("CLOSED", "Staff registration is not open. Ask the course administrator.");
-    }
-    if (data.accessCode.trim() !== expected) {
-      throw new AppError("FORBIDDEN", "That staff access code is not right.");
+    const sql = await getSql();
+    const record = await sql<{ id: string }>`select id from staff where auth_user_id = ${context.userId} limit 1`;
+    if (!record[0]) {
+      if (!expectedStaffCode()) {
+        throw new AppError("CLOSED", "Staff registration is not open. Ask the course administrator.");
+      }
+      if (!staffCodeMatches(data.accessCode ?? "")) {
+        throw new AppError("FORBIDDEN", "That staff access code is not right.");
+      }
     }
     const fullName = data.fullName.trim();
     if (fullName.length < 3) throw new AppError("INVALID", "Enter your full name.");
-    const sql = await getSql();
     const offering = await sql<{ id: string }>`select id from course_offerings where id = ${data.offeringId} limit 1`;
     if (!offering[0]) throw new AppError("NOT_FOUND", "That course offering does not exist.");
     // Staff identity and role are written before the caller holds any role,

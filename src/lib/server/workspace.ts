@@ -67,7 +67,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       life: await loadCourseLife({ studentId: "", groupId: null, offeringId: null }),
       canOpenSelection: false,
       canRecordGroupDecision: false,
-      aiAvailable: Boolean(process.env.XAI_API_KEY),
+      aiAvailable: Boolean(process.env.ANTHROPIC_API_KEY),
     };
     if (!student) return empty;
 
@@ -535,7 +535,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       life,
       canOpenSelection,
       canRecordGroupDecision,
-      aiAvailable: Boolean(process.env.XAI_API_KEY),
+      aiAvailable: Boolean(process.env.ANTHROPIC_API_KEY),
     };
   });
 
