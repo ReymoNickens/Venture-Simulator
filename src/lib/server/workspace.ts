@@ -2,7 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { APP_NAME } from "@/lib/brand";
-import { canViewPeerOpportunities } from "@/lib/domain/state-machine";
+import {
+  advisorAllowance,
+  canEditOpportunity,
+  canViewPeerOpportunities,
+  endorsementsNeeded,
+  preferencesRevealed,
+} from "@/lib/domain/state-machine";
 import type {
   AdvisorMessage,
   AdvisorSession,
@@ -10,13 +16,16 @@ import type {
   AssumptionEvidenceLink,
   CourseOffering,
   EvidenceItem,
+  Experiment,
   GroupMember,
+  LecturerNote,
   Opportunity,
   OpportunityPreference,
   Venture,
+  VentureProposal,
   WorkspaceSnapshot,
 } from "@/lib/domain/types";
-import { loadOfferingForStudent, loadStudent, loadGroupForStudent } from "./authz";
+import { loadGroupForStudent, loadOfferingForStudent, loadStudent, votingRoll } from "./authz";
 
 function parseMeta(raw: string | null): Record<string, string | number | boolean | null> | null {
   if (!raw) return null;
@@ -27,10 +36,20 @@ function parseMeta(raw: string | null): Record<string, string | number | boolean
   }
 }
 
+async function isLecturer(userId: string): Promise<boolean> {
+  const sql = await getSql();
+  const rows = await sql<{ n: number }>`
+    select count(*)::int as n from user_roles ur join app_roles r on r.id = ur.role_id
+    where ur.user_id = ${userId} and r.name in ('lecturer', 'admin')
+  `;
+  return Number(rows[0]?.n ?? 0) > 0;
+}
+
 export const getWorkspace = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<WorkspaceSnapshot> => {
     const student = await loadStudent(context.userId);
+    const lecturer = await isLecturer(context.userId);
     const empty: WorkspaceSnapshot = {
       appName: APP_NAME,
       student,
@@ -52,14 +71,28 @@ export const getWorkspace = createServerFn({ method: "GET" })
       canOpenSelection: false,
       canRecordGroupDecision: false,
       aiAvailable: Boolean(process.env.XAI_API_KEY),
+      canEditMyOpportunity: false,
+      preferencesRevealed: false,
+      eligibleVoterIds: [],
+      proposal: null,
+      pastProposals: [],
+      experiments: [],
+      notes: [],
+      advisorLeftToday: 0,
+      isLecturer: lecturer,
     };
     if (!student) return empty;
 
     const offering = await loadOfferingForStudent(student.id);
     const group = await loadGroupForStudent(student.id);
-    if (!group) return { ...empty, offering };
-
     const sql = await getSql();
+    const [used] = await sql<{ n: number }>`
+      select count(*)::int as n from ai_advisor_messages
+      where student_id = ${student.id} and role = 'student' and created_at > now() - interval '1 day'
+    `;
+    const advisorLeftToday = advisorAllowance(Number(used?.n ?? 0), offering?.aiMessagesPerDay ?? 40).left;
+    if (!group) return { ...empty, offering, advisorLeftToday };
+
     const memberRows = await sql<{
       id: string;
       group_id: string;
@@ -77,13 +110,8 @@ export const getWorkspace = createServerFn({ method: "GET" })
       order by gm.joined_at asc
     `;
 
-    // Reads every member's opportunity row, including peers' pre-selection
-    // submissions that opportunities_select's privacy gate would otherwise
-    // hide — needed so submission progress ("N of M submitted") is accurate
-    // during opportunity_collection, before selection opens. The content
-    // filtering that actually enforces opportunity privacy toward the client
-    // happens below in `visibleOpportunities`; this bypass only widens what
-    // this server-side computation can see, not what gets returned.
+    // System read of every member's opportunity, so progress ("7 of 10 submitted") is
+    // accurate while ideas are private. Only visibleOpportunities below leaves the server.
     const oppRows = await withRlsBypass(
       () => sql<{
         id: string;
@@ -142,12 +170,13 @@ export const getWorkspace = createServerFn({ method: "GET" })
       if (!peersVisible) return false;
       return o.status !== "draft";
     });
+    const submittedIds = new Set(allOpps.filter((o) => o.status !== "draft").map((o) => o.studentId));
 
-    const submittedIds = new Set(
-      allOpps.filter((o) => o.status !== "draft").map((o) => o.studentId),
-    );
-
-    const prefRows = await sql<{
+    // Votes are sealed until every voter has voted: before that you see only your own,
+    // plus who has voted (not what they chose).
+    const roll = await votingRoll(group.id, Boolean(group.selectionOpenedBy));
+    const revealed = preferencesRevealed(roll.recorded, roll.eligible.length);
+    const prefRows = await withRlsBypass(() => sql<{
       id: string;
       opportunity_id: string;
       student_id: string;
@@ -162,28 +191,18 @@ export const getWorkspace = createServerFn({ method: "GET" })
       join students s on s.id = p.student_id
       join opportunities o on o.id = p.opportunity_id
       where o.group_id = ${group.id}
-    `;
-    const preferences: OpportunityPreference[] = peersVisible
-      ? prefRows.map((row) => ({
-          id: row.id,
-          opportunityId: row.opportunity_id,
-          studentId: row.student_id,
-          preferenceRank: Number(row.preference_rank),
-          rationale: row.rationale,
-          createdAt: String(row.created_at ?? ""),
-          studentName: row.student_name,
-        }))
-      : prefRows
-          .filter((row) => row.student_id === student.id)
-          .map((row) => ({
-            id: row.id,
-            opportunityId: row.opportunity_id,
-            studentId: row.student_id,
-            preferenceRank: Number(row.preference_rank),
-            rationale: row.rationale,
-            createdAt: String(row.created_at ?? ""),
-            studentName: row.student_name,
-          }));
+    `);
+    const preferences: OpportunityPreference[] = prefRows
+      .filter((row) => revealed || row.student_id === student.id)
+      .map((row) => ({
+        id: row.id,
+        opportunityId: row.opportunity_id,
+        studentId: row.student_id,
+        preferenceRank: Number(row.preference_rank),
+        rationale: row.rationale,
+        createdAt: String(row.created_at ?? ""),
+        studentName: row.student_name,
+      }));
     const myPreference = preferences.find((p) => p.studentId === student.id) ?? null;
 
     const members: GroupMember[] = memberRows.map((row) => ({
@@ -197,10 +216,8 @@ export const getWorkspace = createServerFn({ method: "GET" })
       hasSubmittedOpportunity: submittedIds.has(row.student_id),
       hasRecordedPreference: prefRows.some((p) => p.student_id === row.student_id),
     }));
-
     const activeMembers = members.filter((m) => m.membershipStatus === "active");
     const submitted = activeMembers.filter((m) => m.hasSubmittedOpportunity).length;
-    const recorded = activeMembers.filter((m) => m.hasRecordedPreference).length;
 
     const ventureRows = await sql<{
       id: string;
@@ -211,7 +228,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       selection_rationale: string;
       created_at: unknown;
       updated_at: unknown;
-    }>`select * from ventures where group_id = ${group.id} limit 1`;
+    }>`select id, group_id, opportunity_id, name, status, selection_rationale, created_at, updated_at from ventures where group_id = ${group.id} limit 1`;
     const venture: Venture | null = ventureRows[0]
       ? {
           id: ventureRows[0].id,
@@ -225,10 +242,51 @@ export const getWorkspace = createServerFn({ method: "GET" })
         }
       : null;
 
+    // Proposals: the open one (with who endorsed/objected and why) and the history.
+    const needed = endorsementsNeeded(roll.eligible.length, offering?.decisionRule ?? "majority");
+    const propRows = await sql<{
+      id: string;
+      opportunity_id: string;
+      proposed_by_student_id: string;
+      proposer: string;
+      name: string;
+      rationale: string;
+      status: string;
+      created_at: unknown;
+    }>`
+      select p.id, p.opportunity_id, p.proposed_by_student_id, s.full_name as proposer, p.name, p.rationale, p.status, p.created_at
+      from venture_proposals p join students s on s.id = p.proposed_by_student_id
+      where p.group_id = ${group.id} order by p.created_at desc
+    `;
+    const respRows = propRows.length
+      ? await sql<{ proposal_id: string; student_id: string; student_name: string; stance: string; comment: string }>`
+          select r.proposal_id, r.student_id, s.full_name as student_name, r.stance, r.comment
+          from proposal_responses r join students s on s.id = r.student_id
+          join venture_proposals p on p.id = r.proposal_id where p.group_id = ${group.id}
+          order by r.created_at
+        `
+      : [];
+    const proposals: VentureProposal[] = propRows.map((p) => ({
+      id: p.id,
+      opportunityId: p.opportunity_id,
+      proposedByStudentId: p.proposed_by_student_id,
+      proposedByName: p.proposer,
+      name: p.name,
+      rationale: p.rationale,
+      status: p.status as VentureProposal["status"],
+      createdAt: String(p.created_at ?? ""),
+      responses: respRows
+        .filter((r) => r.proposal_id === p.id)
+        .map((r) => ({ studentId: r.student_id, studentName: r.student_name, stance: r.stance as "endorse" | "object", comment: r.comment })),
+      needed,
+    }));
+
     let evidence: EvidenceItem[] = [];
     let assumptions: Assumption[] = [];
     let links: AssumptionEvidenceLink[] = [];
+    let experiments: Experiment[] = [];
     if (venture) {
+      // Thumbnails only: a group's full photos would be many MB on every load.
       const evRows = await sql<{
         id: string;
         venture_id: string;
@@ -237,7 +295,8 @@ export const getWorkspace = createServerFn({ method: "GET" })
         content: string;
         source_type: string;
         classification: string;
-        photo_data: string | null;
+        photo_thumb: string | null;
+        has_photo: boolean;
         photo_mime: string | null;
         observed_at: string | null;
         location_context: string | null;
@@ -245,7 +304,9 @@ export const getWorkspace = createServerFn({ method: "GET" })
         updated_at: unknown;
         author_name: string;
       }>`
-        select e.*, s.full_name as author_name
+        select e.id, e.venture_id, e.student_id, e.title, e.content, e.source_type, e.classification,
+               e.photo_thumb, (e.photo_data is not null) as has_photo, e.photo_mime, e.observed_at,
+               e.location_context, e.created_at, e.updated_at, s.full_name as author_name
         from evidence_items e
         join students s on s.id = e.student_id
         where e.venture_id = ${venture.id}
@@ -259,7 +320,9 @@ export const getWorkspace = createServerFn({ method: "GET" })
         content: row.content,
         sourceType: row.source_type as EvidenceItem["sourceType"],
         classification: row.classification as EvidenceItem["classification"],
-        photoData: row.photo_data,
+        photoData: null,
+        photoThumb: row.photo_thumb,
+        hasPhoto: Boolean(row.has_photo),
         photoMime: row.photo_mime,
         observedAt: row.observed_at,
         locationContext: row.location_context,
@@ -299,31 +362,72 @@ export const getWorkspace = createServerFn({ method: "GET" })
         authorName: row.author_name,
         syncState: "synced",
       }));
-      if (assumptions.length) {
-        const ids = assumptions.map((a) => a.id);
-        const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ");
-        const linkRows = await sql.query<{
-          id: string;
-          assumption_id: string;
-          evidence_item_id: string;
-          relationship_type: string;
-          created_by_student_id: string;
-          created_at: unknown;
-        }>(
-          `select * from assumption_evidence where assumption_id in (${placeholders})`,
-          ids,
-        );
-        links = linkRows.map((row) => ({
-          id: row.id,
-          assumptionId: row.assumption_id,
-          evidenceItemId: row.evidence_item_id,
-          relationshipType: row.relationship_type as AssumptionEvidenceLink["relationshipType"],
-          createdByStudentId: row.created_by_student_id,
-          createdAt: String(row.created_at ?? ""),
-        }));
-      }
+      const linkRows = await sql<{
+        id: string;
+        assumption_id: string;
+        evidence_item_id: string;
+        relationship_type: string;
+        created_by_student_id: string;
+        created_at: unknown;
+      }>`
+        select ae.* from assumption_evidence ae
+        join assumptions a on a.id = ae.assumption_id
+        where a.venture_id = ${venture.id}
+      `;
+      links = linkRows.map((row) => ({
+        id: row.id,
+        assumptionId: row.assumption_id,
+        evidenceItemId: row.evidence_item_id,
+        relationshipType: row.relationship_type as AssumptionEvidenceLink["relationshipType"],
+        createdByStudentId: row.created_by_student_id,
+        createdAt: String(row.created_at ?? ""),
+      }));
+      const xRows = await sql<{
+        id: string;
+        venture_id: string;
+        assumption_id: string;
+        student_id: string;
+        author_name: string;
+        hypothesis: string;
+        method: string;
+        success_criteria: string;
+        sample_target: number | null;
+        status: string;
+        result: string | null;
+        learning: string | null;
+        completed_at: unknown;
+        created_at: unknown;
+      }>`
+        select x.*, s.full_name as author_name from experiments x
+        join students s on s.id = x.student_id
+        where x.venture_id = ${venture.id} order by x.created_at desc
+      `;
+      const xev = xRows.length
+        ? await sql<{ experiment_id: string; evidence_item_id: string }>`
+            select xe.experiment_id, xe.evidence_item_id from experiment_evidence xe
+            join experiments x on x.id = xe.experiment_id where x.venture_id = ${venture.id}
+          `
+        : [];
+      experiments = xRows.map((x) => ({
+        id: x.id,
+        ventureId: x.venture_id,
+        assumptionId: x.assumption_id,
+        studentId: x.student_id,
+        authorName: x.author_name,
+        hypothesis: x.hypothesis,
+        method: x.method as Experiment["method"],
+        successCriteria: x.success_criteria,
+        sampleTarget: x.sample_target == null ? null : Number(x.sample_target),
+        status: x.status as Experiment["status"],
+        result: (x.result as Experiment["result"]) ?? null,
+        learning: x.learning,
+        evidenceIds: xev.filter((e) => e.experiment_id === x.id).map((e) => e.evidence_item_id),
+        completedAt: x.completed_at ? String(x.completed_at) : null,
+        createdAt: String(x.created_at ?? ""),
+      }));
     }
 
+    // RLS returns only sessions this student may read (shared group sessions + their own private ones).
     const sessionRows = await sql<{
       id: string;
       venture_id: string | null;
@@ -333,10 +437,11 @@ export const getWorkspace = createServerFn({ method: "GET" })
     }>`
       select id, venture_id, group_id, stage, created_at
       from ai_advisor_sessions
-      where group_id = ${group.id}
+      where group_id = ${group.id} and (student_id is null or student_id = ${student.id})
       order by created_at desc
     `;
-    const messageRows = await sql<{
+    const sessionIds = new Set(sessionRows.map((s) => s.id));
+    const messageRows = (await sql<{
       id: string;
       session_id: string;
       venture_id: string | null;
@@ -350,7 +455,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       select * from ai_advisor_messages
       where group_id = ${group.id}
       order by created_at asc
-    `;
+    `).filter((m) => sessionIds.has(m.session_id));
     const advisorSessions: AdvisorSession[] = sessionRows.map((s) => ({
       id: s.id,
       ventureId: s.venture_id,
@@ -390,18 +495,12 @@ export const getWorkspace = createServerFn({ method: "GET" })
       order by created_at desc
       limit 40
     `;
+    const notes: LecturerNote[] = (await sql<{ id: string; group_id: string; author_name: string; body: string; created_at: unknown }>`
+      select id, group_id, author_name, body, created_at from lecturer_notes where group_id = ${group.id} order by created_at desc limit 20
+    `).map((n) => ({ id: n.id, groupId: n.group_id, authorName: n.author_name, body: n.body, createdAt: String(n.created_at ?? "") }));
 
-    const required = activeMembers.length;
-    const canOpenSelection =
-      group.status === "selection_ready" ||
-      group.status === "selection" ||
-      group.status === "venture_created";
-    const canRecordGroupDecision =
-      canOpenSelection &&
-      Boolean(myPreference) &&
-      recorded >= required &&
-      !venture;
-
+    const canOpenSelection = peersVisible;
+    const openProposal = proposals.find((p) => p.status === "open") ?? null;
     return {
       appName: APP_NAME,
       student,
@@ -428,11 +527,20 @@ export const getWorkspace = createServerFn({ method: "GET" })
         metadata: parseMeta(row.metadata),
         createdAt: String(row.created_at ?? ""),
       })),
-      submissionProgress: { submitted, required },
-      preferenceProgress: { recorded, required },
+      submissionProgress: { submitted, required: activeMembers.length },
+      preferenceProgress: { recorded: roll.recorded, required: roll.eligible.length },
       canOpenSelection,
-      canRecordGroupDecision,
+      canRecordGroupDecision: canOpenSelection && revealed && !venture && !openProposal && roll.eligible.includes(student.id),
       aiAvailable: Boolean(process.env.XAI_API_KEY),
+      canEditMyOpportunity: canEditOpportunity(myOpportunity?.status ?? "draft", group.status),
+      preferencesRevealed: revealed,
+      eligibleVoterIds: roll.eligible,
+      proposal: openProposal,
+      pastProposals: proposals.filter((p) => p.status !== "open"),
+      experiments,
+      notes,
+      advisorLeftToday,
+      isLecturer: lecturer,
     };
   });
 
@@ -448,11 +556,13 @@ export const listOfferings = createServerFn({ method: "GET" })
       default_group_size: number;
       selection_requires_all_active: boolean | string;
       max_photo_bytes: number;
+      decision_rule: string;
+      ai_messages_per_day: number;
       course_code: string;
       course_name: string;
     }>`
       select o.id, o.course_id, o.semester, o.academic_year, o.default_group_size,
-             o.selection_requires_all_active, o.max_photo_bytes,
+             o.selection_requires_all_active, o.max_photo_bytes, o.decision_rule, o.ai_messages_per_day,
              c.course_code, c.course_name
       from course_offerings o
       join courses c on c.id = o.course_id
@@ -468,6 +578,8 @@ export const listOfferings = createServerFn({ method: "GET" })
         row.selection_requires_all_active === true ||
         row.selection_requires_all_active === "t",
       maxPhotoBytes: Number(row.max_photo_bytes),
+      decisionRule: row.decision_rule === "all" ? "all" : "majority",
+      aiMessagesPerDay: Number(row.ai_messages_per_day ?? 40),
       courseCode: row.course_code,
       courseName: row.course_name,
     }));

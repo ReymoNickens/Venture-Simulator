@@ -81,6 +81,8 @@ async function overlayOutbox(snap: WorkspaceSnapshot): Promise<WorkspaceSnapshot
           sourceType: (p.sourceType as "other") ?? "other",
           classification: (p.classification as "unknown") ?? "unknown",
           photoData: (p.photoData as string | null) ?? null,
+          photoThumb: (p.photoThumb as string | null) ?? null,
+          hasPhoto: Boolean(p.photoData),
           photoMime: (p.photoMime as string | null) ?? null,
           observedAt: (p.observedAt as string | null) ?? null,
           locationContext: (p.locationContext as string | null) ?? null,

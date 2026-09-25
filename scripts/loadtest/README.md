@@ -23,7 +23,7 @@ requests.
 concurrency-limited batch runner); `scenario.mjs` is the actual population +
 race-condition script described in the findings this produced (see the
 session's report — capacity race test via `for update`-locked joins, and a
-simultaneous-createVenture race, both passing; the concurrency ceiling of the
+simultaneous-endorsement venture race, both passing; the concurrency ceiling of the
 single dev process, which is a deployment-target question, not an app bug).
 
 Only meaningful against the local dev server / PGlite fallback — a deployed

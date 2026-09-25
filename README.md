@@ -1,6 +1,6 @@
 # Experiential Venture Platform
 
-Slice 1 of a progressive web app for university entrepreneurship education.
+A progressive web app for university entrepreneurship education: groups of students go from a problem they have seen to a venture they have tested with evidence. Built for Ghanaian campuses — phone-first, low-data, offline-tolerant.
 
 **GitHub:** [ReymoNickens/Venture-Simulator](https://github.com/ReymoNickens/Venture-Simulator)
 
@@ -10,27 +10,32 @@ Working name: **Experiential Venture Platform** (override with `VITE_APP_NAME`).
 
 Students independently investigate a real problem, keep that work private until the group is ready, record individual judgement before a group decision, and build an evidence record the AI advisor is allowed to challenge — not to complete.
 
-## Journey (this slice)
+## Journey
 
-1. Sign in (Google, X, or email)
-2. Academic profile (name, index number, programme) — separate from login
-3. Create or join a group (join code, configurable capacity)
-4. Write and submit an individual opportunity (private until selection)
-5. Record a personal preference, then a group selection rationale
-6. Talk to a challenging AI advisor
-7. Log evidence (with classification and optional photo)
-8. Log assumptions and link evidence (supports / challenges)
-9. Keep working offline; sync when the network returns
+Students (phone-first, works offline):
 
-Not in this slice: feasibility, finance, prototypes, lecturer dashboard, contribution scoring, business-plan generation.
+1. **Team** — sign in, add an academic profile, join a group with a code (shared on WhatsApp) or start one.
+2. **Your idea** — a five-step wizard for one real problem you've seen. It autosaves on the phone and is *sealed*: nobody sees it until the group is ready.
+3. **Decide** — read every idea, vote privately with a reason (votes are revealed together), then one member proposes the venture and the group endorses or objects with reasons. It needs a majority (or everyone, per course).
+4. **Evidence** — log what you saw, heard, counted or photographed, and classify it yourself.
+5. **Assumptions** — name what must be true; a risk map shows which to test first.
+6. **Test** — design a test card (we believe… / we'll check by… / we're right if…), run it, and record what you learned with evidence. Confidence changes keep their reasons.
 
-See [docs/CONCEPT-COVERAGE.md](docs/CONCEPT-COVERAGE.md) for what the full concept required that a shorter prompt had dropped, and [docs/DEVIATIONS.md](docs/DEVIATIONS.md) for stack differences.
+An advisor challenges at every stage (private while you write your idea, shared with the group afterwards) with a daily question allowance. The home screen always shows **one next step**.
 
-## Demonstration cohort
+Lecturers join a course with its lecturer code and get a cohort dashboard (stage of every group, groups that need a nudge), a per-group view (contribution by student, ideas, votes, proposals, evidence, tests, advisor log, timeline), notes to a group, and "open comparison now" for a group whose missing members aren't coming.
 
-After creating a student profile, open **Enter demonstration cohort**. Nine peers submit grounded campus/hostel/market opportunities. Their work stays hidden until you submit yours, then selection opens.
+Later chapters (business model, prototype, money, plan & pitch) are shown to students as "coming next" but not built.
 
-Use **Simulate offline** in the top bar to test local save and replay.
+See [docs/UX.md](docs/UX.md) for the design rationale, [docs/CONCEPT-COVERAGE.md](docs/CONCEPT-COVERAGE.md) for coverage, and [docs/DEVIATIONS.md](docs/DEVIATIONS.md) for stack differences.
+
+## Practice team and preview lecturer
+
+After creating a student profile, choose **Join a practice team**. Nine practice classmates have already sealed grounded campus/hostel/market problems and voted; theirs stay hidden until you seal yours. When you propose a venture they respond (two object, with reasons), so one person can walk the whole decision.
+
+On the preview build (embedded PGLite, no `DATABASE_URL`) the lecturer code `DEMO-LECTURER` works for any course. On a real database, set `course_offerings.lecturer_invite_code` per course.
+
+Use **Practise working offline** in the account menu to test local save and replay.
 
 ## Stack
 
@@ -58,10 +63,10 @@ Copy [`.env.example`](.env.example) when running outside this host. Never commit
 
 ```
 migrations/          schema, RLS, catalogue seed
-src/routes/          pages (landing, login, studio journey)
-src/lib/domain/      types, state machine, pedagogical copy
-src/lib/server/      authz, mutations, advisor, demo bootstrap
+src/routes/          pages (landing, login, onboarding, studio journey, teach/ lecturer)
+src/lib/domain/      types, state machine, next-step story, pedagogical copy
+src/lib/server/      authz, mutations, decisions, experiments, lecturer, advisor, demo bootstrap
 src/lib/offline/     IndexedDB, outbox, photo compression, sync
-src/components/      shell, forms, advisor
+src/components/      shell, forms, advisor, ui (design-system primitives)
 docs/                architecture, coverage, deviations, manual tests
 ```

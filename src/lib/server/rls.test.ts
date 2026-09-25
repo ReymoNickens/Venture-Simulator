@@ -212,3 +212,79 @@ describe("RLS actually enforces group isolation (not just executable SQL)", () =
     }
   });
 });
+
+describe("Slice 2 policies: joining, roles, lecturers, private advisor chats", () => {
+  it("a student can no longer insert themselves into another group directly", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await assert.rejects(() =>
+        asUser(pg, "auth-a", (tx) =>
+          tx.query(`insert into group_members (id, group_id, student_id, membership_status) values ('sneak','group-b','student-a','active')`),
+        ),
+      );
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("a user can't make themselves a lecturer or admin", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await assert.rejects(() =>
+        asUser(pg, "auth-a", (tx) =>
+          tx.query(`insert into user_roles (id, user_id, role_id, course_offering_id) values ('r1','auth-a','role_lecturer','off1')`),
+        ),
+      );
+      await assert.rejects(() =>
+        asUser(pg, "auth-a", (tx) =>
+          tx.query(`insert into user_roles (id, user_id, role_id, course_offering_id) values ('r2','auth-a','role_admin',null)`),
+        ),
+      );
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("a lecturer reads only the offering they teach", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await pg.query(`insert into course_offerings (id, course_id, semester, academic_year) values ('off2','c1','S2','2026')`);
+      await pg.query(`update groups set course_offering_id = 'off2' where id = 'group-b'`);
+      await pg.query(`insert into user_roles (id, user_id, role_id, course_offering_id) values ('lr','auth-lect','role_lecturer','off1')`);
+      const rows = await asUser(pg, "auth-lect", (tx) => tx.query<{ id: string }>("select id from opportunities order by id"));
+      assert.deepEqual(rows.rows.map((r) => r.id), ["opp-a"], "sees group A (off1), not group B (off2)");
+      const groups = await asUser(pg, "auth-lect", (tx) => tx.query<{ id: string }>("select id from groups order by id"));
+      assert.deepEqual(groups.rows.map((r) => r.id), ["group-a"]);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("a lecturer cannot write students' work", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await pg.query(`insert into user_roles (id, user_id, role_id, course_offering_id) values ('lr','auth-lect','role_lecturer','off1')`);
+      await asUser(pg, "auth-lect", (tx) => tx.query("update opportunities set problem = 'edited' where id = 'opp-a'"));
+      const check = await pg.query<{ problem: string }>("select problem from opportunities where id = 'opp-a'");
+      assert.notEqual(check.rows[0]?.problem, "edited");
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("a private advisor chat about your own idea is invisible to teammates", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await pg.query(`insert into students (id, auth_user_id, full_name, index_number, programme) values ('student-a2','auth-a2','Teammate','IDX-a2','Test')`);
+      await pg.query(`insert into group_members (id, group_id, student_id, membership_status) values ('member-a2','group-a','student-a2','active')`);
+      await pg.query(`insert into ai_advisor_sessions (id, group_id, stage, student_id) values ('s-private','group-a','idea','student-a')`);
+      await pg.query(`insert into ai_advisor_messages (id, session_id, group_id, student_id, role, content) values ('m1','s-private','group-a','student-a','student','my secret idea')`);
+      const mine = await asUser(pg, "auth-a", (tx) => tx.query<{ id: string }>("select id from ai_advisor_messages"));
+      const theirs = await asUser(pg, "auth-a2", (tx) => tx.query<{ id: string }>("select id from ai_advisor_messages"));
+      assert.equal(mine.rows.length, 1);
+      assert.equal(theirs.rows.length, 0, "teammate must not read another member's private idea chat");
+    } finally {
+      await pg.close();
+    }
+  });
+});

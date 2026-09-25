@@ -5,7 +5,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return (
     <input
       className={cn(
-        "h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm text-ink placeholder:text-faint",
+        "h-12 w-full rounded-[12px] border border-line bg-bg-elevated px-3.5 text-base font-normal text-ink placeholder:text-faint transition-colors focus:border-accent",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
         className,
       )}
@@ -18,7 +18,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return (
     <textarea
       className={cn(
-        "min-h-28 w-full rounded-[12px] border border-line bg-bg-elevated px-3 py-2.5 text-sm text-ink placeholder:text-faint",
+        "min-h-28 w-full rounded-[14px] border border-line bg-bg-elevated px-3.5 py-3 text-base font-normal leading-6 text-ink placeholder:text-faint transition-colors focus:border-accent",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
         className,
       )}
@@ -29,7 +29,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
 
 export function Label({ className, ...props }: LabelHTMLAttributes<HTMLLabelElement>) {
   return (
-    <label className={cn("block text-sm font-medium text-ink-soft", className)} {...props} />
+    <label className={cn("block text-sm font-semibold text-ink-soft", className)} {...props} />
   );
 }
 
@@ -58,5 +58,17 @@ export function Field({
       </Label>
       {hint ? <p className="text-xs leading-5 text-muted">{hint}</p> : null}
     </div>
+  );
+}
+
+export function Select({ className, ...props }: import("react").SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select
+      className={cn(
+        "h-12 w-full rounded-[12px] border border-line bg-bg-elevated px-3.5 text-base font-normal text-ink focus:border-accent",
+        className,
+      )}
+      {...props}
+    />
   );
 }

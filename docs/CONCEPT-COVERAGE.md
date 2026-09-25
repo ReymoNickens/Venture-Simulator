@@ -28,9 +28,21 @@ Working name: **Experiential Venture Platform** (`VITE_APP_NAME`). This is not V
 | Opportunity revision snapshots | `opportunity_revisions` |
 | Pedagogical “why” microcopy on forms | [`src/lib/domain/copy.ts`](../src/lib/domain/copy.ts) |
 
-## Intentionally not built (later slices)
+## Added in the studio/lecturer update
 
-Feasibility, finance, prototypes, resource mobilisation, simulation, lecturer dashboard, contribution / competency scoring, business-plan generation, marketplace, SSO / roster verification.
+| Rule | Where it lives |
+|---|---|
+| The group decision is a proposal the group endorses (majority or all), not one student's click | `venture_proposals`, `proposal_responses` ([`0006`](../migrations/0006_decisions_experiments_lecturers.sql)); [`decisions.ts`](../src/lib/server/decisions.ts) |
+| Votes are sealed until every eligible voter has voted | `preferencesRevealed` in the state machine; `getWorkspace` |
+| An idea can't change once peers can read it; nobody joins after comparison opens | `canEditOpportunity`, `canJoinGroup` |
+| Assumptions are tested with test cards; results change confidence with a kept reason | `experiments`, `experiment_evidence`, `assumption_revisions`; [`experiments.ts`](../src/lib/server/experiments.ts) |
+| Lecturer role scoped to a course offering; read-only on student work | `app_teaches_*` functions + `lecturer_read` policies; [`lecturer.ts`](../src/lib/server/lecturer.ts); `/teach` |
+| Contribution visible per student (from the activity log and records) | `getGroupDetail` → contribution table |
+| Private advisor chats while writing an idea; daily AI allowance | `ai_advisor_sessions.student_id`, `app_can_read_session`; `course_offerings.ai_messages_per_day` |
+
+## Intentionally not built (later chapters)
+
+Business model, prototypes, finance, resource mobilisation, simulation, competency scoring/grading, business-plan generation, marketplace, SSO / roster verification. Students see the first four as "later in the course".
 
 ## Stack (documented deviation)
 

@@ -2,8 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
-import type { AdvisorMetadata, AdvisorStage } from "@/lib/domain/types";
-import { AppError, loadGroupForStudent, logEvent, requireStudent } from "./authz";
+import type { AdvisorMetadata, AdvisorStage, GroupStatus } from "@/lib/domain/types";
+import { VALID } from "@/lib/domain/config";
+import { advisorAllowance, canViewPeerOpportunities } from "@/lib/domain/state-machine";
+import { AppError, loadGroupForStudent, loadOfferingForStudent, logEvent, requireStudent } from "./authz";
 
 const SYSTEM = `You are the AI advisor inside an experiential venture studio for university students in Ghana.
 
@@ -22,6 +24,8 @@ Rules:
 10. Stay respectful. A challenge should feel like a serious question, not a rejection.
 11. Suggest a next investigation the students could actually do on campus, in a hostel, or in a nearby market — as a question, not a task list.
 12. You may say "That is currently an assumption. What could you do to test it?"
+13. Only discuss the material in CONTEXT. If a student asks about teammates' ideas that are not in CONTEXT, say they stay private until the group opens selection.
+14. When a student is designing a test, push for a success line decided in advance and for the cheapest test that could prove them wrong.
 
 Return ONLY a JSON object with this shape:
 {
@@ -63,15 +67,15 @@ function parseAdvisor(raw: string): { message: string; metadata: AdvisorMetadata
   return { message: trimmed, metadata: {} };
 }
 
-async function assembleContext(groupId: string, stage: AdvisorStage): Promise<string> {
+async function assembleContext(groupId: string, stage: AdvisorStage, studentId: string): Promise<string> {
   const sql = await getSql();
   const group = await sql<{ status: string; group_name: string }>`
     select status, group_name from groups where id = ${groupId} limit 1
   `;
-  // The advisor's own curated context brief (never returned verbatim to the
-  // client) legitimately reasons about every submitted opportunity in the
-  // group — including peers' — even during opportunity_collection, before
-  // opportunities_select's privacy gate would otherwise allow it.
+  // Peers' ideas reach the advisor only once the group can see them. Before that the
+  // advisor sees the student's own idea only — otherwise a student could simply ask it
+  // what their teammates submitted.
+  const peersVisible = canViewPeerOpportunities((group[0]?.status ?? "forming") as GroupStatus);
   const opps = await withRlsBypass(
     () => sql<{
       problem: string;
@@ -82,11 +86,12 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
       potential_customer: string;
       uncertainties: string;
     }>`
-      select o.problem, o.status, s.full_name as author, o.observed_evidence,
+      select o.problem, o.status, split_part(s.full_name, ' ', 1) as author, o.observed_evidence,
              o.current_alternatives, o.potential_customer, o.uncertainties
       from opportunities o
       join students s on s.id = o.student_id
-      where o.group_id = ${groupId} and o.status <> 'draft'
+      where o.group_id = ${groupId}
+        and ((${peersVisible} and o.status <> 'draft') or o.student_id = ${studentId})
     `,
   );
   const venture = await sql<{ name: string; selection_rationale: string; opportunity_id: string }>`
@@ -112,14 +117,23 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
         limit 8
       `
     : [];
-  const prefs = await sql<{ author: string; rationale: string; problem: string }>`
-    select s.full_name as author, p.rationale, o.problem
-    from opportunity_preferences p
-    join students s on s.id = p.student_id
-    join opportunities o on o.id = p.opportunity_id
-    where o.group_id = ${groupId}
-    limit 12
-  `;
+  const prefs = peersVisible
+    ? await sql<{ author: string; rationale: string; problem: string }>`
+        select split_part(s.full_name, ' ', 1) as author, p.rationale, o.problem
+        from opportunity_preferences p
+        join students s on s.id = p.student_id
+        join opportunities o on o.id = p.opportunity_id
+        where o.group_id = ${groupId} and p.student_id = ${studentId}
+        limit 1
+      `
+    : [];
+  const tests = venture[0]
+    ? await sql<{ hypothesis: string; status: string; result: string | null; learning: string | null }>`
+        select x.hypothesis, x.status, x.result, x.learning from experiments x
+        join ventures v on v.id = x.venture_id where v.group_id = ${groupId}
+        order by x.created_at desc limit 6
+      `
+    : [];
 
   return [
     `COURSE RULES: Students must back claims with evidence. The platform does not pick winners.`,
@@ -133,8 +147,8 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
           .join("\n")}`
       : "OPPORTUNITIES: none submitted.",
     prefs.length
-      ? `PREFERENCES:\n${prefs.map((p) => `- ${p.author} prefers “${p.problem}” because: ${p.rationale}`).join("\n")}`
-      : "PREFERENCES: none yet.",
+      ? `THIS STUDENT'S PREFERENCE: prefers “${prefs[0].problem}” because: ${prefs[0].rationale}`
+      : "THIS STUDENT'S PREFERENCE: not recorded or not shared yet.",
     venture[0]
       ? `VENTURE: ${venture[0].name}\nSELECTION RATIONALE: ${venture[0].selection_rationale}`
       : "VENTURE: not created.",
@@ -144,6 +158,9 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
     assumptions.length
       ? `ASSUMPTIONS:\n${assumptions.map((a) => `- [${a.importance}/${a.confidence}] ${a.statement}`).join("\n")}`
       : "ASSUMPTIONS: none.",
+    tests.length
+      ? `TESTS:\n${tests.map((t) => `- [${t.status}${t.result ? `: ${t.result}` : ""}] ${t.hypothesis}${t.learning ? ` → learned: ${t.learning}` : ""}`).join("\n")}`
+      : "TESTS: none yet.",
   ].join("\n\n");
 }
 
@@ -155,25 +172,39 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
     if (!apiKey) {
       throw new AppError("AI_UNAVAILABLE", "The AI advisor is not available in this environment.");
     }
+    if (!VALID.stage.has(data.stage)) throw new AppError("INVALID", "Unknown advisor stage.");
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
     if (!group) throw new AppError("NO_GROUP", "Join a group first.");
-    const content = data.content.trim();
+    const content = data.content.trim().slice(0, 1500);
     if (!content) throw new AppError("INVALID", "Write something to the advisor.");
 
     const sql = await getSql();
+    // Each student gets a daily allowance (course setting) so one person can't run up the AI bill.
+    const offering = await loadOfferingForStudent(student.id);
+    const [used] = await sql<{ n: number }>`
+      select count(*)::int as n from ai_advisor_messages
+      where student_id = ${student.id} and role = 'student' and created_at > now() - interval '1 day'
+    `;
+    const allowance = advisorAllowance(Number(used?.n ?? 0), offering?.aiMessagesPerDay ?? 40);
+    if (!allowance.allowed) {
+      throw new AppError("LIMIT", "You've used today's advisor questions. Keep investigating — it resets in 24 hours.");
+    }
     let sessionId = data.sessionId;
     if (sessionId) {
-      const found = await sql<{ id: string; group_id: string }>`
-        select id, group_id from ai_advisor_sessions where id = ${sessionId} limit 1
+      const found = await sql<{ id: string; group_id: string; stage: string }>`
+        select id, group_id, stage from ai_advisor_sessions where id = ${sessionId} limit 1
       `;
-      if (!found[0] || found[0].group_id !== group.id) {
+      if (!found[0] || found[0].group_id !== group.id || found[0].stage !== data.stage) {
         throw new AppError("NOT_FOUND", "That conversation does not belong to your group.");
       }
     } else {
+      // 'idea' conversations are private to the student; later stages are shared with the group.
+      const privateSession = data.stage === "idea";
       const existing = await sql<{ id: string }>`
         select id from ai_advisor_sessions
         where group_id = ${group.id} and stage = ${data.stage}
+          and ((${privateSession} and student_id = ${student.id}) or (not ${privateSession} and student_id is null))
         order by created_at desc limit 1
       `;
       sessionId = existing[0]?.id;
@@ -181,8 +212,8 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
         sessionId = newId();
         const venture = await sql<{ id: string }>`select id from ventures where group_id = ${group.id} limit 1`;
         await sql`
-          insert into ai_advisor_sessions (id, venture_id, group_id, stage)
-          values (${sessionId}, ${venture[0]?.id ?? null}, ${group.id}, ${data.stage})
+          insert into ai_advisor_sessions (id, venture_id, group_id, stage, student_id)
+          values (${sessionId}, ${venture[0]?.id ?? null}, ${group.id}, ${data.stage}, ${privateSession ? student.id : null})
         `;
         await logEvent({
           studentId: student.id,
@@ -207,7 +238,7 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
       where session_id = ${sessionId}
       order by created_at asc
     `;
-    const brief = await assembleContext(group.id, data.stage);
+    const brief = await assembleContext(group.id, data.stage, student.id);
     const messages = [
       { role: "system", content: SYSTEM },
       { role: "user", content: `CONTEXT FOR THIS TURN:\n${brief}` },
@@ -218,6 +249,7 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
     ];
 
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
+      signal: AbortSignal.timeout(30_000),
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -248,5 +280,6 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
       sessionId,
       message: parsed.message,
       metadata: parsed.metadata,
+      leftToday: allowance.left - 1,
     };
   });

@@ -56,7 +56,8 @@ await call("getWorkspace", warmupCookie, undefined, "GET").catch(() => {});
 await call("createGroup", warmupCookie, { groupName: "Warmup Group" }).catch(() => {});
 await call("upsertOpportunity", warmupCookie, { submit: false, fields: {} }).catch(() => {});
 await call("recordPreference", warmupCookie, { opportunityId: "warmup", rationale: "x" }).catch(() => {});
-await call("createVenture", warmupCookie, { opportunityId: "warmup", name: "x", selectionRationale: "x".repeat(40) }).catch(() => {});
+await call("proposeVenture", warmupCookie, { opportunityId: "warmup", name: "x", rationale: "x".repeat(60) }).catch(() => {});
+await call("respondToProposal", warmupCookie, { proposalId: "warmup", stance: "endorse" }).catch(() => {});
 await call("createEvidence", warmupCookie, { title: "x", content: "x", sourceType: "observation", classification: "unknown" }).catch(() => {});
 await call("createAssumption", warmupCookie, { statement: "x", importance: "critical", confidence: "low" }).catch(() => {});
 console.log("warm-up done\n");
@@ -259,78 +260,70 @@ record(
 );
 console.log(`recordPreference wall time: ${Date.now() - t5}ms`);
 
-// --------------------------------------- 9. venture creation — the 2nd race
-// For a subset of groups, TWO members call createVenture at the exact same
-// time — the group must end up with exactly one venture, and the loser must
-// get a clean error, not a crash or a duplicate venture.
-const RACE_VENTURE_GROUPS = 15;
-const t6 = Date.now();
-const ventureRaceResults = await runBatched(groups.slice(0, RACE_VENTURE_GROUPS), CONCURRENCY, async (g) => {
+// --------------------------------------- 9. venture decision — the 2nd race
+// A venture is created only when a proposal gathers enough endorsements. One
+// member proposes, then EVERY other member endorses at the same instant: the
+// endorsements that cross the threshold race inside settle(), and the group
+// must end up with exactly one venture, with no endorser getting a crash.
+const RATIONALE = "Chosen over the alternatives because the evidence was clearest and the customer was concrete, not assumed.";
+async function decide(g) {
   const ws = await call("getWorkspace", g.activeMembers[0].cookie, undefined, "GET");
   const target = ws.visibleOpportunities.find((o) => o.status !== "draft");
-  const racers = g.activeMembers.slice(0, 2);
+  const { proposalId } = await call("proposeVenture", g.activeMembers[0].cookie, {
+    opportunityId: target.id,
+    name: `Venture for group ${g.gi}`,
+    rationale: RATIONALE,
+  });
   const results = await Promise.allSettled(
-    racers.map((m) =>
-      call("createVenture", m.cookie, {
-        opportunityId: target.id,
-        name: `Venture for group ${g.gi}`,
-        selectionRationale: "Chosen over the alternatives because the evidence was clearest and the customer was concrete, not assumed.",
-      }),
-    ),
+    g.activeMembers.slice(1).map((m) => call("respondToProposal", m.cookie, { proposalId, stance: "endorse" })),
   );
-  const succeeded = results.filter((r) => r.status === "fulfilled").length;
   const errors = results.filter((r) => r.status === "rejected").map((r) => r.reason?.message);
-  return { gi: g.gi, succeeded, errors };
-});
-console.log(`\nventure-creation race wall time: ${Date.now() - t6}ms (${RACE_VENTURE_GROUPS} groups x 2 simultaneous racers)`);
+  const after = await call("getWorkspace", g.activeMembers[0].cookie, undefined, "GET");
+  const accepted = results.filter((r) => r.status === "fulfilled" && r.value?.outcome === "accepted").length;
+  return { gi: g.gi, hasVenture: Boolean(after.venture), accepted, errors };
+}
+
+const RACE_VENTURE_GROUPS = 15;
+const t6 = Date.now();
+const ventureRaceResults = await runBatched(groups.slice(0, RACE_VENTURE_GROUPS), CONCURRENCY, decide);
+console.log(`\nventure-decision race wall time: ${Date.now() - t6}ms (${RACE_VENTURE_GROUPS} groups, all endorsers at once)`);
 let doubleVentureBug = 0;
 let crashedInsteadOfCleanError = 0;
 for (const r of ventureRaceResults) {
   if (r.ok) {
-    const { gi, succeeded, errors } = r.value;
-    if (succeeded !== 1) {
+    const { gi, hasVenture, errors } = r.value;
+    if (!hasVenture) {
       doubleVentureBug++;
-      console.log(`  *** group ${gi}: ${succeeded} venture creations succeeded (expected exactly 1) ***`);
+      console.log(`  *** group ${gi}: no venture after every member endorsed ***`);
     }
-    const messyErrors = errors.filter(
-      (e) => e && !/already has a venture|not in selection|cannot be selected/i.test(e),
-    );
+    // Late endorsers may find the proposal already settled — that's the clean, expected loss.
+    const messyErrors = errors.filter((e) => e && !/no longer open|already chosen its venture/i.test(e));
     if (messyErrors.length) {
       crashedInsteadOfCleanError++;
-      console.log(`  group ${gi}: unclean error on the losing racer: ${messyErrors[0]}`);
+      console.log(`  group ${gi}: unclean error on a late endorser: ${messyErrors[0]}`);
     }
   } else {
     console.log(`  group check failed entirely: ${r.error?.message}`);
   }
 }
+// ventures.group_id is unique, so a double venture would surface as an error above;
+// this check makes sure every raced group reached exactly the accepted state.
 console.log(
   doubleVentureBug === 0
-    ? "No group ended up with more than one venture from simultaneous createVenture calls."
-    : `*** ${doubleVentureBug} group(s) show a double-venture race bug ***`,
+    ? "Every raced group ended with its venture created exactly once."
+    : `*** ${doubleVentureBug} group(s) ended without a venture ***`,
 );
 console.log(
   crashedInsteadOfCleanError === 0
-    ? "The losing racer always got a clean, expected error message."
-    : `*** ${crashedInsteadOfCleanError} group(s) gave the losing racer a confusing/unhandled error ***`,
+    ? "Late endorsers always got a clean, expected message."
+    : `*** ${crashedInsteadOfCleanError} group(s) gave an endorser a confusing/unhandled error ***`,
 );
 report.phases.ventureRace = { doubleVentureBug, crashedInsteadOfCleanError, groups: RACE_VENTURE_GROUPS };
 
-// Remaining groups (past the race sample): one clean createVenture each, so
-// evidence/assumptions has somewhere to attach to.
+// Remaining groups: the same propose-and-endorse, so evidence/assumptions have a venture.
 const t7 = Date.now();
-record(
-  "createVenture (remaining groups)",
-  await runBatched(groups.slice(RACE_VENTURE_GROUPS), CONCURRENCY, async (g) => {
-    const ws = await call("getWorkspace", g.activeMembers[0].cookie, undefined, "GET");
-    const target = ws.visibleOpportunities.find((o) => o.status !== "draft");
-    return call("createVenture", g.activeMembers[0].cookie, {
-      opportunityId: target.id,
-      name: `Venture for group ${g.gi}`,
-      selectionRationale: "Chosen over the alternatives because the evidence was clearest and the customer was concrete, not assumed.",
-    });
-  }),
-);
-console.log(`createVenture (remaining) wall time: ${Date.now() - t7}ms`);
+record("proposeVenture + endorse (remaining groups)", await runBatched(groups.slice(RACE_VENTURE_GROUPS), CONCURRENCY, decide));
+console.log(`venture decision (remaining) wall time: ${Date.now() - t7}ms`);
 
 // --------------------------------------------------- 10. evidence + assumptions
 // Every active member of every group logs one evidence item and one

@@ -1,4 +1,5 @@
 import { upsertOpportunity, createEvidence, createAssumption, linkEvidence } from "@/lib/server/mutations";
+import { planExperiment } from "@/lib/server/experiments";
 import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
 import { outboxAll, outboxDelete, outboxPut } from "./idb";
 import { emitConnectionChange, isEffectivelyOnline } from "./status";
@@ -77,6 +78,7 @@ async function dispatch(item: OutboxItem): Promise<void> {
           sourceType: String(p.sourceType ?? "other"),
           classification: String(p.classification ?? "unknown"),
           photoData: (p.photoData as string | null) ?? null,
+          photoThumb: (p.photoThumb as string | null) ?? null,
           photoMime: (p.photoMime as string | null) ?? null,
           observedAt: (p.observedAt as string | null) ?? null,
           locationContext: (p.locationContext as string | null) ?? null,
@@ -100,6 +102,18 @@ async function dispatch(item: OutboxItem): Promise<void> {
           assumptionId: String(p.assumptionId ?? ""),
           evidenceItemId: String(p.evidenceItemId ?? ""),
           relationshipType: (p.relationshipType as RelationshipType) ?? "supports",
+        },
+      });
+      return;
+    case "create_experiment":
+      await planExperiment({
+        data: {
+          clientId: String(p.clientId ?? item.id),
+          assumptionId: String(p.assumptionId ?? ""),
+          hypothesis: String(p.hypothesis ?? ""),
+          method: String(p.method ?? "other"),
+          successCriteria: String(p.successCriteria ?? ""),
+          sampleTarget: (p.sampleTarget as number | null) ?? null,
         },
       });
       return;

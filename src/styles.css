@@ -1,32 +1,42 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme {
   --font-display: "Fraunces", "Times New Roman", serif;
   --font-sans: "Figtree", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* Warmer, campus-earth palette (leaf / sun / clay / paper) — same token
-     names as before so components don't change, only the values. */
-  --color-bg: #f7f4eb;
+  /* Campus-earth palette: paper, forest, sun, clay. */
+  --color-bg: #f6f2e8;
   --color-bg-elevated: #fffdf8;
-  --color-bg-subtle: #eee7d6;
-  --color-ink: #15251f;
+  --color-bg-subtle: #ede5d3;
+  --color-ink: #13231d;
   --color-ink-soft: #2f3f37;
-  --color-muted: #5c6b61;
-  --color-faint: #8b9389;
-  --color-line: #d7cdb5;
+  --color-muted: #5a6960;
+  --color-faint: #88918a;
+  --color-line: #ddd3bd;
   --color-line-strong: #c2b494;
-  --color-accent: #286045;
-  --color-accent-fg: #f6f1e4;
-  --color-accent-soft: #e2ece3;
-  --color-sun: #f4b942;
-  --color-sun-soft: #fdf1d9;
-  --color-warn: #b86d3d;
-  --color-warn-soft: #f3e2d2;
-  --color-bad: #8f2d2d;
-  --color-bad-soft: #f6e0dc;
-  --color-ok: #286045;
-  --color-spine: #2a1f16;
+  --color-accent: #1f5c45;
+  --color-accent-fg: #f8f3e6;
+  --color-accent-soft: #e0ebe2;
+  --color-sun: #eaa530;
+  --color-sun-soft: #fcefd3;
+  --color-clay: #c4553b;
+  --color-clay-soft: #f8e2da;
+  --color-warn: #a8622f;
+  --color-warn-soft: #f5e5d4;
+  --color-bad: #9b2f2f;
+  --color-bad-soft: #f7e0dc;
+  --color-ok: #1f5c45;
+  --color-night: #10201a;
+
+  /* One colour per chapter of the journey, used for chips, rails and headers. */
+  --color-ch-team: #c4553b;
+  --color-ch-idea: #d18a1e;
+  --color-ch-decide: #6a4c93;
+  --color-ch-evidence: #2b7a78;
+  --color-ch-assumptions: #1f5c45;
+  --color-ch-test: #34568b;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -34,13 +44,32 @@
   --radius-lg: 20px;
   --radius-xl: 28px;
 
-  --shadow-page: 0 1px 0 rgba(28, 25, 20, 0.04), 0 12px 32px -18px rgba(28, 25, 20, 0.28);
+  --shadow-card: 0 1px 0 rgba(28, 25, 20, 0.04), 0 14px 34px -24px rgba(28, 25, 20, 0.35);
+  --shadow-lift: 0 2px 0 rgba(28, 25, 20, 0.04), 0 24px 48px -28px rgba(28, 25, 20, 0.45);
+
+  --animate-pop: pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-rise: rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pop {
+  0% { transform: scale(0.92); opacity: 0; }
+  60% { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes rise {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -20px, 0) rotate(0); opacity: 1; }
+  100% { transform: translate3d(var(--dx, 0), 110vh, 0) rotate(var(--rot, 540deg)); opacity: 0.9; }
 }
 
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
   }
   html,
   body,
@@ -50,18 +79,13 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
   }
-  body {
-    background-image:
-      linear-gradient(90deg, var(--color-spine) 0 12px, transparent 12px),
-      radial-gradient(1200px 600px at 80% -10%, rgba(47, 93, 86, 0.06), transparent 50%);
-  }
   h1,
   h2,
   h3 {
     font-family: var(--font-display);
     text-wrap: balance;
-    letter-spacing: -0.03em;
-    font-weight: 550;
+    letter-spacing: -0.025em;
+    font-weight: 600;
   }
   p {
     text-wrap: pretty;
@@ -70,9 +94,39 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--color-accent) 70%, white);
+    outline-offset: 2px;
+  }
   ::selection {
     background: color-mix(in oklab, var(--color-accent) 22%, white);
   }
+}
+
+@layer components {
+  /* Kente-inspired stripe: a thin woven band used on heroes and milestone cards. */
+  .kente {
+    background-image: repeating-linear-gradient(
+      90deg,
+      var(--color-clay) 0 14px,
+      var(--color-sun) 14px 22px,
+      var(--color-accent) 22px 40px,
+      var(--color-night) 40px 44px,
+      var(--color-sun) 44px 52px
+    );
+  }
+  .paper-grain {
+    background-image: radial-gradient(900px 420px at 85% -10%, rgba(234, 165, 48, 0.14), transparent 60%),
+      radial-gradient(700px 380px at -10% 0%, rgba(31, 92, 69, 0.08), transparent 55%);
+  }
+  .scroll-snap-x {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .scroll-snap-x::-webkit-scrollbar { display: none; }
+  .scroll-snap-x > * { scroll-snap-align: start; }
+  .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
 }
 
 @media (prefers-reduced-motion: reduce) {

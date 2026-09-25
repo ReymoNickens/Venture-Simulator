@@ -1,4 +1,4 @@
-# Architecture — Slice 1
+# Architecture
 
 ## Folder structure
 
@@ -9,10 +9,15 @@ migrations/
   0003_rls.sql           executable RLS + future lecturer hook
   0004_seed.sql          course catalogue only
   0005_runtime_role.sql  restricted app_runtime role that makes RLS load-bearing
-src/lib/domain/          types, group state machine, microcopy
+  0006_decisions_experiments_lecturers.sql
+                         proposals/endorsements, experiments, assumption history,
+                         lecturer notes + read policies, private advisor sessions
+src/lib/domain/          types, state machine (pure rules), story.ts (next step), microcopy
 src/lib/server/          createServerFn handlers, scoped by session
-src/lib/offline/         IndexedDB + outbox + photo compress
-src/routes/studio/       group → opportunity → select → venture
+src/lib/offline/         IndexedDB + outbox + photo compress (full photo + 240px thumb)
+src/components/ui/       design-system primitives (Button, Card, Sheet, ChoiceGrid, Tabs…)
+src/routes/studio/       home, group, opportunity, select, venture, advisor
+src/routes/teach/        cohort dashboard, group detail
 ```
 
 ## Data model notes
@@ -32,7 +37,21 @@ IDs are UUID strings generated in application code so the schema does not requir
 
 `forming` → `opportunity_collection` → `selection_ready` → `selection` → `venture_created`
 
-Selection opens only when every **currently active** member has submitted. Missing students are not treated as submitted. `course_offerings.selection_requires_all_active` is the hook for a later override.
+Selection opens when every **currently active** member has submitted (or, if `course_offerings.selection_requires_all_active` is false, at least half the group and at least two). A lecturer can open it early for a group once two ideas are in; then only the members who submitted vote. After selection opens nobody can join and submitted ideas are locked.
+
+## Group decision
+
+1. Every eligible voter records one private preference with a reason (≥15 chars). Preferences stay hidden — even counts per idea — until all have voted.
+2. Any voter proposes a venture with a rationale (≥60 chars). The proposer endorses automatically.
+3. Others endorse or object (objection needs a reason). `settle()` locks the group row and applies `course_offerings.decision_rule` (`majority` = more than half of eligible voters, or `all`). Accepted → the venture is created, the chosen idea is `selected` and the rest `rejected` (kept). Rejected → someone proposes again.
+
+## Tests (experiments)
+
+`experiments` hold a test card (hypothesis, method, success criteria set in advance, sample). Completing one requires a learning and, unless inconclusive, evidence; it links that evidence to the assumption and moves the assumption to supported/challenged. Every status/confidence change is written to `assumption_revisions` with its reason.
+
+## Lecturers
+
+`user_roles` rows with the lecturer role are scoped to a course offering and granted only by `claimLecturerRole` (invite code). SECURITY DEFINER helpers (`app_teaches_offering/group/venture`) back permissive `lecturer_read` SELECT policies, so a lecturer reads their own course's groups and nothing else; they write only `lecturer_notes` and the "opened early" flag.
 
 ## Opportunity privacy
 

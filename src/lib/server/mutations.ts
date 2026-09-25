@@ -3,16 +3,18 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { joinCode, newId } from "@/lib/utils";
 import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
-import { DEFAULT_GROUP_SIZE, DEFAULT_MAX_PHOTO_BYTES } from "@/lib/domain/config";
+import { DEFAULT_GROUP_SIZE, DEFAULT_MAX_PHOTO_BYTES, VALID } from "@/lib/domain/config";
+import { canEditOpportunity, canJoinGroup, preferencesRevealed } from "@/lib/domain/state-machine";
+import type { GroupStatus, OpportunityStatus } from "@/lib/domain/types";
 import {
   AppError,
-  assertGroupMember,
   loadGroupForStudent,
   loadOfferingForStudent,
   loadStudent,
   logEvent,
   refreshGroupStatus,
   requireStudent,
+  votingRoll,
 } from "./authz";
 
 function fail(err: unknown): never {
@@ -131,10 +133,12 @@ export const createGroup = createServerFn({ method: "POST" })
           ${student.id}, ${capacity}
         )
       `;
-      await sql`
+      // Memberships are only ever written by these audited server paths (RLS denies
+      // direct inserts, so nobody can add themselves to an arbitrary group).
+      await withRlsBypass(() => sql`
         insert into group_members (id, group_id, student_id, membership_status)
         values (${newId()}, ${groupId}, ${student.id}, 'active')
-      `;
+      `);
       await logEvent({
         studentId: student.id,
         groupId,
@@ -187,8 +191,15 @@ export const joinGroup = createServerFn({ method: "POST" })
       return { ...group, activeCount: Number(count[0]?.n ?? 0) };
     });
     if (!group) throw new AppError("NOT_FOUND", "No group uses that join code.");
-    if (group.status === "venture_created") {
-      throw new AppError("CLOSED", "This group has already selected a venture.");
+    if (!canJoinGroup(group.status as GroupStatus)) {
+      // Joining after ideas are visible would let a latecomer read everyone's work
+      // before writing their own.
+      throw new AppError(
+        "CLOSED",
+        group.status === "venture_created"
+          ? "This group has already chosen its venture. Ask your lecturer which group to join."
+          : "This group is already comparing ideas, so it can't take new members. Ask your lecturer which group to join.",
+      );
     }
     if (group.activeCount >= Number(group.capacity)) {
       throw new AppError("FULL", "This group is full.");
@@ -197,10 +208,10 @@ export const joinGroup = createServerFn({ method: "POST" })
       select id from group_members where group_id = ${group.id} and student_id = ${student.id} limit 1
     `;
     if (dup[0]) throw new AppError("ALREADY_IN_GROUP", "You are already a member of this group.");
-    await sql`
+    await withRlsBypass(() => sql`
       insert into group_members (id, group_id, student_id, membership_status)
       values (${newId()}, ${group.id}, ${student.id}, 'active')
-    `;
+    `);
     await logEvent({
       studentId: student.id,
       groupId: group.id,
@@ -232,17 +243,25 @@ export const upsertOpportunity = createServerFn({ method: "POST" })
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
     if (!group) throw new AppError("NO_GROUP", "Join a group before writing an opportunity.");
-    if (group.status === "venture_created") {
-      throw new AppError("LOCKED", "The group has already selected a venture.");
-    }
     const sql = await getSql();
     const existing = await sql<{ id: string; status: string }>`
       select id, status from opportunities
       where student_id = ${student.id} and group_id = ${group.id}
       limit 1
     `;
-    const id = data.clientId || existing[0]?.id || newId();
-    const fields = { ...emptyFields, ...data.fields };
+    if (!canEditOpportunity((existing[0]?.status ?? "draft") as OpportunityStatus, group.status)) {
+      throw new AppError(
+        "LOCKED",
+        group.status === "venture_created"
+          ? "The group has already chosen its venture."
+          : "Your idea is locked now that the group can see everyone's ideas.",
+      );
+    }
+    const id = existing[0]?.id || data.clientId || newId();
+    const fields = { ...emptyFields };
+    for (const key of Object.keys(emptyFields) as (keyof OpportunityFields)[]) {
+      fields[key] = String(data.fields?.[key] ?? "").slice(0, 2000);
+    }
     const submitting = Boolean(data.submit);
     if (submitting) {
       const required: (keyof OpportunityFields)[] = [
@@ -320,9 +339,16 @@ export const recordPreference = createServerFn({ method: "POST" })
     if (!["selection_ready", "selection", "venture_created"].includes(group.status)) {
       throw new AppError("CLOSED", "Selection has not opened yet.");
     }
-    const rationale = data.rationale.trim();
-    if (!rationale) throw new AppError("INVALID", "Explain why you prefer this opportunity.");
+    const rationale = data.rationale.trim().slice(0, 1500);
+    if (rationale.length < 15) throw new AppError("INVALID", "Say in a sentence or two why you prefer this idea.");
     const sql = await getSql();
+    const voters = await votingRoll(group.id, Boolean(group.selectionOpenedBy));
+    if (!voters.eligible.includes(student.id)) {
+      throw new AppError("NOT_ELIGIBLE", "Only members who submitted an idea vote in this group.");
+    }
+    if (preferencesRevealed(voters.recorded, voters.eligible.length)) {
+      throw new AppError("LOCKED", "Everyone has voted and the votes are revealed, so votes are now fixed.");
+    }
     const opp = await sql<{ id: string; group_id: string; status: string }>`
       select id, group_id, status from opportunities where id = ${data.opportunityId} limit 1
     `;
@@ -349,90 +375,6 @@ export const recordPreference = createServerFn({ method: "POST" })
     return { id };
   });
 
-export const createVenture = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .validator((input: { opportunityId: string; name: string; selectionRationale: string }) => input)
-  .handler(async ({ context, data }) => {
-    const student = await requireStudent(context.userId);
-    const group = await loadGroupForStudent(student.id);
-    if (!group) throw new AppError("NO_GROUP", "Join a group first.");
-    await assertGroupMember(student.id, group.id);
-    if (!["selection_ready", "selection"].includes(group.status)) {
-      throw new AppError("CLOSED", "The group is not in selection.");
-    }
-    const rationale = data.selectionRationale.trim();
-    if (rationale.length < 40) {
-      throw new AppError(
-        "INVALID",
-        "The selection rationale must explain why this opportunity rather than the alternatives.",
-      );
-    }
-    const sql = await getSql();
-    const already = await sql<{ id: string }>`select id from ventures where group_id = ${group.id} limit 1`;
-    if (already[0]) throw new AppError("EXISTS", "This group already has a venture.");
-
-    const memberCount = await sql<{ n: number }>`
-      select count(*)::int as n from group_members
-      where group_id = ${group.id} and membership_status = 'active'
-    `;
-    const prefCount = await sql<{ n: number }>`
-      select count(distinct p.student_id)::int as n
-      from opportunity_preferences p
-      where exists (
-        select 1 from opportunities o
-        where o.id = p.opportunity_id and o.group_id = ${group.id}
-      )
-    `;
-    if (Number(prefCount[0]?.n ?? 0) < Number(memberCount[0]?.n ?? 0)) {
-      throw new AppError("PREFERENCES", "Every active member must record a preference first.");
-    }
-    const opp = await sql<{ id: string; problem: string }>`
-      select id, problem from opportunities
-      where id = ${data.opportunityId} and group_id = ${group.id} and status <> 'draft'
-      limit 1
-    `;
-    if (!opp[0]) throw new AppError("NOT_FOUND", "That opportunity cannot be selected.");
-
-    const ventureId = newId();
-    const name = data.name.trim() || opp[0].problem.slice(0, 80);
-    await sql`
-      insert into ventures (id, group_id, opportunity_id, name, status, selection_rationale)
-      values (${ventureId}, ${group.id}, ${opp[0].id}, ${name}, 'active', ${rationale})
-    `;
-    // The group's decision, already fully validated above (preferences
-    // complete, rationale given, group in selection), transitions every
-    // member's opportunity — opportunities_write only allows writing your own
-    // row, so recording rejection of the alternatives needs the escape hatch.
-    await withRlsBypass(async () => {
-      await sql`
-        update opportunities set status = 'selected', updated_at = now()
-        where id = ${opp[0].id}
-      `;
-      await sql`
-        update opportunities set status = 'rejected', updated_at = now()
-        where group_id = ${group.id} and id <> ${opp[0].id} and status = 'submitted'
-      `;
-    });
-    await sql`update groups set status = 'venture_created', updated_at = now() where id = ${group.id}`;
-    await logEvent({
-      studentId: student.id,
-      groupId: group.id,
-      ventureId,
-      eventType: "VENTURE_CREATED",
-      entityType: "venture",
-      entityId: ventureId,
-    });
-    await logEvent({
-      studentId: student.id,
-      groupId: group.id,
-      ventureId,
-      eventType: "OPPORTUNITY_SELECTED",
-      entityType: "opportunity",
-      entityId: opp[0].id,
-    });
-    return { ventureId };
-  });
-
 export const createEvidence = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: {
@@ -442,18 +384,27 @@ export const createEvidence = createServerFn({ method: "POST" })
     sourceType: string;
     classification: string;
     photoData?: string | null;
+    photoThumb?: string | null;
     photoMime?: string | null;
     observedAt?: string | null;
     locationContext?: string | null;
   }) => input)
   .handler(async ({ context, data }) => {
+    if (!VALID.source.has(data.sourceType)) throw new AppError("INVALID", "Pick where this evidence came from.");
+    if (!VALID.classification.has(data.classification)) throw new AppError("INVALID", "Pick a classification.");
+    if (data.photoData && !/^data:image\/(jpeg|png|webp);base64,/.test(data.photoData)) {
+      throw new AppError("PHOTO", "That photo format isn't supported.");
+    }
+    if (data.photoThumb && (!/^data:image\/jpeg;base64,/.test(data.photoThumb) || data.photoThumb.length > 60_000)) {
+      throw new AppError("PHOTO", "That photo preview isn't valid.");
+    }
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
     if (!group) throw new AppError("NO_GROUP", "Join a group first.");
     const sql = await getSql();
     const v = await sql<{ id: string }>`select id from ventures where group_id = ${group.id} limit 1`;
     if (!v[0]) throw new AppError("NO_VENTURE", "Select a venture before logging evidence.");
-    const title = data.title.trim();
+    const title = data.title.trim().slice(0, 140);
     if (!title) throw new AppError("INVALID", "Give this evidence a short title.");
     const offering = await loadOfferingForStudent(student.id);
     const maxBytes = offering?.maxPhotoBytes ?? DEFAULT_MAX_PHOTO_BYTES;
@@ -466,12 +417,12 @@ export const createEvidence = createServerFn({ method: "POST" })
     await sql`
       insert into evidence_items (
         id, venture_id, student_id, title, content, source_type, classification,
-        photo_data, photo_mime, observed_at, location_context
+        photo_data, photo_thumb, photo_mime, observed_at, location_context
       ) values (
-        ${id}, ${v[0].id}, ${student.id}, ${title}, ${data.content.trim()},
+        ${id}, ${v[0].id}, ${student.id}, ${title}, ${data.content.trim().slice(0, 5000)},
         ${data.sourceType}, ${data.classification},
-        ${data.photoData ?? null}, ${data.photoMime ?? null},
-        ${data.observedAt ?? null}, ${data.locationContext ?? null}
+        ${data.photoData ?? null}, ${data.photoData ? (data.photoThumb ?? null) : null}, ${data.photoData ? "image/jpeg" : null},
+        ${data.observedAt?.slice(0, 40) ?? null}, ${data.locationContext?.slice(0, 140) ?? null}
       )
     `;
     await logEvent({
@@ -494,13 +445,16 @@ export const createAssumption = createServerFn({ method: "POST" })
     confidence: string;
   }) => input)
   .handler(async ({ context, data }) => {
+    if (!VALID.importance.has(data.importance) || !VALID.confidence.has(data.confidence)) {
+      throw new AppError("INVALID", "Pick an importance and a confidence level.");
+    }
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
     if (!group) throw new AppError("NO_GROUP", "Join a group first.");
     const sql = await getSql();
     const v = await sql<{ id: string }>`select id from ventures where group_id = ${group.id} limit 1`;
     if (!v[0]) throw new AppError("NO_VENTURE", "Select a venture before logging assumptions.");
-    const statement = data.statement.trim();
+    const statement = data.statement.trim().slice(0, 500);
     if (!statement) throw new AppError("INVALID", "Write the assumption as a testable statement.");
     const id = data.clientId || newId();
     const existing = await sql<{ id: string }>`select id from assumptions where id = ${id} limit 1`;
@@ -529,6 +483,7 @@ export const linkEvidence = createServerFn({ method: "POST" })
     relationshipType: RelationshipType;
   }) => input)
   .handler(async ({ context, data }) => {
+    if (!VALID.relationship.has(data.relationshipType)) throw new AppError("INVALID", "Pick supports or challenges.");
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
     if (!group) throw new AppError("NO_GROUP", "Join a group first.");
@@ -567,4 +522,18 @@ export const linkEvidence = createServerFn({ method: "POST" })
       metadata: { relationshipType: data.relationshipType },
     });
     return { id };
+  });
+
+/** The full-size photo for one evidence item — lists only carry the small thumbnail. */
+export const getEvidencePhoto = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator((input: { evidenceId: string }) => input)
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    // RLS limits this to the caller's own group's (or taught group's) evidence.
+    const rows = await sql<{ photo_data: string | null }>`
+      select photo_data from evidence_items where id = ${data.evidenceId} limit 1
+    `;
+    if (!rows[0]?.photo_data) throw new AppError("NOT_FOUND", "No photo for that evidence.");
+    return { photo: rows[0].photo_data };
   });

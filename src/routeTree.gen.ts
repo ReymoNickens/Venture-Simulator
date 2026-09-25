@@ -13,12 +13,16 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as TeachRouteImport } from './routes/teach'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
+import { Route as StudioAdvisorRouteImport } from './routes/studio/advisor'
 import { Route as StudioGroupRouteImport } from './routes/studio/group'
 import { Route as StudioOpportunityRouteImport } from './routes/studio/opportunity'
 import { Route as StudioSelectRouteImport } from './routes/studio/select'
 import { Route as StudioVentureRouteImport } from './routes/studio/venture'
+import { Route as TeachIndexRouteImport } from './routes/teach/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as TeachGroupGroupIdRouteImport } from './routes/teach/group.$groupId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,9 +44,19 @@ const StudioRoute = StudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeachRoute = TeachRouteImport.update({
+  id: '/teach',
+  path: '/teach',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioAdvisorRoute = StudioAdvisorRouteImport.update({
+  id: '/advisor',
+  path: '/advisor',
   getParentRoute: () => StudioRoute,
 } as any)
 const StudioGroupRoute = StudioGroupRouteImport.update({
@@ -65,10 +79,20 @@ const StudioVentureRoute = StudioVentureRouteImport.update({
   path: '/venture',
   getParentRoute: () => StudioRoute,
 } as any)
+const TeachIndexRoute = TeachIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TeachRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
+} as any)
+const TeachGroupGroupIdRoute = TeachGroupGroupIdRouteImport.update({
+  id: '/group/$groupId',
+  path: '/group/$groupId',
+  getParentRoute: () => TeachRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -76,23 +100,30 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/studio': typeof StudioRouteWithChildren
+  '/teach': typeof TeachRouteWithChildren
+  '/studio/advisor': typeof StudioAdvisorRoute
   '/studio/group': typeof StudioGroupRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
   '/studio/': typeof StudioIndexRoute
+  '/teach/': typeof TeachIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/teach/group/$groupId': typeof TeachGroupGroupIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/studio/advisor': typeof StudioAdvisorRoute
   '/studio/group': typeof StudioGroupRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
   '/studio': typeof StudioIndexRoute
+  '/teach': typeof TeachIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/teach/group/$groupId': typeof TeachGroupGroupIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -100,12 +131,16 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/studio': typeof StudioRouteWithChildren
+  '/teach': typeof TeachRouteWithChildren
+  '/studio/advisor': typeof StudioAdvisorRoute
   '/studio/group': typeof StudioGroupRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
   '/studio/': typeof StudioIndexRoute
+  '/teach/': typeof TeachIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/teach/group/$groupId': typeof TeachGroupGroupIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -114,35 +149,46 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/studio'
+    | '/teach'
+    | '/studio/advisor'
     | '/studio/group'
     | '/studio/opportunity'
     | '/studio/select'
     | '/studio/venture'
     | '/studio/'
+    | '/teach/'
     | '/api/auth/$'
+    | '/teach/group/$groupId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/onboarding'
+    | '/studio/advisor'
     | '/studio/group'
     | '/studio/opportunity'
     | '/studio/select'
     | '/studio/venture'
     | '/studio'
+    | '/teach'
     | '/api/auth/$'
+    | '/teach/group/$groupId'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/onboarding'
     | '/studio'
+    | '/teach'
+    | '/studio/advisor'
     | '/studio/group'
     | '/studio/opportunity'
     | '/studio/select'
     | '/studio/venture'
     | '/studio/'
+    | '/teach/'
     | '/api/auth/$'
+    | '/teach/group/$groupId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -150,6 +196,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   StudioRoute: typeof StudioRouteWithChildren
+  TeachRoute: typeof TeachRouteWithChildren
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -183,11 +230,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/teach': {
+      id: '/teach'
+      path: '/teach'
+      fullPath: '/teach'
+      preLoaderRoute: typeof TeachRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/studio/': {
       id: '/studio/'
       path: '/'
       fullPath: '/studio/'
       preLoaderRoute: typeof StudioIndexRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/advisor': {
+      id: '/studio/advisor'
+      path: '/advisor'
+      fullPath: '/studio/advisor'
+      preLoaderRoute: typeof StudioAdvisorRouteImport
       parentRoute: typeof StudioRoute
     }
     '/studio/group': {
@@ -218,6 +279,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioVentureRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/teach/': {
+      id: '/teach/'
+      path: '/'
+      fullPath: '/teach/'
+      preLoaderRoute: typeof TeachIndexRouteImport
+      parentRoute: typeof TeachRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -225,10 +293,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/teach/group/$groupId': {
+      id: '/teach/group/$groupId'
+      path: '/group/$groupId'
+      fullPath: '/teach/group/$groupId'
+      preLoaderRoute: typeof TeachGroupGroupIdRouteImport
+      parentRoute: typeof TeachRoute
+    }
   }
 }
 
 interface StudioRouteChildren {
+  StudioAdvisorRoute: typeof StudioAdvisorRoute
   StudioGroupRoute: typeof StudioGroupRoute
   StudioOpportunityRoute: typeof StudioOpportunityRoute
   StudioSelectRoute: typeof StudioSelectRoute
@@ -237,6 +313,7 @@ interface StudioRouteChildren {
 }
 
 const StudioRouteChildren: StudioRouteChildren = {
+  StudioAdvisorRoute: StudioAdvisorRoute,
   StudioGroupRoute: StudioGroupRoute,
   StudioOpportunityRoute: StudioOpportunityRoute,
   StudioSelectRoute: StudioSelectRoute,
@@ -247,11 +324,24 @@ const StudioRouteChildren: StudioRouteChildren = {
 const StudioRouteWithChildren =
   StudioRoute._addFileChildren(StudioRouteChildren)
 
+interface TeachRouteChildren {
+  TeachIndexRoute: typeof TeachIndexRoute
+  TeachGroupGroupIdRoute: typeof TeachGroupGroupIdRoute
+}
+
+const TeachRouteChildren: TeachRouteChildren = {
+  TeachIndexRoute: TeachIndexRoute,
+  TeachGroupGroupIdRoute: TeachGroupGroupIdRoute,
+}
+
+const TeachRouteWithChildren = TeachRoute._addFileChildren(TeachRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   StudioRoute: StudioRouteWithChildren,
+  TeachRoute: TeachRouteWithChildren,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

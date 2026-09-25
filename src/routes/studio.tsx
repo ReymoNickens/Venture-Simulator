@@ -5,6 +5,7 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { WorkspaceProvider } from "@/hooks/workspace-context";
 import { AppShell } from "@/components/shell/AppShell";
+import { getMyRoles } from "@/lib/server/lecturer";
 
 export const Route = createFileRoute("/studio")({ component: StudioLayout });
 
@@ -17,7 +18,10 @@ function StudioLayout() {
   useEffect(() => {
     if (isPending || loading) return;
     if (user && data && !data.student) {
-      void navigate({ to: "/onboarding" });
+      // No student profile: a lecturer goes to their cohort, anyone else sets up a profile.
+      void getMyRoles()
+        .then((r) => navigate({ to: r.isLecturer ? "/teach" : "/onboarding" }))
+        .catch(() => navigate({ to: "/onboarding" }));
     }
   }, [isPending, loading, user, data, navigate]);
 

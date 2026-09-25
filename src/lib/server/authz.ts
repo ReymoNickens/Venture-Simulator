@@ -1,6 +1,6 @@
 import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
-import { evaluateGroupStatus } from "@/lib/domain/state-machine";
+import { eligibleVoterIds, evaluateGroupStatus } from "@/lib/domain/state-machine";
 import type { CourseOffering, Group, GroupStatus, Student } from "@/lib/domain/types";
 
 export class AppError extends Error {
@@ -67,11 +67,13 @@ export async function loadOfferingForStudent(studentId: string): Promise<CourseO
     default_group_size: number;
     selection_requires_all_active: boolean | string;
     max_photo_bytes: number;
+    decision_rule: string;
+    ai_messages_per_day: number;
     course_code: string;
     course_name: string;
   }>`
     select o.id, o.course_id, o.semester, o.academic_year, o.default_group_size,
-           o.selection_requires_all_active, o.max_photo_bytes,
+           o.selection_requires_all_active, o.max_photo_bytes, o.decision_rule, o.ai_messages_per_day,
            c.course_code, c.course_name
     from course_enrolments e
     join course_offerings o on o.id = e.course_offering_id
@@ -91,6 +93,8 @@ export async function loadOfferingForStudent(studentId: string): Promise<CourseO
     selectionRequiresAllActive:
       row.selection_requires_all_active === true || row.selection_requires_all_active === "t",
     maxPhotoBytes: Number(row.max_photo_bytes),
+    decisionRule: row.decision_rule === "all" ? "all" : "majority",
+    aiMessagesPerDay: Number(row.ai_messages_per_day ?? 40),
     courseCode: row.course_code,
     courseName: row.course_name,
   };
@@ -107,11 +111,12 @@ export async function loadGroupForStudent(studentId: string): Promise<Group | nu
     status: string;
     created_by_student_id: string | null;
     capacity: number;
+    selection_opened_by: string | null;
     created_at: unknown;
     updated_at: unknown;
   }>`
     select g.id, g.course_offering_id, g.group_name, g.group_number, g.join_code,
-           g.status, g.created_by_student_id, g.capacity, g.created_at, g.updated_at
+           g.status, g.created_by_student_id, g.capacity, g.selection_opened_by, g.created_at, g.updated_at
     from group_members gm
     join groups g on g.id = gm.group_id
     where gm.student_id = ${studentId} and gm.membership_status = 'active'
@@ -129,6 +134,7 @@ export async function loadGroupForStudent(studentId: string): Promise<Group | nu
     status: row.status as Group["status"],
     createdByStudentId: row.created_by_student_id,
     capacity: Number(row.capacity),
+    selectionOpenedBy: row.selection_opened_by ?? null,
     createdAt: String(row.created_at ?? ""),
     updatedAt: String(row.updated_at ?? ""),
   };
@@ -177,7 +183,8 @@ export async function refreshGroupStatus(groupId: string): Promise<GroupStatus> 
   const groups = await sql<{
     status: string;
     course_offering_id: string;
-  }>`select status, course_offering_id from groups where id = ${groupId} limit 1`;
+    selection_opened_by: string | null;
+  }>`select status, course_offering_id, selection_opened_by from groups where id = ${groupId} limit 1`;
   const g = groups[0];
   if (!g) throw new AppError("NOT_FOUND", "Group not found.");
 
@@ -210,6 +217,7 @@ export async function refreshGroupStatus(groupId: string): Promise<GroupStatus> 
       requiresAllActive: requiresAll,
       hasVenture: Number(counts[0]?.ventures ?? 0) > 0,
       current: g.status as GroupStatus,
+      lecturerOpened: Boolean(g.selection_opened_by),
     });
     if (next !== g.status) {
       await sql`update groups set status = ${next}, updated_at = now() where id = ${groupId}`;
@@ -225,3 +233,32 @@ export async function refreshGroupStatus(groupId: string): Promise<GroupStatus> 
   });
   return next;
 }
+
+/**
+ * The voting roll for a group: which members must vote/endorse (active members, or
+ * only those who submitted if a lecturer opened selection early) and how many have
+ * voted. Reads group-wide rows, so it runs as a system read.
+ */
+export async function votingRoll(groupId: string, lecturerOpened: boolean) {
+  const sql = await getSql();
+  return withRlsBypass(async () => {
+    const members = await sql<{ student_id: string }>`
+      select student_id from group_members where group_id = ${groupId} and membership_status = 'active'
+    `;
+    const submitted = await sql<{ student_id: string }>`
+      select student_id from opportunities where group_id = ${groupId} and status <> 'draft'
+    `;
+    const voted = await sql<{ student_id: string }>`
+      select distinct p.student_id from opportunity_preferences p
+      join opportunities o on o.id = p.opportunity_id where o.group_id = ${groupId}
+    `;
+    const eligible = eligibleVoterIds({
+      activeMemberIds: members.map((m) => m.student_id),
+      submittedMemberIds: submitted.map((m) => m.student_id),
+      lecturerOpened,
+    });
+    const votedSet = new Set(voted.map((v) => v.student_id));
+    return { eligible, recorded: eligible.filter((id) => votedSet.has(id)).length };
+  });
+}
+

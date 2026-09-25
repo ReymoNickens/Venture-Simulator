@@ -31,9 +31,13 @@ export type Importance = "critical" | "high" | "medium" | "low";
 export type Confidence = "high" | "medium" | "low";
 export type AssumptionStatus = "open" | "testing" | "supported" | "challenged";
 export type RelationshipType = "supports" | "challenges";
+export type DecisionRule = "majority" | "all";
+export type ExperimentResult = "supports" | "challenges" | "inconclusive";
+export type ExperimentMethod = "interviews" | "survey" | "observation" | "pre_sale" | "prototype_test" | "other";
+export type ProposalStatus = "open" | "accepted" | "rejected" | "withdrawn";
 
 export type AdvisorRole = "advisor" | "student";
-export type AdvisorStage = "selection" | "evidence";
+export type AdvisorStage = "idea" | "selection" | "evidence";
 
 export type ConnectionState =
   | "online"
@@ -48,7 +52,8 @@ export type OutboxType =
   | "submit_opportunity"
   | "create_evidence"
   | "create_assumption"
-  | "link_assumption_evidence";
+  | "link_assumption_evidence"
+  | "create_experiment";
 
 export interface Student {
   id: string;
@@ -75,6 +80,8 @@ export interface CourseOffering {
   defaultGroupSize: number;
   selectionRequiresAllActive: boolean;
   maxPhotoBytes: number;
+  decisionRule: DecisionRule;
+  aiMessagesPerDay: number;
   courseCode: string;
   courseName: string;
 }
@@ -88,6 +95,7 @@ export interface Group {
   status: GroupStatus;
   createdByStudentId: string | null;
   capacity: number;
+  selectionOpenedBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -155,7 +163,10 @@ export interface EvidenceItem {
   content: string;
   sourceType: EvidenceSourceType;
   classification: EvidenceClassification;
+  /** Full photo: only present for items still waiting in this device's outbox. Fetch with getEvidencePhoto otherwise. */
   photoData: string | null;
+  photoThumb: string | null;
+  hasPhoto: boolean;
   photoMime: string | null;
   observedAt: string | null;
   locationContext: string | null;
@@ -228,6 +239,45 @@ export interface ActivityEvent {
   createdAt: string;
 }
 
+export interface VentureProposal {
+  id: string;
+  opportunityId: string;
+  proposedByStudentId: string;
+  proposedByName: string;
+  name: string;
+  rationale: string;
+  status: ProposalStatus;
+  createdAt: string;
+  responses: { studentId: string; studentName: string; stance: "endorse" | "object"; comment: string }[];
+  needed: number;
+}
+
+export interface Experiment {
+  id: string;
+  ventureId: string;
+  assumptionId: string;
+  studentId: string;
+  authorName: string;
+  hypothesis: string;
+  method: ExperimentMethod;
+  successCriteria: string;
+  sampleTarget: number | null;
+  status: "planned" | "done";
+  result: ExperimentResult | null;
+  learning: string | null;
+  evidenceIds: string[];
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export interface LecturerNote {
+  id: string;
+  groupId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
 export interface OpportunityFields {
   problem: string;
   affectedPeople: string;
@@ -262,4 +312,15 @@ export interface WorkspaceSnapshot {
   canOpenSelection: boolean;
   canRecordGroupDecision: boolean;
   aiAvailable: boolean;
+  /** Whether my opportunity can still be edited (drafts; submitted ideas only while still private). */
+  canEditMyOpportunity: boolean;
+  /** Everyone's preferences are visible only once every voter has recorded one. */
+  preferencesRevealed: boolean;
+  eligibleVoterIds: string[];
+  proposal: VentureProposal | null;
+  pastProposals: VentureProposal[];
+  experiments: Experiment[];
+  notes: LecturerNote[];
+  advisorLeftToday: number;
+  isLecturer: boolean;
 }

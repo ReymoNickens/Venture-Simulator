@@ -37,11 +37,46 @@ export const CONFIDENCE_LEVELS = [
   { value: "low", label: "Low" },
 ] as const;
 
+export const EXPERIMENT_METHODS = [
+  { value: "interviews", label: "Talk to people", hint: "5–10 short conversations with the people who have the problem." },
+  { value: "observation", label: "Watch and count", hint: "Go where it happens. Count, time, photograph." },
+  { value: "survey", label: "Quick survey", hint: "A few specific questions to more people. Numbers, not opinions." },
+  { value: "pre_sale", label: "Ask them to pay", hint: "Take a deposit or a pre-order. Money is the strongest signal." },
+  { value: "prototype_test", label: "Try a rough version", hint: "A paper sketch, a WhatsApp group, a table outside the hall." },
+  { value: "other", label: "Something else", hint: "Describe it in the hypothesis." },
+] as const;
+
+export const EXPERIMENT_RESULTS = [
+  { value: "supports", label: "It held up", hint: "What you saw met your success line." },
+  { value: "challenges", label: "It didn't hold", hint: "What you saw contradicts the assumption." },
+  { value: "inconclusive", label: "Not sure yet", hint: "Too little data, or mixed signals." },
+] as const;
+
+export const valuesOf = <T extends readonly { value: string }[]>(list: T) => new Set(list.map((x) => x.value));
+export const VALID = {
+  source: valuesOf(SOURCE_TYPES),
+  classification: valuesOf(CLASSIFICATIONS),
+  importance: valuesOf(IMPORTANCE_LEVELS),
+  confidence: valuesOf(CONFIDENCE_LEVELS),
+  method: valuesOf(EXPERIMENT_METHODS),
+  result: valuesOf(EXPERIMENT_RESULTS),
+  relationship: new Set(["supports", "challenges"]),
+  stage: new Set(["idea", "selection", "evidence"]),
+};
+
 export const JOURNEY_STEPS = [
-  { id: "group", label: "Join group", href: "/studio/group" },
-  { id: "opportunity", label: "Find opportunity", href: "/studio/opportunity" },
-  { id: "submit", label: "Submit idea", href: "/studio/opportunity" },
-  { id: "select", label: "Select venture", href: "/studio/select" },
-  { id: "evidence", label: "Collect evidence", href: "/studio/venture" },
-  { id: "assumptions", label: "Test assumptions", href: "/studio/venture" },
+  { id: "team", label: "Team", href: "/studio/group" },
+  { id: "idea", label: "Your idea", href: "/studio/opportunity" },
+  { id: "decide", label: "Decide", href: "/studio/select" },
+  { id: "evidence", label: "Evidence", href: "/studio/venture" },
+  { id: "assumptions", label: "Assumptions", href: "/studio/venture" },
+  { id: "test", label: "Test", href: "/studio/venture" },
+] as const;
+
+/** Where the course goes after this build. Shown so students see the whole arc. */
+export const LATER_CHAPTERS = [
+  { title: "Business model", body: "Who pays, for what, and what it costs you." },
+  { title: "Prototype", body: "Build a rough version and put it in front of people." },
+  { title: "Money", body: "Pricing, costs and break-even from your own evidence." },
+  { title: "Plan & pitch", body: "Your evidence record becomes the plan you defend." },
 ] as const;

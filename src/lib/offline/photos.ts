@@ -3,7 +3,7 @@ import { DEFAULT_MAX_PHOTO_BYTES, DEFAULT_MAX_PHOTO_EDGE, JPEG_QUALITY, ALLOWED_
 export async function compressPhoto(
   file: File,
   maxBytes = DEFAULT_MAX_PHOTO_BYTES,
-): Promise<{ dataUrl: string; mime: string }> {
+): Promise<{ dataUrl: string; thumb: string; mime: string }> {
   if (!ALLOWED_PHOTO_TYPES.includes(file.type as (typeof ALLOWED_PHOTO_TYPES)[number])) {
     throw new Error("Use a JPEG, PNG, or WebP photo.");
   }
@@ -31,7 +31,14 @@ export async function compressPhoto(
     throw new Error("The photo is still too large after compression. Try a closer, smaller shot.");
   }
   const dataUrl = await blobToDataUrl(blob);
-  return { dataUrl, mime: "image/jpeg" };
+  // A ~240px preview for lists; the full photo is only fetched when opened.
+  const t = Math.min(1, 240 / Math.max(width, height));
+  const thumbCanvas = document.createElement("canvas");
+  thumbCanvas.width = Math.max(1, Math.round(width * t));
+  thumbCanvas.height = Math.max(1, Math.round(height * t));
+  thumbCanvas.getContext("2d")?.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+  const thumb = thumbCanvas.toDataURL("image/jpeg", 0.6);
+  return { dataUrl, thumb, mime: "image/jpeg" };
 }
 
 export function blobToDataUrl(blob: Blob): Promise<string> {

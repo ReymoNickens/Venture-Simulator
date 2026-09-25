@@ -221,10 +221,10 @@ export const bootstrapDemoCohort = createServerFn({ method: "POST" })
         'opportunity_collection', ${student.id}, ${offering.defaultGroupSize}
       )
     `;
-    await sql`
+    await withRlsBypass(() => sql`
       insert into group_members (id, group_id, student_id, membership_status)
       values (${newId()}, ${groupId}, ${student.id}, 'active')
-    `;
+    `);
 
     // Seeding synthetic peers writes rows owned by students other than the
     // caller (students_write, opportunities_write, etc. all check "your own
