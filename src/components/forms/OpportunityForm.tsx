@@ -30,7 +30,7 @@ const min = (n: number, msg: string) => (v: string) => v.trim().length >= n || m
 
 const assumedWarning = (text: string) =>
   ASSUMPTION_LANGUAGE.test(text) ? (
-    <p className="mt-2 rounded-[8px] border-2 border-gold/60 bg-gold-soft px-3 py-2 text-sm">
+    <p className="mt-2 rounded-[14px] border-2 border-gold/60 bg-gold-soft px-3 py-2 text-sm">
       “Everyone”, “most students”, “will buy” — that is a guess, not something you saw. It is allowed, but
       say what you actually observed.
     </p>

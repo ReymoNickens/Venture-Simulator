@@ -61,7 +61,7 @@ export function EvidencePhoto({
     );
   }
   if (!src) {
-    return <div className={cn("h-32 w-44 animate-pulse rounded-[10px] bg-bg-subtle", className)} />;
+    return <div className={cn("h-32 w-44 animate-pulse rounded-[18px] bg-bg-subtle", className)} />;
   }
   return <img src={src} alt={alt} loading="lazy" className={className} />;
 }

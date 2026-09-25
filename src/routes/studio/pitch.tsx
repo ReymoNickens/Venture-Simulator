@@ -12,8 +12,7 @@ import { NeedsVenture } from "@/components/stage/NeedsVenture";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Stamp } from "@/components/ui/stamp";
-import { Emblem } from "@/components/ui/emblem";
-import { KenteBand } from "@/components/ui/kente";
+import { LogoMark, Sparkle } from "@/components/ui/sticker";
 import { FormMessages, Loading } from "@/components/ui/feedback";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +53,7 @@ function Strength({ n }: { n: number }) {
 
 function Section({ n, title, evidence, children }: { n: number; title: string; evidence?: number; children: ReactNode }) {
   return (
-    <section className="break-inside-avoid border-t-2 border-ink pt-4">
+    <section className="break-inside-avoid border-t border-line pt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-display text-xl font-extrabold">
           <span className="mr-2 font-mono text-sm text-muted">{String(n).padStart(2, "0")}</span>
@@ -88,7 +87,7 @@ function Written({ data, section, onSaved }: { data: WorkspaceSnapshot; section:
     );
   }
   return (
-    <div className="no-print space-y-2 rounded-[8px] border-2 border-dashed border-line-strong p-3">
+    <div className="no-print space-y-2 rounded-[14px] border-2 border-dashed border-line-strong p-3">
       <p className="text-sm text-muted">{meta.prompt}</p>
       <Textarea aria-label={meta.title} value={body} onChange={(e) => setBody(e.target.value)} className="min-h-32" />
       <FormMessages error={error} />
@@ -136,10 +135,9 @@ function Plan({ data, onSaved }: { data: WorkspaceSnapshot; onSaved: () => void 
     : 0;
 
   return (
-    <article className="rounded-[4px] border-2 border-ink bg-bg-elevated px-5 pt-0 pb-8 shadow-[5px_5px_0_0_var(--color-ink)] sm:px-10 print:border-0 print:shadow-none">
-      <KenteBand className="-mx-5 w-auto sm:-mx-10" />
+    <article className="rounded-[28px] bg-bg-elevated px-5 pt-4 pb-8 ring-1 ring-line sm:px-10 print:ring-0">
       <header className="py-8 text-center">
-        <Emblem emblem="adinkrahene" className="mx-auto size-10 text-gold-deep" />
+        <LogoMark className="mx-auto size-12" />
         <p className="mt-3 font-mono text-xs tracking-[0.2em] text-muted uppercase">Business plan · {data.offering?.courseCode}</p>
         <h1 className="mt-2 font-display text-4xl font-extrabold sm:text-5xl">{v.name}</h1>
         <p className="mt-2 text-sm text-muted">
@@ -190,7 +188,7 @@ function Plan({ data, onSaved }: { data: WorkspaceSnapshot; onSaved: () => void 
             {CANVAS_BLOCKS.map((b) => {
               const entries = canvas.filter((c) => c.block === b.key);
               return (
-                <div key={b.key} className="rounded-[6px] border border-line p-2">
+                <div key={b.key} className="rounded-[12px] border border-line p-2">
                   <p className="font-mono text-[10.5px] tracking-wide text-muted uppercase">{b.title}</p>
                   {entries.length ? (
                     <ul className="mt-1 space-y-1 text-sm leading-5">
@@ -380,7 +378,7 @@ function PitchDeck({ data, onClose }: { data: WorkspaceSnapshot; onClose: () => 
   const s = slides[i];
   return (
     <div role="dialog" aria-modal aria-label="Pitch mode" className="fixed inset-0 z-50 flex flex-col bg-ink text-bg-elevated">
-      <div className="kente h-3" aria-hidden />
+      <Sparkle className="absolute top-6 right-8 size-6 text-gold" />
       <div className="flex items-center justify-between px-4 py-3">
         <span className="font-mono text-sm text-bg-elevated/60">
           {i + 1} / {slides.length}

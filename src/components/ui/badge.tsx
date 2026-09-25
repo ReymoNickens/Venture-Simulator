@@ -13,7 +13,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-[4px] px-2 py-0.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.08em]",
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
         tone === "neutral" && "bg-bg-subtle text-muted",
         tone === "accent" && "bg-accent-soft text-accent",
         tone === "warn" && "bg-warn-soft text-warn",
@@ -43,7 +43,7 @@ export function Card({
   return (
     <Tag
       className={cn(
-        "rounded-[10px] border border-line bg-bg-elevated p-4 shadow-[3px_3px_0_0_rgba(28,23,18,0.07)] sm:p-5",
+        "rounded-[20px] border border-line bg-bg-elevated p-4 sm:p-5",
         className,
       )}
     >
@@ -55,7 +55,7 @@ export function Card({
 /** Small uppercase label that heads a section. */
 export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <p className={cn("font-mono text-[10.5px] uppercase tracking-[0.16em] text-muted", className)}>
+    <p className={cn("text-xs font-semibold text-muted", className)}>
       {children}
     </p>
   );
@@ -63,7 +63,7 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
 
 export function EmptyNote({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-[8px] border border-dashed border-line-strong px-3 py-4 text-center text-sm text-muted">
+    <p className="rounded-[16px] bg-bg-subtle px-4 py-5 text-center text-sm text-muted">
       {children}
     </p>
   );

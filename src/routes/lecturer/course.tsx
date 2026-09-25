@@ -7,9 +7,9 @@ import { getCohort, getGradebook, postAnnouncement, releaseMarketEvent, setMiles
 import { STAGES } from "@/lib/domain/stages";
 import { MARKET_EVENTS } from "@/lib/domain/market-events";
 import { Button } from "@/components/ui/button";
-import { Card, Eyebrow, EmptyNote } from "@/components/ui/badge";
+import { Card, EmptyNote } from "@/components/ui/badge";
 import { Field, Input, Select, Textarea } from "@/components/ui/input";
-import { Emblem } from "@/components/ui/emblem";
+import { StopSticker } from "@/components/ui/sticker";
 import { FormMessages, Loading } from "@/components/ui/feedback";
 import { shortDate, shortDateTime } from "@/lib/dates";
 
@@ -17,10 +17,18 @@ export const Route = createFileRoute("/lecturer/course")({ component: CoursePage
 
 type Cohort = Awaited<ReturnType<typeof getCohort>>;
 
+const TABS = [
+  ["deadlines", "Deadlines"],
+  ["announce", "Announce"],
+  ["shocks", "Market shocks"],
+  ["marks", "Marks sheet"],
+] as const;
+
 function CoursePage() {
   const { offeringId } = useStaff();
   const [data, setData] = useState<Cohort | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>("deadlines");
   const load = useCallback(() => {
     if (!offeringId) return;
     getCohort({ data: { offeringId } }).then(setData, (e) => setError(errorMessage(e)));
@@ -29,23 +37,25 @@ function CoursePage() {
   if (error) return <FormMessages error={error} />;
   if (!data) return <Loading />;
   return (
-    <div className="space-y-6">
-      <div>
-        <Eyebrow>Course set-up</Eyebrow>
-        <h1 className="mt-1 font-display text-3xl font-extrabold">Pace, voice and pressure</h1>
-        <p className="mt-1 max-w-[70ch] text-sm leading-6 text-muted">
-          Deadlines set the pace for the whole cohort. Announcements reach every student’s Today screen.
-          Market shocks bring the real world in — every student answers individually.
-        </p>
+    <div className="space-y-5">
+      <h1 className="font-display text-[32px] leading-tight font-extrabold">Run the course</h1>
+      <div className="flex gap-1 overflow-x-auto rounded-full bg-bg-subtle p-1 text-sm font-semibold">
+        {TABS.map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={tab === k}
+            onClick={() => setTab(k)}
+            className={tab === k ? "shrink-0 rounded-full bg-bg-elevated px-4 py-1.5 text-ink shadow-sm" : "shrink-0 rounded-full px-4 py-1.5 text-muted"}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Milestones offeringId={offeringId} data={data} onSaved={load} />
-        <div className="space-y-6">
-          <Announce offeringId={offeringId} data={data} onSaved={load} />
-          <Gradebook offeringId={offeringId} />
-        </div>
-      </div>
-      <Shocks offeringId={offeringId} data={data} onSaved={load} />
+      {tab === "deadlines" ? <Milestones offeringId={offeringId} data={data} onSaved={load} /> : null}
+      {tab === "announce" ? <Announce offeringId={offeringId} data={data} onSaved={load} /> : null}
+      {tab === "shocks" ? <Shocks offeringId={offeringId} data={data} onSaved={load} /> : null}
+      {tab === "marks" ? <Gradebook offeringId={offeringId} /> : null}
     </div>
   );
 }
@@ -64,12 +74,11 @@ function Milestones({ offeringId, data, onSaved }: { offeringId: string; data: C
   const { pending, error, notice, run } = useAction();
   return (
     <Card as="section" className="space-y-3">
-      <Eyebrow>Milestones</Eyebrow>
-      <p className="text-xs text-muted">Due at 23:59 on the chosen day. Leave blank for no deadline.</p>
+      <p className="text-[15px] text-muted">When should each stop be finished? Students see a countdown. Leave blank for no deadline.</p>
       <ul className="space-y-2">
         {STAGES.map((s) => (
           <li key={s.id} className="grid grid-cols-[1.5rem_1fr_9.5rem] items-center gap-2 text-sm">
-            <Emblem emblem={s.emblem} className="size-5 text-gold-deep" />
+            <StopSticker stage={s.id} size="xs" tilt={false} />
             <span>
               {s.stop}. {s.title}
             </span>
@@ -100,11 +109,11 @@ function Milestones({ offeringId, data, onSaved }: { offeringId: string; data: C
               }
               onSaved();
             },
-            "Milestones saved. Students see them on the route and each stop.",
+            "Saved. Students will see these deadlines.",
           )
         }
       >
-        {pending ? "Saving…" : "Save milestones"}
+        {pending ? "Saving…" : "Save deadlines"}
       </Button>
     </Card>
   );
@@ -116,7 +125,7 @@ function Announce({ offeringId, data, onSaved }: { offeringId: string; data: Coh
   const { pending, error, notice, run } = useAction();
   return (
     <Card as="section" className="space-y-3">
-      <Eyebrow>Announce to the cohort</Eyebrow>
+      <p className="text-[15px] text-muted">Every student sees this on their home screen.</p>
       <Field label="Title">
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Interview week starts Monday" />
       </Field>
@@ -163,11 +172,12 @@ function Shocks({ offeringId, data, onSaved }: { offeringId: string; data: Cohor
     <section className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Eyebrow>Market shocks</Eyebrow>
-          <h2 className="font-display text-2xl font-extrabold">Bring the real world in</h2>
+          <p className="max-w-[46ch] text-[15px] text-muted">
+            Surprise the class with something that really happens in business. Every student must say what it changes for their venture.
+          </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
-          <Field label="Send to">
+          <Field label="Who gets it?">
             <Select value={target} onChange={(e) => setTarget(e.target.value)} className="h-9 w-56 text-sm">
               <option value="">Every group</option>
               {data.groups.map((g) => (
@@ -177,7 +187,7 @@ function Shocks({ offeringId, data, onSaved }: { offeringId: string; data: Cohor
               ))}
             </Select>
           </Field>
-          <Field label="Answer within (days)">
+          <Field label="Days to answer">
             <Input type="number" min={1} max={30} value={days} onChange={(e) => setDays(Number(e.target.value) || 3)} className="h-9 w-24 text-sm" />
           </Field>
         </div>
@@ -225,10 +235,9 @@ function Gradebook({ offeringId }: { offeringId: string }) {
   const { pending, error, run } = useAction();
   return (
     <Card as="section" className="space-y-2">
-      <Eyebrow>Gradebook export</Eyebrow>
-      <p className="text-sm text-muted">
-        One row per student: stops done, contributions, evidence, interviews, reflections, market-shock answers
-        and confidential peer ratings. The platform gives you evidence; the marks are yours.
+      <p className="text-[15px] leading-6 text-muted">
+        Download a spreadsheet (opens in Excel) with one row per student: stops done, work they did, and what
+        their teammates said about their contribution. You decide the marks.
       </p>
       <FormMessages error={error} />
       <Button
@@ -253,7 +262,7 @@ function Gradebook({ offeringId }: { offeringId: string }) {
           })
         }
       >
-        <Download className="size-4" aria-hidden /> {pending ? "Preparing…" : "Download CSV"}
+        <Download className="size-4" aria-hidden /> {pending ? "Preparing…" : "Download marks sheet"}
       </Button>
       {!offeringId ? <EmptyNote>No course selected.</EmptyNote> : null}
     </Card>

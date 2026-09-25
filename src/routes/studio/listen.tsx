@@ -71,7 +71,7 @@ function ListenPage() {
         {interviews.length ? (
           <ul className="space-y-3">
             {interviews.map((i) => (
-              <li key={i.id} className="notebook rounded-[10px] border-2 border-ink/80 py-3 pr-4 pl-10">
+              <li key={i.id} className="note px-4 pt-5 pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-display text-base leading-tight font-bold">{i.intervieweeProfile}</p>
@@ -138,7 +138,7 @@ function Guide() {
       {open ? (
         <div className="mt-3 space-y-4 text-sm leading-6">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[8px] border-2 border-clay/40 bg-clay-soft/50 p-3">
+            <div className="rounded-[14px] border-2 border-clay/40 bg-clay-soft/50 p-3">
               <p className="font-semibold text-clay">Questions that lie to you</p>
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 <li>“Would you buy this?” — people are polite.</li>
@@ -146,7 +146,7 @@ function Guide() {
                 <li>“How much would you pay?” — a guess about the future.</li>
               </ul>
             </div>
-            <div className="rounded-[8px] border-2 border-accent/40 bg-accent-soft/60 p-3">
+            <div className="rounded-[14px] border-2 border-accent/40 bg-accent-soft/60 p-3">
               <p className="font-semibold text-accent">Questions that teach you</p>
               <ul className="mt-1 list-disc space-y-1 pl-4">
                 <li>“Tell me about the last time this happened.”</li>
@@ -157,7 +157,7 @@ function Guide() {
           </div>
           <div>
             <p className="font-semibold">Ask for consent first</p>
-            <p className="mt-1 rounded-[8px] bg-bg-subtle px-3 py-2 italic">
+            <p className="mt-1 rounded-[14px] bg-bg-subtle px-3 py-2 italic">
               “Good day. I’m a student doing a class project on [the problem]. Could I ask you a few
               questions about your experience? I won’t use your name, and you can stop at any time.”
             </p>
@@ -211,7 +211,7 @@ function Patterns({ data }: { data: WorkspaceSnapshot }) {
 
 function Stat({ n, label }: { n: string; label: string }) {
   return (
-    <div className="rounded-[8px] border-2 border-line-strong/60 bg-bg px-2 py-2">
+    <div className="rounded-[14px] border-2 border-line-strong/60 bg-bg px-2 py-2">
       <p className="font-display text-2xl font-extrabold tabular">{n}</p>
       <p className="text-[11px] text-muted">{label}</p>
     </div>
@@ -267,7 +267,7 @@ function interviewSteps(data: WorkspaceSnapshot): Step<IV>[] {
             value={v.segment}
             onChange={(e) => set({ segment: e.target.value })}
             placeholder="or type a group"
-            className="mt-2 h-10 w-full rounded-[8px] border-2 border-line-strong/70 bg-bg px-3 text-sm"
+            className="mt-2 h-10 w-full rounded-[14px] border-2 border-line-strong/70 bg-bg px-3 text-sm"
           />
         </>
       ),
@@ -382,7 +382,7 @@ function interviewSteps(data: WorkspaceSnapshot): Step<IV>[] {
                   type="button"
                   aria-pressed={v.relationship === r}
                   onClick={() => set({ relationship: r })}
-                  className={`flex-1 rounded-[10px] border-2 py-3 font-semibold ${v.relationship === r ? (r === "supports" ? "border-ink bg-accent text-accent-fg" : "border-ink bg-clay text-accent-fg") : "border-line-strong"}`}
+                  className={`flex-1 rounded-[18px] border-2 py-3 font-semibold ${v.relationship === r ? (r === "supports" ? "border-ink bg-accent text-accent-fg" : "border-ink bg-clay text-accent-fg") : "border-line-strong"}`}
                 >
                   It {r === "supports" ? "supports" : "challenges"} it
                 </button>
@@ -416,7 +416,7 @@ function InterviewForm({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-between rounded-[14px] border-2 border-ink bg-gold p-5 text-left shadow-[4px_4px_0_0_var(--color-ink)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+        className="flex w-full items-center justify-between rounded-[14px] ring-1 ring-line bg-gold p-5 text-left active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
       >
         <span>
           <span className="block font-display text-2xl font-extrabold">Log an interview</span>

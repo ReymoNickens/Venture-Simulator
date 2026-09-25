@@ -94,7 +94,7 @@ function NotebookPage() {
 
       {data.evidence.length ? (
         <div className="space-y-2">
-          <label className="flex items-center gap-2 rounded-[8px] border-2 border-line-strong/70 bg-bg-elevated px-3">
+          <label className="flex items-center gap-2 rounded-[14px] border-2 border-line-strong/70 bg-bg-elevated px-3">
             <Search className="size-4 text-faint" aria-hidden />
             <span className="sr-only">Search the notebook</span>
             <input
@@ -127,7 +127,7 @@ function NotebookPage() {
       {filtered.length ? (
         <ul className="space-y-3">
           {filtered.map((ev) => (
-            <li key={ev.id} className="notebook rounded-[10px] border-2 border-ink/80 py-3 pr-4 pl-10">
+            <li key={ev.id} className="note px-4 pt-5 pb-3">
               <div className="flex items-start justify-between gap-2">
                 <p className="font-display text-base leading-snug font-bold">{ev.title}</p>
                 <ClassificationStamp value={ev.classification} />
@@ -137,7 +137,7 @@ function NotebookPage() {
                 <EvidencePhoto
                   id={ev.id}
                   localData={ev.photoData}
-                  className="mt-2 max-h-48 rounded-[6px] border-2 border-ink"
+                  className="mt-2 max-h-48 rounded-[12px] border-2 border-ink"
                 />
               ) : null}
               <p className="mt-2 font-mono text-[11px] text-faint">

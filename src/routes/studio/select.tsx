@@ -79,6 +79,7 @@ function Selection({ data, refresh }: { data: WorkspaceSnapshot; refresh: () => 
   const [preferred, setPreferred] = useState(data.myPreference?.opportunityId ?? "");
   const [prefWhy, setPrefWhy] = useState(data.myPreference?.rationale ?? "");
   const pref = useAction();
+  const [showWhy, setShowWhy] = useState(false);
   const openProposal = data.proposals.find((p) => p.status === "open") ?? null;
   const past = data.proposals.filter((p) => p.status !== "open");
   // Other members' preferences are shown only after you have recorded yours,
@@ -92,7 +93,7 @@ function Selection({ data, refresh }: { data: WorkspaceSnapshot; refresh: () => 
       <StageHeader stage="choose" data={data} />
 
       {data.venture ? (
-        <section className="rounded-[12px] border-2 border-ink bg-accent-soft p-4">
+        <section className="rounded-[22px] ring-1 ring-line bg-accent-soft p-4">
           <Stamp tone="forest" tilt={-4}>Ratified</Stamp>
           <h2 className="mt-2 font-display text-2xl font-extrabold">{data.venture.name}</h2>
           <p className="mt-1 text-sm leading-6">{data.venture.selectionRationale}</p>
@@ -158,18 +159,22 @@ function Selection({ data, refresh }: { data: WorkspaceSnapshot; refresh: () => 
       ) : null}
 
       {showTally && data.preferences.length ? (
-        <Card as="section">
-          <Eyebrow>What each member preferred, and why</Eyebrow>
-          <ul className="mt-3 space-y-2 text-sm">
-            {data.preferences.map((p) => (
-              <li key={p.id} className="leading-6">
-                <span className="font-semibold">{p.studentName}</span>{" "}
-                <span className="font-mono text-xs text-muted">→ {letter(p.opportunityId)}</span>
-                <span className="text-ink-soft"> — {p.rationale}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <section>
+          <button type="button" onClick={() => setShowWhy((v) => !v)} className="text-sm font-semibold text-accent">
+            {showWhy ? "Hide" : `See why each person chose (${data.preferences.length})`}
+          </button>
+          {showWhy ? (
+            <ul className="rise mt-3 space-y-2 rounded-[22px] bg-bg-elevated p-4 text-sm ring-1 ring-line">
+              {data.preferences.map((p) => (
+                <li key={p.id} className="leading-6">
+                  <span className="font-semibold">{p.studentName}</span>{" "}
+                  <span className="text-xs text-muted">→ {letter(p.opportunityId)}</span>
+                  <span className="text-ink-soft"> — {p.rationale}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
       ) : null}
 
       {!data.venture && openProposal ? (
@@ -235,14 +240,14 @@ function OpportunityCard({
   return (
     <li
       className={cn(
-        "rounded-[10px] border-2 bg-bg-elevated transition-shadow",
-        picked ? "border-ink shadow-[3px_3px_0_0_var(--color-accent)]" : "border-line-strong/70",
+        "rounded-[18px] border-2 bg-bg-elevated transition-shadow",
+        picked ? "border-ink" : "border-line-strong/70",
       )}
     >
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex w-full items-start gap-3 p-3 text-left">
         <span
           className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-[8px] border-2 font-display text-lg font-extrabold",
+            "flex size-9 shrink-0 items-center justify-center rounded-[14px] border-2 font-display text-lg font-extrabold",
             picked ? "border-ink bg-accent text-accent-fg" : "border-ink bg-gold-soft",
           )}
         >
@@ -266,7 +271,7 @@ function OpportunityCard({
         <dl className="grid gap-2 border-t border-line px-3 pt-2 pb-3 text-sm">
           {rows.map(([k, v]) => (
             <div key={k}>
-              <dt className="font-mono text-[10.5px] tracking-[0.12em] text-faint uppercase">{k}</dt>
+              <dt className="text-xs font-semibold text-faint">{k}</dt>
               <dd className="leading-6">{v}</dd>
             </div>
           ))}
@@ -322,7 +327,7 @@ function ProposeForm({
             onClick={() => setSelectedId(o.id)}
             aria-pressed={selectedId === o.id}
             className={cn(
-              "size-10 rounded-[8px] border-2 font-display text-lg font-extrabold",
+              "size-10 rounded-[14px] border-2 font-display text-lg font-extrabold",
               selectedId === o.id ? "border-ink bg-ink text-bg-elevated" : "border-line-strong bg-bg-elevated",
             )}
           >
@@ -376,7 +381,7 @@ function ProposalCard({
       await refresh();
     });
   return (
-    <section className="rounded-[12px] border-2 border-ink bg-bg-elevated p-4 shadow-[4px_4px_0_0_var(--color-gold)]">
+    <section className="rounded-[22px] ring-1 ring-line bg-bg-elevated p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Stamp tone="clay" tilt={-3}>On the table</Stamp>
         <span className="font-mono text-xs text-muted">Opportunity {letter(proposal.opportunityId)}</span>
@@ -392,7 +397,7 @@ function ProposalCard({
           </span>
           <span className="text-muted">{proposal.threshold} needed</span>
         </div>
-        <div className="mt-1 flex h-3 overflow-hidden rounded-full border-2 border-ink bg-bg-subtle">
+        <div className="mt-1 flex h-3 overflow-hidden rounded-full ring-1 ring-line bg-bg-subtle">
           <div className="bg-accent" style={{ width: `${Math.min(100, (endorse / proposal.threshold) * 100)}%` }} />
         </div>
       </div>

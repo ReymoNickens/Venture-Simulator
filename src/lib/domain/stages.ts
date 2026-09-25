@@ -1,7 +1,7 @@
 /**
  * The venture route: eleven stops from forming a team to pitch day.
  *
- * Content, not code paths: titles, missions and Adinkra emblems live here so
+ * Content, not code paths: titles, missions, settings and sticker icons live here so
  * the screens stay generic and a later course configuration can re-word them.
  * Completion is computed from the record itself — never a checkbox a student
  * ticks — so "done" always means the evidence exists.
@@ -20,41 +20,22 @@ export type StageId =
   | "decide"
   | "pitch";
 
-export type EmblemKey =
-  | "nkonsonkonson"
-  | "ohene_aniwa"
-  | "akoma_ntoaso"
-  | "hwe_mu_dua"
-  | "mate_masie"
-  | "ananse_ntontan"
-  | "dame_dame"
-  | "bese_saka"
-  | "aya"
-  | "sankofa"
-  | "adinkrahene"
-  | "mframadan";
+/** Vector sticker shown for each stop (see StopSticker). */
+export type StopIcon =
+  | "users"
+  | "eye"
+  | "vote"
+  | "flask"
+  | "mic"
+  | "grid"
+  | "gauge"
+  | "coins"
+  | "hammer"
+  | "compass"
+  | "megaphone";
 
-export interface Emblem {
-  key: EmblemKey;
-  name: string;
-  /** The widely taught meaning of the Adinkra symbol (Akan, Ghana). */
-  meaning: string;
-}
-
-export const EMBLEMS: Record<EmblemKey, Emblem> = {
-  nkonsonkonson: { key: "nkonsonkonson", name: "Nkonsonkonson", meaning: "Chain links — unity and human relations" },
-  ohene_aniwa: { key: "ohene_aniwa", name: "Ohene Aniwa", meaning: "The king’s eyes — vigilance and watchfulness" },
-  akoma_ntoaso: { key: "akoma_ntoaso", name: "Akoma Ntoaso", meaning: "Linked hearts — understanding and agreement" },
-  hwe_mu_dua: { key: "hwe_mu_dua", name: "Hwe Mu Dua", meaning: "Measuring stick — examination and quality control" },
-  mate_masie: { key: "mate_masie", name: "Mate Masie", meaning: "“What I hear, I keep” — wisdom and prudence" },
-  ananse_ntontan: { key: "ananse_ntontan", name: "Ananse Ntontan", meaning: "The spider’s web — wisdom and creativity" },
-  dame_dame: { key: "dame_dame", name: "Dame-Dame", meaning: "The draughts board — intelligence and strategy" },
-  bese_saka: { key: "bese_saka", name: "Bese Saka", meaning: "Sack of cola nuts — abundance and trade" },
-  aya: { key: "aya", name: "Aya", meaning: "The fern — endurance and resourcefulness" },
-  sankofa: { key: "sankofa", name: "Sankofa", meaning: "“Go back and get it” — learning from the past" },
-  adinkrahene: { key: "adinkrahene", name: "Adinkrahene", meaning: "Chief of the symbols — greatness and leadership" },
-  mframadan: { key: "mframadan", name: "Mframadan", meaning: "Wind-resistant house — fortitude and preparedness" },
-};
+/** Sticker colour for each stop. */
+export type Tint = "butter" | "coral" | "lilac" | "cobalt" | "mint" | "pink";
 
 export interface StageDef {
   id: StageId;
@@ -70,7 +51,8 @@ export interface StageDef {
   teaser: string;
   /** Said when the stop is done — the payoff. */
   payoff: string;
-  emblem: EmblemKey;
+  icon: StopIcon;
+  tint: Tint;
   href:
     | "/studio/group"
     | "/studio/opportunity"
@@ -97,7 +79,8 @@ export const STAGES: StageDef[] = [
     setting: "Sam Jonah Library",
     teaser: "Every venture starts with the people around the table.",
     payoff: "Your crew is set. Now each of you goes out alone.",
-    emblem: "nkonsonkonson",
+    icon: "users",
+    tint: "butter",
     href: "/studio/group",
     needsVenture: false,
   },
@@ -110,7 +93,8 @@ export const STAGES: StageDef[] = [
     setting: "Your hall, Science Market, Kotokuraba",
     teaser: "Somewhere between your hall and Kotokuraba, someone is losing time or money every day.",
     payoff: "Sealed. When the last teammate submits, every idea opens at once.",
-    emblem: "ohene_aniwa",
+    icon: "eye",
+    tint: "coral",
     href: "/studio/opportunity",
     needsVenture: false,
   },
@@ -123,7 +107,8 @@ export const STAGES: StageDef[] = [
     setting: "Wherever your group meets",
     teaser: "Ten ideas go in. One comes out.",
     payoff: "You have a venture. Now find out if it is true.",
-    emblem: "akoma_ntoaso",
+    icon: "vote",
+    tint: "lilac",
     href: "/studio/select",
     needsVenture: false,
   },
@@ -136,7 +121,8 @@ export const STAGES: StageDef[] = [
     setting: "Your group chat",
     teaser: "Every idea hides a guess that could sink it. You will find yours.",
     payoff: "You know what could kill it. Next: go and ask.",
-    emblem: "hwe_mu_dua",
+    icon: "flask",
+    tint: "cobalt",
     href: "/studio/venture",
     needsVenture: true,
   },
@@ -149,7 +135,8 @@ export const STAGES: StageDef[] = [
     setting: "Kotokuraba, Science Market, the halls",
     teaser: "You leave the classroom. Someone in Cape Coast has the answer you need.",
     payoff: "You heard it from them, not from your head. That changes everything after this.",
-    emblem: "mate_masie",
+    icon: "mic",
+    tint: "pink",
     href: "/studio/listen",
     needsVenture: true,
   },
@@ -162,7 +149,8 @@ export const STAGES: StageDef[] = [
     setting: "On one page",
     teaser: "Nine blocks. Most businesses leave half of them as wishes.",
     payoff: "Your whole business on one page — and you know which parts are real.",
-    emblem: "ananse_ntontan",
+    icon: "grid",
+    tint: "mint",
     href: "/studio/canvas",
     needsVenture: true,
   },
@@ -175,7 +163,8 @@ export const STAGES: StageDef[] = [
     setting: "Four honest questions",
     teaser: "Four questions every investor asks. Better you ask them first.",
     payoff: "You have looked at it from every side.",
-    emblem: "dame_dame",
+    icon: "gauge",
+    tint: "butter",
     href: "/studio/feasibility",
     needsVenture: true,
   },
@@ -188,7 +177,8 @@ export const STAGES: StageDef[] = [
     setting: "Kotokuraba and Science Market stalls",
     teaser: "One number decides whether this is a business or a hobby.",
     payoff: "You know your break-even. Most student plans never do.",
-    emblem: "bese_saka",
+    icon: "coins",
+    tint: "coral",
     href: "/studio/numbers",
     needsVenture: true,
   },
@@ -201,7 +191,8 @@ export const STAGES: StageDef[] = [
     setting: "A table at Science, a hall corridor, a WhatsApp status",
     teaser: "You will put something real in someone’s hands. Their face tells you more than any survey.",
     payoff: "Real people touched it. Now you decide with your eyes open.",
-    emblem: "aya",
+    icon: "hammer",
+    tint: "lilac",
     href: "/studio/prototype",
     needsVenture: true,
   },
@@ -214,7 +205,8 @@ export const STAGES: StageDef[] = [
     setting: "Looking back",
     teaser: "The hardest call in business. Stopping can be the right answer.",
     payoff: "You made the call on evidence. That is the skill.",
-    emblem: "sankofa",
+    icon: "compass",
+    tint: "cobalt",
     href: "/studio/decide",
     needsVenture: true,
   },
@@ -227,7 +219,8 @@ export const STAGES: StageDef[] = [
     setting: "In front of the room",
     teaser: "Everything you gathered becomes one story. You tell it.",
     payoff: "Route complete. You did the real thing.",
-    emblem: "adinkrahene",
+    icon: "megaphone",
+    tint: "pink",
     href: "/studio/pitch",
     needsVenture: true,
   },

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { useAction } from "@/hooks/use-action";
 import { addCanvasEntry, linkCanvasEvidence, retireCanvasEntry } from "@/lib/server/venture-work";
@@ -17,19 +17,6 @@ import { FormMessages, Loading } from "@/components/ui/feedback";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/studio/canvas")({ component: CanvasPage });
-
-// Classic canvas arrangement on wide screens (Osterwalder's layout).
-const AREA: Record<CanvasBlockKey, string> = {
-  partners: "lg:col-start-1 lg:row-start-1 lg:row-span-2",
-  activities: "lg:col-start-2 lg:row-start-1",
-  resources: "lg:col-start-2 lg:row-start-2",
-  value: "lg:col-start-3 lg:row-start-1 lg:row-span-2",
-  relationships: "lg:col-start-4 lg:row-start-1",
-  channels: "lg:col-start-4 lg:row-start-2",
-  segments: "lg:col-start-5 lg:row-start-1 lg:row-span-2",
-  costs: "lg:col-start-1 lg:col-span-2 xl:col-span-3 lg:row-start-3",
-  revenue: "lg:col-start-3 lg:col-span-3 xl:col-start-4 xl:col-span-2 lg:row-start-3",
-};
 
 // Mobile reading order: start with the customer, end with the money.
 const MOBILE_ORDER: CanvasBlockKey[] = [
@@ -54,15 +41,12 @@ function CanvasPage() {
   return (
     <div className="space-y-6">
       <StageHeader stage="canvas" data={data} />
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        <span className="inline-flex items-center gap-2">
-          <span className="size-4 rounded-[3px] border-2 border-ink bg-bg-elevated" /> backed by evidence ({evidenced})
-        </span>
-        <span className="inline-flex items-center gap-2">
-          <span className="size-4 rounded-[3px] border-2 border-dashed border-line-strong bg-gold-soft/60" /> still a guess ({live.length - evidenced})
-        </span>
-      </div>
-      <div className="grid gap-3 lg:grid-cols-5 lg:[grid-template-rows:auto_auto_auto]">
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+        <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-mint" /> backed by evidence</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-gold" /> still a guess</span>
+        <span>{evidenced} of {live.length} notes backed</span>
+      </p>
+      <div className="space-y-2.5">
         {MOBILE_ORDER.map((key) => {
           const block = CANVAS_BLOCKS.find((b) => b.key === key)!;
           return (
@@ -74,7 +58,6 @@ function CanvasPage() {
               entries={live.filter((c) => c.block === key)}
               data={data}
               onChanged={() => void refresh()}
-              className={AREA[key]}
             />
           );
         })}
@@ -111,7 +94,6 @@ function Block({
   entries,
   data,
   onChanged,
-  className,
 }: {
   blockKey: CanvasBlockKey;
   title: string;
@@ -121,57 +103,63 @@ function Block({
   onChanged: () => void;
   className?: string;
 }) {
-  const [adding, setAdding] = useState(false);
+  const [open, setOpen] = useState(false);
   const [body, setBody] = useState("");
   const [evidenceIds, setEvidenceIds] = useState<string[]>([]);
   const { pending, error, run } = useAction();
+  const backed = entries.filter((e) => e.evidenceIds.length).length;
+  const status = !entries.length ? "Empty" : backed === entries.length ? "Backed by evidence" : backed ? `${backed} of ${entries.length} backed` : "Still a guess";
   return (
-    <section className={cn("flex flex-col rounded-[10px] border-2 border-ink bg-bg-elevated p-3", className)}>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <h2 className="font-display text-[15px] leading-tight font-extrabold">{title}</h2>
-          <p className="mt-0.5 text-xs leading-5 text-muted">{prompt}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setAdding((v) => !v)}
-          aria-label={`Add to ${title}`}
-          className="flex size-8 shrink-0 items-center justify-center rounded-[6px] border-2 border-ink bg-gold"
-        >
-          <Plus className="size-4" aria-hidden />
-        </button>
-      </div>
-      <ul className="mt-2 flex-1 space-y-2">
-        {entries.map((e) => (
-          <Note key={e.id} entry={e} data={data} onChanged={onChanged} />
-        ))}
-        {!entries.length && !adding ? <li className="text-xs text-faint italic">Empty.</li> : null}
-      </ul>
-      {adding ? (
-        <div className="mt-2 space-y-2 border-t border-line pt-2">
-          <Textarea
-            aria-label={`New entry for ${title}`}
-            value={body}
-            onChange={(ev) => setBody(ev.target.value)}
-            className="min-h-16 text-sm"
-          />
-          <EvidencePicker evidence={data.evidence} value={evidenceIds} onChange={setEvidenceIds} />
-          <FormMessages error={error} />
-          <Button
-            size="sm"
-            disabled={Boolean(pending) || body.trim().length < 3}
-            onClick={() =>
-              void run("add", async () => {
-                await addCanvasEntry({ data: { block: blockKey, body, evidenceIds } });
-                setBody("");
-                setEvidenceIds([]);
-                setAdding(false);
-                onChanged();
-              })
-            }
-          >
-            {pending ? "Adding…" : "Add note"}
-          </Button>
+    <section className={cn("rounded-[22px] bg-bg-elevated ring-1", open ? "ring-ink" : "ring-line")}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+        <span
+          className={cn(
+            "size-3 shrink-0 rounded-full",
+            !entries.length ? "bg-line-strong" : backed === entries.length ? "bg-mint" : "bg-gold",
+          )}
+          aria-hidden
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">{title}</span>
+          <span className="block text-sm text-muted">{status}</span>
+        </span>
+        <ChevronDown className={cn("size-5 shrink-0 text-muted transition-transform", open && "rotate-180")} aria-hidden />
+      </button>
+      {open ? (
+        <div className="rise space-y-3 px-4 pb-4">
+          <p className="text-sm text-muted">{prompt}</p>
+          {entries.length ? (
+            <ul className="space-y-2">
+              {entries.map((e) => (
+                <Note key={e.id} entry={e} data={data} onChanged={onChanged} />
+              ))}
+            </ul>
+          ) : null}
+          <div className="space-y-2 rounded-[18px] bg-bg p-3">
+            <Textarea
+              aria-label={`New entry for ${title}`}
+              value={body}
+              onChange={(ev) => setBody(ev.target.value)}
+              placeholder="Add a note…"
+              className="min-h-16 bg-bg-elevated text-sm"
+            />
+            {body.trim() ? <EvidencePicker evidence={data.evidence} value={evidenceIds} onChange={setEvidenceIds} /> : null}
+            <FormMessages error={error} />
+            <Button
+              size="sm"
+              disabled={Boolean(pending) || body.trim().length < 3}
+              onClick={() =>
+                void run("add", async () => {
+                  await addCanvasEntry({ data: { block: blockKey, body, evidenceIds } });
+                  setBody("");
+                  setEvidenceIds([]);
+                  onChanged();
+                })
+              }
+            >
+              <Plus className="size-4" aria-hidden /> {pending ? "Adding…" : "Add"}
+            </Button>
+          </div>
         </div>
       ) : null}
     </section>
@@ -187,8 +175,8 @@ function Note({ entry, data, onChanged }: { entry: CanvasEntry; data: WorkspaceS
   return (
     <li
       className={cn(
-        "rounded-[6px] p-2 text-sm leading-5",
-        backed ? "border-2 border-ink bg-bg-elevated shadow-[2px_2px_0_0_var(--color-ink)]" : "border-2 border-dashed border-line-strong bg-gold-soft/60",
+        "rounded-[12px] p-2 text-sm leading-5",
+        backed ? "ring-1 ring-line bg-bg-elevated" : "border-2 border-dashed border-line-strong bg-gold-soft/60",
       )}
     >
       <button type="button" onClick={() => setOpen((v) => !v)} className="w-full text-left" aria-expanded={open}>

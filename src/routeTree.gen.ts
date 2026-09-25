@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as LecturerIndexRouteImport } from './routes/lecturer/index'
+import { Route as LecturerActivityRouteImport } from './routes/lecturer/activity'
 import { Route as LecturerCourseRouteImport } from './routes/lecturer/course'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
 import { Route as StudioAdvisorRouteImport } from './routes/studio/advisor'
@@ -63,6 +64,11 @@ const StudioRoute = StudioRouteImport.update({
 const LecturerIndexRoute = LecturerIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => LecturerRoute,
+} as any)
+const LecturerActivityRoute = LecturerActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
   getParentRoute: () => LecturerRoute,
 } as any)
 const LecturerCourseRoute = LecturerCourseRouteImport.update({
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/studio': typeof StudioRouteWithChildren
+  '/lecturer/activity': typeof LecturerActivityRoute
   '/lecturer/course': typeof LecturerCourseRoute
   '/studio/advisor': typeof StudioAdvisorRoute
   '/studio/canvas': typeof StudioCanvasRoute
@@ -192,6 +199,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/lecturer/activity': typeof LecturerActivityRoute
   '/lecturer/course': typeof LecturerCourseRoute
   '/studio/advisor': typeof StudioAdvisorRoute
   '/studio/canvas': typeof StudioCanvasRoute
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/studio': typeof StudioRouteWithChildren
+  '/lecturer/activity': typeof LecturerActivityRoute
   '/lecturer/course': typeof LecturerCourseRoute
   '/studio/advisor': typeof StudioAdvisorRoute
   '/studio/canvas': typeof StudioCanvasRoute
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/studio'
+    | '/lecturer/activity'
     | '/lecturer/course'
     | '/studio/advisor'
     | '/studio/canvas'
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/onboarding'
+    | '/lecturer/activity'
     | '/lecturer/course'
     | '/studio/advisor'
     | '/studio/canvas'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/studio'
+    | '/lecturer/activity'
     | '/lecturer/course'
     | '/studio/advisor'
     | '/studio/canvas'
@@ -374,6 +386,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/lecturer/'
       preLoaderRoute: typeof LecturerIndexRouteImport
+      parentRoute: typeof LecturerRoute
+    }
+    '/lecturer/activity': {
+      id: '/lecturer/activity'
+      path: '/activity'
+      fullPath: '/lecturer/activity'
+      preLoaderRoute: typeof LecturerActivityRouteImport
       parentRoute: typeof LecturerRoute
     }
     '/lecturer/course': {
@@ -513,12 +532,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface LecturerRouteChildren {
+  LecturerActivityRoute: typeof LecturerActivityRoute
   LecturerCourseRoute: typeof LecturerCourseRoute
   LecturerIndexRoute: typeof LecturerIndexRoute
   LecturerGroupsGroupIdRoute: typeof LecturerGroupsGroupIdRoute
 }
 
 const LecturerRouteChildren: LecturerRouteChildren = {
+  LecturerActivityRoute: LecturerActivityRoute,
   LecturerCourseRoute: LecturerCourseRoute,
   LecturerIndexRoute: LecturerIndexRoute,
   LecturerGroupsGroupIdRoute: LecturerGroupsGroupIdRoute,

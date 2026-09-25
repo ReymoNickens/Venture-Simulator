@@ -146,19 +146,19 @@ export function StepFlow<V extends object>({
   const progress = reviewing ? 1 : visible.length ? index / visible.length : 0;
 
   return (
-    <div className="overflow-hidden rounded-[12px] border-2 border-ink bg-bg-elevated shadow-[4px_4px_0_0_var(--color-ink)]">
-      <div className="flex items-center gap-3 border-b-2 border-ink px-3 py-2.5">
+    <div className="overflow-hidden rounded-[22px] ring-1 ring-line bg-bg-elevated">
+      <div className="flex items-center gap-3 border-b border-line px-3 py-2.5">
         <button type="button" onClick={back} aria-label="Back" className="rounded-full p-1.5 hover:bg-bg-subtle">
           <ArrowLeft className="size-5" aria-hidden />
         </button>
         <div
-          className="flex h-2.5 flex-1 overflow-hidden rounded-full border-2 border-ink bg-bg-subtle"
+          className="flex h-2.5 flex-1 overflow-hidden rounded-full ring-1 ring-line bg-bg-subtle"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(progress * 100)}
         >
-          <div className="kente-thin h-full transition-[width] duration-300" style={{ width: `${Math.max(4, progress * 100)}%` }} />
+          <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${Math.max(4, progress * 100)}%` }} />
         </div>
         <span className="font-mono text-xs tabular text-muted">
           {reviewing ? "Review" : `${index + 1}/${visible.length}`}
@@ -228,7 +228,7 @@ export function StepFlow<V extends object>({
           >
             <div>
               {step.section ? (
-                <p className="font-mono text-[11px] tracking-[0.16em] text-gold-deep uppercase">{step.section}</p>
+                <p className="text-xs font-semibold text-gold-deep">{step.section}</p>
               ) : null}
               <h2 className="mt-1 font-display text-[26px] leading-[1.15] font-extrabold sm:text-3xl">{step.question}</h2>
               {step.hint ? <p className="mt-2 text-[15px] leading-6 text-muted">{step.hint}</p> : null}
@@ -255,7 +255,7 @@ export function StepFlow<V extends object>({
 // ── Inputs sized for a step flow ────────────────────────────────────────────
 
 const big =
-  "w-full rounded-[10px] border-2 border-line-strong/70 bg-bg px-4 text-[17px] leading-7 text-ink placeholder:text-faint focus-visible:border-accent focus-visible:outline-none";
+  "w-full rounded-[18px] border-2 border-line-strong/70 bg-bg px-4 text-[17px] leading-7 text-ink placeholder:text-faint focus-visible:border-accent focus-visible:outline-none";
 
 export function BigText({
   value,
@@ -340,7 +340,7 @@ export function Pick<T extends string>({
             if (onPicked) setTimeout(onPicked, 180);
           }}
           className={cn(
-            "flex items-start gap-3 rounded-[10px] border-2 px-4 py-3 text-left transition-colors",
+            "flex items-start gap-3 rounded-[18px] border-2 px-4 py-3 text-left transition-colors",
             value === o.value ? "border-ink bg-ink text-bg-elevated" : "border-line-strong/70 bg-bg hover:border-ink/60",
           )}
         >
@@ -407,7 +407,7 @@ export function Scale({
               if (onPicked) setTimeout(onPicked, 180);
             }}
             className={cn(
-              "h-14 rounded-[10px] border-2 font-display text-2xl font-extrabold",
+              "h-14 rounded-[18px] border-2 font-display text-2xl font-extrabold",
               value === n ? "border-ink bg-gold" : "border-line-strong/70 bg-bg",
             )}
           >

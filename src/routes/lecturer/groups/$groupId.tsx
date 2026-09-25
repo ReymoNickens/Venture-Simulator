@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ChevronDown, Lock } from "lucide-react";
+import { ArrowLeft, ChevronDown, Lock, MessageSquareQuote, Send } from "lucide-react";
 import { assignGroup, getGroupDetail, giveFeedback, setMemberStatus } from "@/lib/server/lecturer";
 import { markThreadRead, sendStaffMessage } from "@/lib/server/messages";
 import { Thread } from "@/components/messages/Thread";
@@ -8,12 +8,11 @@ import { useStaff } from "@/hooks/lecturer-context";
 import { errorMessage, useAction } from "@/hooks/use-action";
 import { STAGES, STAGE_BY_ID, CANVAS_BLOCKS, type StageId } from "@/lib/domain/stages";
 import { computeFinance, formatCedis, parseFinanceInputs } from "@/lib/domain/finance";
-import { FlagList } from "@/components/lecturer/FlagList";
 import { Button } from "@/components/ui/button";
-import { Card, Eyebrow, EmptyNote } from "@/components/ui/badge";
-import { Choice, Field, Input, Select, Textarea } from "@/components/ui/input";
+import { EmptyNote } from "@/components/ui/badge";
+import { Choice, Select } from "@/components/ui/input";
 import { ClassificationStamp, Stamp } from "@/components/ui/stamp";
-import { Emblem } from "@/components/ui/emblem";
+import { StopSticker } from "@/components/ui/sticker";
 import { FormMessages, Loading } from "@/components/ui/feedback";
 import { daysAgo, shortDate, shortDateTime } from "@/lib/dates";
 import { cn } from "@/lib/utils";
@@ -23,10 +22,10 @@ export const Route = createFileRoute("/lecturer/groups/$groupId")({ component: G
 type Detail = Awaited<ReturnType<typeof getGroupDetail>>;
 
 const LEVELS = [
-  { value: "1", label: "1 · Beginning" },
-  { value: "2", label: "2 · Developing" },
-  { value: "3", label: "3 · Proficient" },
-  { value: "4", label: "4 · Exemplary" },
+  { value: "1", label: "Getting started" },
+  { value: "2", label: "Developing" },
+  { value: "3", label: "Strong" },
+  { value: "4", label: "Excellent" },
 ] as const;
 
 // Reusable comments: at 1:400 the lecturer should be typing judgement, not boilerplate.
@@ -44,6 +43,8 @@ function GroupDetail() {
   const { staff } = useStaff();
   const [d, setD] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [panel, setPanel] = useState<"message" | "feedback" | null>(null);
+  const [showWork, setShowWork] = useState(false);
   const load = useCallback(() => {
     getGroupDetail({ data: { groupId } }).then(setD, (e) => setError(errorMessage(e)));
   }, [groupId]);
@@ -60,119 +61,131 @@ function GroupDetail() {
 
   return (
     <div className="space-y-6">
-      <Link to="/lecturer" className="inline-flex items-center gap-1 text-sm font-semibold text-accent">
-        <ArrowLeft className="size-4" aria-hidden /> Attention queue
+      <Link to="/lecturer" className="inline-flex items-center gap-1 text-sm font-semibold text-muted">
+        <ArrowLeft className="size-4" aria-hidden /> All groups
       </Link>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <Eyebrow>Group {g.groupNumber} · code {g.joinCode}</Eyebrow>
-          <h1 className="mt-1 font-display text-3xl font-extrabold">{g.ventureName ?? g.groupName}</h1>
-          <p className="text-sm text-muted">
-            {g.ventureName ? `${g.groupName} · ` : ""}
-            {d.stagesDone}/11 stops done{d.pulse ? ` · ${d.pulse}` : ""}
-            {g.ventureStatus && g.ventureStatus !== "active" ? ` · venture ${g.ventureStatus}` : ""}
+
+      <div className="flex items-center gap-4">
+        {def ? <StopSticker stage={def.id} size="lg" /> : null}
+        <div className="min-w-0">
+          <h1 className="font-display text-[30px] leading-tight font-extrabold">{g.ventureName ?? g.groupName}</h1>
+          <p className="text-[15px] text-muted">
+            Group {g.groupNumber} · {def ? `Stop ${def.stop}: ${def.title}` : "Finished the journey"}
+            {d.pulse ? ` · ${d.pulse}` : ""}
           </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {def ? (
-            <span className="flex items-center gap-2 rounded-[8px] border-2 border-ink bg-gold-soft px-3 py-1.5 text-sm font-semibold">
-              <Emblem emblem={def.emblem} className="size-5" /> Stop {def.stop}: {def.title}
-            </span>
-          ) : null}
-          <AssignButton groupId={g.id} mine={mine} onDone={load} />
         </div>
       </div>
 
-      <Card as="section">
-        <Eyebrow>Why this group is flagged</Eyebrow>
-        <div className="mt-2">
-          <FlagList flags={d.flags} full />
-        </div>
-      </Card>
-
-      <Conversation d={d} onSent={load} />
-      <Members d={d} onChanged={load} />
-      <FeedbackComposer d={d} onSaved={load} />
-
-      <Section title={`Opportunities (${d.opportunities.length})`}>
-        <ul className="space-y-2 text-sm">
-          {d.opportunities.map((o) => (
-            <li key={o.id} className={cn("rounded-[6px] border p-2", o.id === g.selectedOpportunityId ? "border-accent bg-accent-soft/50" : "border-line")}>
-              <p className="font-semibold">{o.problem}</p>
-              <p className="text-xs text-muted">{o.fullName} · {o.status}</p>
-              <p className="mt-1 text-ink-soft">Evidence: {o.observedEvidence}</p>
-            </li>
-          ))}
-        </ul>
-        {g.selectionRationale ? <p className="mt-2 text-sm"><span className="font-semibold">Why chosen:</span> {g.selectionRationale}</p> : null}
-      </Section>
-
-      <Section title={`Assumptions (${d.assumptions.length})`}>
-        <table className="w-full text-sm">
-          <tbody>
-            {d.assumptions.map((a) => (
-              <tr key={a.id} className="border-b border-line align-top last:border-0">
-                <td className="py-1.5 pr-2">{a.statement}</td>
-                <td className="py-1.5 pr-2 text-xs whitespace-nowrap text-muted uppercase">{a.importance}/{a.confidence}</td>
-                <td className="py-1.5 pr-2 text-xs whitespace-nowrap">+{a.supports} −{a.challenges}</td>
-                <td className="py-1.5 text-xs whitespace-nowrap capitalize">{a.status}</td>
-              </tr>
+      {d.flags.length ? (
+        <section className="rounded-[22px] bg-clay-soft p-4">
+          <p className="text-sm font-semibold text-clay">Why this group may need you</p>
+          <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[15px] leading-6">
+            {d.flags.map((f) => (
+              <li key={f.code}>{f.message}</li>
             ))}
-          </tbody>
-        </table>
-      </Section>
+          </ul>
+        </section>
+      ) : (
+        <p className="rounded-[22px] bg-mint-soft p-4 text-[15px] text-ink">This group is on track. 👍</p>
+      )}
 
-      <Section title={`Evidence (${d.evidence.length})`}>
-        <ul className="divide-y divide-line text-sm">
-          {d.evidence.map((e) => (
-            <li key={e.id} className="py-2">
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold">{e.title}</p>
-                <ClassificationStamp value={e.classification} />
-              </div>
-              <p className="whitespace-pre-line text-ink-soft">{e.content}</p>
-              <p className="text-xs text-faint">{e.sourceType} · {e.fullName} · {shortDate(e.createdAt)}</p>
-            </li>
-          ))}
-        </ul>
-      </Section>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setPanel(panel === "message" ? null : "message")}>
+          <Send className="size-4" aria-hidden /> Message
+        </Button>
+        <Button variant="secondary" onClick={() => setPanel(panel === "feedback" ? null : "feedback")}>
+          <MessageSquareQuote className="size-4" aria-hidden /> Give feedback
+        </Button>
+        <AssignButton groupId={g.id} mine={mine} onDone={load} />
+      </div>
 
-      {d.work ? <Work work={d.work} /> : null}
+      {panel === "feedback" ? (
+        <FeedbackComposer
+          d={d}
+          onSaved={() => {
+            setPanel(null);
+            load();
+          }}
+        />
+      ) : null}
 
-      <Section title={`Private reflections (${d.reflections.length})`} icon={<Lock className="size-4" aria-hidden />}>
-        <ul className="space-y-2 text-sm">
-          {d.reflections.map((r) => (
-            <li key={r.id}>
-              <p className="text-xs text-muted">
-                {r.fullName} · {STAGE_BY_ID[r.stage as StageId]?.title ?? r.stage} · {shortDate(r.createdAt)}
-              </p>
-              <p className="leading-6">{r.body}</p>
-            </li>
-          ))}
-        </ul>
-      </Section>
+      <Conversation d={d} composing={panel === "message"} onSent={load} />
+      <Members d={d} onChanged={load} />
 
-      <Section title={`Advisor conversation (latest ${d.advisor.length})`}>
-        <ul className="space-y-2 text-sm">
-          {d.advisor.map((m, i) => (
-            <li key={i} className={m.role === "advisor" ? "rounded-[6px] bg-gold-soft p-2" : "p-2"}>
-              <p className="text-xs text-muted">{m.role === "advisor" ? "Advisor" : m.fullName} · {shortDateTime(m.createdAt)}</p>
-              <p>{m.content}</p>
-            </li>
-          ))}
-        </ul>
-      </Section>
-
-      <Section title="Activity timeline">
-        <ul className="space-y-0.5 font-mono text-xs">
-          {d.timeline.map((t, i) => (
-            <li key={i}>
-              <span className="text-faint">{shortDateTime(t.createdAt)}</span> {t.fullName ?? "system"} —{" "}
-              {t.eventType.toLowerCase().replaceAll("_", " ")}
-            </li>
-          ))}
-        </ul>
-      </Section>
+      <section>
+        <button type="button" onClick={() => setShowWork((v) => !v)} aria-expanded={showWork} className="inline-flex items-center gap-1 font-display text-lg font-bold">
+          See their work <ChevronDown className={cn("size-5 transition-transform", showWork && "rotate-180")} aria-hidden />
+        </button>
+        {showWork ? (
+          <div className="rise mt-3 space-y-2">
+            <Section title={`Ideas (${d.opportunities.length})`}>
+              <ul className="space-y-2 text-sm">
+                {d.opportunities.map((o) => (
+                  <li key={o.id} className={cn("rounded-[14px] p-3", o.id === g.selectedOpportunityId ? "bg-mint-soft" : "bg-bg")}>
+                    <p className="font-semibold">{o.problem}</p>
+                    <p className="text-xs text-muted">{o.fullName}{o.id === g.selectedOpportunityId ? " · chosen" : ""}</p>
+                  </li>
+                ))}
+              </ul>
+              {g.selectionRationale ? <p className="mt-2 text-sm"><span className="font-semibold">Why they chose it:</span> {g.selectionRationale}</p> : null}
+            </Section>
+            <Section title={`Assumptions (${d.assumptions.length})`}>
+              <ul className="space-y-2 text-sm">
+                {d.assumptions.map((a) => (
+                  <li key={a.id}>
+                    {a.statement} <span className="text-xs text-muted">· {a.importance} · {a.status === "open" ? "not tested" : a.status}</span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+            <Section title={`Evidence (${d.evidence.length})`}>
+              <ul className="divide-y divide-line text-sm">
+                {d.evidence.map((e) => (
+                  <li key={e.id} className="py-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold">{e.title}</p>
+                      <ClassificationStamp value={e.classification} />
+                    </div>
+                    <p className="whitespace-pre-line text-ink-soft">{e.content}</p>
+                    <p className="text-xs text-faint">{e.fullName} · {shortDate(e.createdAt)}</p>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+            {d.work ? <Work work={d.work} /> : null}
+            <Section title={`Private reflections (${d.reflections.length})`} icon={<Lock className="size-4" aria-hidden />}>
+              <ul className="space-y-2 text-sm">
+                {d.reflections.map((r) => (
+                  <li key={r.id}>
+                    <p className="text-xs text-muted">{r.fullName} · {STAGE_BY_ID[r.stage as StageId]?.title ?? r.stage}</p>
+                    <p className="leading-6">{r.body}</p>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+            <Section title="AI advisor chat">
+              <ul className="space-y-2 text-sm">
+                {d.advisor.map((m, i) => (
+                  <li key={i} className={m.role === "advisor" ? "rounded-[12px] bg-gold-soft p-2" : "p-2"}>
+                    <p className="text-xs text-muted">{m.role === "advisor" ? "Advisor" : m.fullName}</p>
+                    <p>{m.content}</p>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+            <Section title="Everything they did">
+              <ul className="space-y-1 text-sm">
+                {d.timeline.map((t, i) => (
+                  <li key={i}>
+                    <span className="text-faint">{shortDateTime(t.createdAt)}</span> — {t.fullName ?? "system"}:{" "}
+                    {t.eventType.toLowerCase().replaceAll("_", " ")}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }
@@ -180,9 +193,9 @@ function GroupDetail() {
 function Section({ title, children, icon }: { title: string; children: ReactNode; icon?: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <section className="rounded-[10px] border-2 border-line-strong/70 bg-bg-elevated">
+    <section className="rounded-[20px] bg-bg-elevated ring-1 ring-line">
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex w-full items-center justify-between px-4 py-3 text-left">
-        <span className="flex items-center gap-2 font-display text-lg font-bold">{icon}{title}</span>
+        <span className="flex items-center gap-2 font-semibold">{icon}{title}</span>
         <ChevronDown className={cn("size-5 transition-transform", open && "rotate-180")} aria-hidden />
       </button>
       {open ? <div className="border-t border-line px-4 py-3">{children}</div> : null}
@@ -194,8 +207,7 @@ function AssignButton({ groupId, mine, onDone }: { groupId: string; mine: boolea
   const { pending, run } = useAction();
   return (
     <Button
-      size="sm"
-      variant={mine ? "secondary" : "primary"}
+      variant="ghost"
       disabled={Boolean(pending)}
       onClick={() =>
         void run("assign", async () => {
@@ -204,120 +216,121 @@ function AssignButton({ groupId, mine, onDone }: { groupId: string; mine: boolea
         })
       }
     >
-      {mine ? "Release group" : "Take this group"}
+      {mine ? "Remove from my groups" : "Add to my groups"}
     </Button>
   );
 }
 
 function Members({ d, onChanged }: { d: Detail; onChanged: () => void }) {
-  const [editing, setEditing] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
-  const { pending, error, run } = useAction();
+  const [privateMsg, setPrivateMsg] = useState("");
+  const { pending, error, notice, run } = useAction();
   const real = d.members.filter((m) => !m.isSynthetic);
-  const maxTotal = Math.max(1, ...real.map((m) => m.total));
   return (
-    <Card as="section" className="space-y-3">
-      <div>
-        <Eyebrow>Members and contribution</Eyebrow>
-        <p className="mt-1 text-xs text-muted">
-          Contribution counts every recorded action. Peer ratings are confidential averages (1–5). Marking a
-          member inactive stops the group waiting on them; the group sees your reason.
-        </p>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-sm">
-          <thead>
-            <tr className="text-left font-mono text-[10.5px] tracking-wide text-muted uppercase">
-              <th className="py-1 pr-2">Student</th>
-              <th className="py-1 pr-2">Last active</th>
-              <th className="py-1 pr-2">Contribution</th>
-              <th className="py-1 pr-2">Peers</th>
-              <th className="py-1" />
-            </tr>
-          </thead>
-          <tbody>
-            {real.map((m) => (
-              <tr key={m.memberId} className={cn("border-t border-line align-top", m.status !== "active" && "text-muted")}>
-                <td className="py-2 pr-2">
-                  <p className="font-semibold">{m.fullName}</p>
-                  <p className="text-xs text-muted">{m.indexNumber} · {m.programme}</p>
-                  {m.status !== "active" ? (
-                    <p className="text-xs text-clay">{m.status}{m.statusReason ? `: ${m.statusReason}` : ""}</p>
-                  ) : null}
-                </td>
-                <td className="py-2 pr-2 text-xs whitespace-nowrap">
-                  {m.lastActivityAt ? `${daysAgo(m.lastActivityAt)}d ago` : "never"}
-                </td>
-                <td className="py-2 pr-2">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 rounded-r-[3px] bg-accent" style={{ width: `${(m.total / maxTotal) * 80}px`, minWidth: m.total ? 3 : 0 }} />
-                    <span className="font-mono text-xs tabular">{m.total}</span>
-                  </div>
-                  <p className="text-[11px] text-muted">
-                    {["EVIDENCE_CREATED", "INTERVIEW_LOGGED", "PROTOTYPE_TESTED", "ASSUMPTION_CREATED"]
-                      .filter((k) => m.byType[k])
-                      .map((k) => `${m.byType[k]} ${k.split("_")[0].toLowerCase()}`)
-                      .join(" · ")}
+    <section className="space-y-2">
+      <h2 className="font-display text-lg font-bold">Students</h2>
+      <ul className="overflow-hidden rounded-[22px] bg-bg-elevated ring-1 ring-line">
+        {real.map((m) => {
+          const open = openId === m.memberId;
+          const last = m.lastActivityAt ? daysAgo(m.lastActivityAt) : null;
+          return (
+            <li key={m.memberId} className="border-b border-line last:border-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenId(open ? null : m.memberId);
+                  setReason("");
+                  setPrivateMsg("");
+                }}
+                aria-expanded={open}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+              >
+                <span className="min-w-0">
+                  <span className={cn("block font-semibold", m.status !== "active" && "text-muted line-through")}>{m.fullName}</span>
+                  <span className={cn("block text-sm", last !== null && last >= 14 ? "text-clay" : "text-muted")}>
+                    {m.status !== "active" ? (m.status === "left" ? "Left the group" : "Marked inactive") : last === null ? "Hasn’t started" : last === 0 ? "Active today" : `Last active ${last} days ago`}
+                    {` · ${m.total} action${m.total === 1 ? "" : "s"}`}
+                  </span>
+                </span>
+                <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")} aria-hidden />
+              </button>
+              {open ? (
+                <div className="rise space-y-3 px-4 pb-4 text-sm">
+                  <p className="text-muted">
+                    {m.indexNumber} · {m.programme}
+                    {m.peerAvg !== null ? ` · teammates rate them ${m.peerAvg.toFixed(1)}/5` : ""}
                   </p>
-                </td>
-                <td className="py-2 pr-2 text-xs">
-                  {m.peerAvg !== null ? (
-                    <span title={m.peerComments ?? undefined} className={cn("font-semibold", m.peerAvg < 2.5 && "text-clay")}>
-                      {m.peerAvg.toFixed(1)} <span className="font-normal text-muted">({m.peerCount})</span>
-                    </span>
-                  ) : (
-                    <span className="text-faint">—</span>
-                  )}
-                </td>
-                <td className="py-2 text-right">
-                  {m.status === "left" ? null : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditing(m.memberId);
-                        setReason("");
-                      }}
-                      className="text-xs font-semibold text-accent underline"
+                  {m.peerComments ? <p className="rounded-[12px] bg-bg p-2 text-xs text-ink-soft">What teammates said: {m.peerComments}</p> : null}
+                  <div className="flex gap-2">
+                    <input
+                      aria-label={`Private message to ${m.fullName}`}
+                      value={privateMsg}
+                      onChange={(e) => setPrivateMsg(e.target.value)}
+                      placeholder={`Private message to ${m.fullName.split(" ")[0]}…`}
+                      className="h-10 min-w-0 flex-1 rounded-full bg-bg px-4 ring-1 ring-line focus:outline-none"
+                    />
+                    <Button
+                      size="sm"
+                      disabled={Boolean(pending) || !privateMsg.trim()}
+                      onClick={() =>
+                        void run(
+                          "pm",
+                          async () => {
+                            await sendStaffMessage({ data: { groupId: d.group.id, body: privateMsg, recipientStudentId: m.studentId } });
+                            setPrivateMsg("");
+                            onChanged();
+                          },
+                          "Sent privately.",
+                        )
+                      }
                     >
-                      {m.status === "active" ? "Mark inactive" : "Reactivate"}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {editing ? (
-        <div className="space-y-2 rounded-[8px] border-2 border-ink p-3">
-          <Field label={`Reason (visible to the group) — ${d.members.find((m) => m.memberId === editing)?.fullName}`}>
-            <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Has not attended or contributed since week 3" />
-          </Field>
-          <FormMessages error={error} />
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              disabled={Boolean(pending)}
-              onClick={() => {
-                const m = d.members.find((x) => x.memberId === editing)!;
-                void run("status", async () => {
-                  await setMemberStatus({
-                    data: { groupId: d.group.id, memberId: editing, status: m.status === "active" ? "inactive" : "active", reason },
-                  });
-                  setEditing(null);
-                  onChanged();
-                });
-              }}
-            >
-              Confirm
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : null}
-    </Card>
+                      Send
+                    </Button>
+                  </div>
+                  {m.status !== "left" ? (
+                    <div className="space-y-2 rounded-[14px] bg-bg p-3">
+                      <p className="font-semibold">
+                        {m.status === "active" ? "Not taking part?" : "Bring them back?"}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {m.status === "active"
+                          ? "Marking them inactive means the group stops waiting for them. The group sees your reason."
+                          : "They will count as a group member again."}
+                      </p>
+                      <input
+                        aria-label="Reason"
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        placeholder="Reason, e.g. hasn’t attended since week 3"
+                        className="h-10 w-full rounded-full bg-bg-elevated px-4 ring-1 ring-line focus:outline-none"
+                      />
+                      <Button
+                        size="sm"
+                        variant={m.status === "active" ? "danger" : "secondary"}
+                        disabled={Boolean(pending) || reason.trim().length < 5}
+                        onClick={() =>
+                          void run("status", async () => {
+                            await setMemberStatus({
+                              data: { groupId: d.group.id, memberId: m.memberId, status: m.status === "active" ? "inactive" : "active", reason },
+                            });
+                            setOpenId(null);
+                            onChanged();
+                          })
+                        }
+                      >
+                        {m.status === "active" ? "Mark inactive" : "Reactivate"}
+                      </Button>
+                    </div>
+                  ) : null}
+                  <FormMessages error={error} notice={notice} />
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
@@ -325,67 +338,56 @@ function FeedbackComposer({ d, onSaved }: { d: Detail; onSaved: () => void }) {
   const [stage, setStage] = useState<string>(d.currentStage ?? "choose");
   const [level, setLevel] = useState<"" | "1" | "2" | "3" | "4">("");
   const [body, setBody] = useState("");
-  const { pending, error, notice, run } = useAction();
+  const [pickStage, setPickStage] = useState(false);
+  const { pending, error, run } = useAction();
+  const stageTitle = STAGE_BY_ID[stage as StageId]?.title ?? "";
   return (
-    <Card as="section" className="space-y-3 border-indigo/50">
-      <Eyebrow>Feedback to the group</Eyebrow>
-      <Field label="About which stop?">
-        <Select value={stage} onChange={(e) => setStage(e.target.value)}>
-          {STAGES.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.stop}. {s.title}
+    <section className="rise space-y-3 rounded-[22px] bg-bg-elevated p-4 ring-2 ring-ink">
+      <p className="text-sm">
+        Feedback on <span className="font-semibold">{stageTitle}</span>{" "}
+        <button type="button" onClick={() => setPickStage((v) => !v)} className="font-semibold text-accent">
+          {pickStage ? "done" : "change"}
+        </button>
+      </p>
+      {pickStage ? (
+        <Select value={stage} onChange={(e) => setStage(e.target.value)} aria-label="Stop">
+          {STAGES.map((s2) => (
+            <option key={s2.id} value={s2.id}>
+              {s2.stop}. {s2.title}
             </option>
           ))}
         </Select>
-      </Field>
+      ) : null}
+      <textarea
+        aria-label="Feedback"
+        autoFocus
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        rows={3}
+        placeholder="What should they do next?"
+        className="w-full rounded-[14px] bg-bg px-3 py-2.5 text-[15px] ring-1 ring-line focus:outline-none"
+      />
       <div className="flex flex-wrap gap-1.5">
         {TEMPLATES.map((t) => (
-          <button key={t} type="button" onClick={() => setBody((b) => (b ? `${b} ${t}` : t))} className="rounded-full border border-line-strong px-2.5 py-1 text-left text-xs hover:border-ink">
+          <button key={t} type="button" onClick={() => setBody((b) => (b ? `${b} ${t}` : t))} className="rounded-full bg-bg px-3 py-1 text-left text-xs ring-1 ring-line hover:ring-ink">
             {t}
           </button>
         ))}
       </div>
-      <Field label="Comment">
-        <Textarea value={body} onChange={(e) => setBody(e.target.value)} />
-      </Field>
-      <Choice
-        label="Rubric level (optional)"
-        value={level}
-        options={[{ value: "", label: "None" }, ...LEVELS]}
-        onChange={setLevel}
-      />
-      <FormMessages error={error} notice={notice} />
+      <Choice label="How are they doing? (optional)" value={level} options={[{ value: "", label: "Skip" }, ...LEVELS]} onChange={setLevel} />
+      <FormMessages error={error} />
       <Button
         disabled={Boolean(pending) || body.trim().length < 10}
         onClick={() =>
-          void run(
-            "fb",
-            async () => {
-              await giveFeedback({ data: { groupId: d.group.id, stage, body, level: level ? Number(level) : null } });
-              setBody("");
-              setLevel("");
-              onSaved();
-            },
-            "Sent. The group sees it on that stop and on their Today screen.",
-          )
+          void run("fb", async () => {
+            await giveFeedback({ data: { groupId: d.group.id, stage, body, level: level ? Number(level) : null } });
+            onSaved();
+          })
         }
       >
         {pending ? "Sending…" : "Send feedback"}
       </Button>
-      {d.feedback.length ? (
-        <ul className="space-y-2 border-t border-line pt-3 text-sm">
-          {d.feedback.map((f) => (
-            <li key={f.id}>
-              <p className="text-xs text-muted">
-                {f.staffName} · {STAGE_BY_ID[f.stage as StageId]?.title} · {shortDate(f.createdAt)}
-                {f.level ? ` · level ${f.level}` : ""}
-              </p>
-              <p>{f.body}</p>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </Card>
+    </section>
   );
 }
 
@@ -449,48 +451,50 @@ function Work({ work }: { work: NonNullable<Detail["work"]> }) {
   );
 }
 
-function Conversation({ d, onSent }: { d: Detail; onSent: () => void }) {
+function Conversation({ d, composing, onSent }: { d: Detail; composing: boolean; onSent: () => void }) {
   const [body, setBody] = useState("");
-  const [to, setTo] = useState("");
+  const [all, setAll] = useState(false);
   const { pending, error, run } = useAction();
-  const students = d.members.filter((m) => !m.isSynthetic && m.status === "active");
+  const shown = all ? d.thread : d.thread.slice(-3);
+  if (!d.thread.length && !composing) return null;
   return (
-    <Card as="section" className="space-y-3 border-indigo/60">
-      <Eyebrow>Conversation with the group</Eyebrow>
-      <div className="rounded-[10px] bg-bg px-2">
-        <Thread messages={d.thread} viewer="staff" />
+    <section className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-lg font-bold">Messages</h2>
+        {d.thread.length > 3 ? (
+          <button type="button" onClick={() => setAll((v) => !v)} className="text-sm font-semibold text-accent">
+            {all ? "Show fewer" : `See all ${d.thread.length}`}
+          </button>
+        ) : null}
       </div>
-      <textarea
-        aria-label="Message"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        rows={3}
-        placeholder={to ? "Only this student will see it…" : "The whole group will see it…"}
-        className="w-full rounded-[10px] border-2 border-line-strong/70 bg-bg px-3 py-2.5 text-[15px] focus-visible:border-accent focus-visible:outline-none"
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={to} onChange={(e) => setTo(e.target.value)} className="h-10 w-auto text-sm" aria-label="Send to">
-          <option value="">Whole group</option>
-          {students.map((m) => (
-            <option key={m.studentId} value={m.studentId}>
-              Only {m.fullName}
-            </option>
-          ))}
-        </Select>
-        <Button
-          disabled={Boolean(pending) || !body.trim()}
-          onClick={() =>
-            void run("send", async () => {
-              await sendStaffMessage({ data: { groupId: d.group.id, body, recipientStudentId: to || null } });
-              setBody("");
-              onSent();
-            })
-          }
-        >
-          {pending ? "Sending…" : "Send"}
-        </Button>
+      <div className="rounded-[22px] bg-bg-elevated px-3 ring-1 ring-line">
+        <Thread messages={shown} viewer="staff" />
       </div>
+      {composing ? (
+        <div className="rise flex gap-2">
+          <input
+            aria-label="Message"
+            autoFocus
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Write to the whole group…"
+            className="h-11 min-w-0 flex-1 rounded-full bg-bg-elevated px-4 ring-1 ring-line focus:ring-2 focus:ring-accent focus:outline-none"
+          />
+          <Button
+            disabled={Boolean(pending) || !body.trim()}
+            onClick={() =>
+              void run("send", async () => {
+                await sendStaffMessage({ data: { groupId: d.group.id, body } });
+                setBody("");
+                onSent();
+              })
+            }
+          >
+            Send
+          </Button>
+        </div>
+      ) : null}
       <FormMessages error={error} />
-    </Card>
+    </section>
   );
 }

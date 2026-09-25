@@ -4,22 +4,20 @@ import { cn } from "@/lib/utils";
 type Tone = "ink" | "forest" | "clay" | "gold" | "indigo" | "muted";
 
 const TONES: Record<Tone, string> = {
-  ink: "text-ink",
-  forest: "text-accent",
-  clay: "text-clay",
-  gold: "text-gold-deep",
-  indigo: "text-indigo",
-  muted: "text-faint",
+  ink: "bg-ink text-white",
+  forest: "bg-mint-soft text-mint",
+  clay: "bg-clay-soft text-clay",
+  gold: "bg-gold-soft text-gold-deep",
+  indigo: "bg-indigo-soft text-indigo",
+  muted: "bg-bg-subtle text-muted",
 };
 
 /**
- * A rubber stamp — how status reads on a receipt, a registry form, a marked
- * script. Slightly rotated, never a pastel pill.
+ * A small status tag — like a sticker label. Name kept for existing callers.
  */
 export function Stamp({
   children,
   tone = "ink",
-  tilt = -3,
   size = "sm",
   className,
 }: {
@@ -33,13 +31,12 @@ export function Stamp({
     <span
       className={cn(
         "stamp inline-flex shrink-0 items-center whitespace-nowrap",
-        size === "xs" && "px-1.5 py-[1px] text-[9px]",
-        size === "sm" && "px-2 py-0.5 text-[10.5px]",
+        size === "xs" && "px-2 py-[1px] text-[10.5px]",
+        size === "sm" && "px-2.5 py-0.5 text-xs",
         size === "md" && "px-3 py-1 text-sm",
         TONES[tone],
         className,
       )}
-      style={{ transform: `rotate(${tilt}deg)` }}
     >
       {children}
     </span>
@@ -57,7 +54,7 @@ const CLASSIFICATION_TONE: Record<string, Tone> = {
 
 export function ClassificationStamp({ value }: { value: string }) {
   return (
-    <Stamp tone={CLASSIFICATION_TONE[value] ?? "ink"} size="xs" tilt={-2}>
+    <Stamp tone={CLASSIFICATION_TONE[value] ?? "ink"} size="xs">
       {value}
     </Stamp>
   );

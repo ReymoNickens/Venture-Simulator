@@ -31,7 +31,7 @@ export function Thread({ messages, viewer }: { messages: ThreadMessage[]; viewer
           <div key={m.id} className={cn("flex", ownSide ? "justify-end" : "justify-start")}>
             <div
               className={cn(
-                "max-w-[85%] rounded-[12px] border-2 px-3 py-2 text-sm leading-6",
+                "max-w-[85%] rounded-[22px] border-2 px-3 py-2 text-sm leading-6",
                 m.authorKind === "staff" ? "border-indigo bg-indigo-soft" : ownSide ? "border-ink bg-gold-soft" : "border-line-strong bg-bg-elevated",
                 ownSide ? "rounded-br-[3px]" : "rounded-bl-[3px]",
               )}

@@ -15,7 +15,7 @@ export function Why({ text }: { text: string }) {
       {open ? (
         <p
           className={cn(
-            "mt-1.5 rounded-[12px] bg-accent-soft px-3 py-2 text-xs leading-5 text-ink-soft",
+            "mt-1.5 rounded-[22px] bg-accent-soft px-3 py-2 text-xs leading-5 text-ink-soft",
           )}
         >
           {text}

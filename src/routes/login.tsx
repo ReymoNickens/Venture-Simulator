@@ -2,10 +2,10 @@ import { useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
 import { APP_NAME } from "@/lib/brand";
-import { KenteBand } from "@/components/ui/kente";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/badge";
+import { LogoMark } from "@/components/ui/sticker";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
@@ -48,13 +48,10 @@ function Login() {
 
   return (
     <main className="min-h-dvh text-ink">
-      <KenteBand />
       <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">Sign in</p>
-        <h1 className="mt-2 font-display text-3xl">{APP_NAME}</h1>
-        <p className="mt-2 text-sm text-muted">
-          Your login is not your index number. Academic identity is collected after sign-in.
-        </p>
+        <LogoMark className="size-12" />
+        <h1 className="mt-5 font-display text-4xl font-extrabold">Let’s get you in.</h1>
+        <p className="mt-2 text-[15px] text-muted">Sign in to {APP_NAME}. It takes a minute.</p>
         <Card className="mt-6 space-y-4">
           {authEnabled ? (
             <>
@@ -71,7 +68,7 @@ function Login() {
                   </Button>
                 ))}
               </div>
-              <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-faint">
+              <div className="flex items-center gap-3 text-xs text-faint">
                 <span className="h-px flex-1 bg-line" />
                 or email
                 <span className="h-px flex-1 bg-line" />

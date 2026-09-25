@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Copy, LogOut, Share2 } from "lucide-react";
+import { ChevronRight, Copy, LogOut, Share2 } from "lucide-react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { useAction } from "@/hooks/use-action";
 import { createGroup, joinGroup } from "@/lib/server/mutations";
@@ -10,10 +10,8 @@ import { StageHeader } from "@/components/stage/StageHeader";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Card, Eyebrow } from "@/components/ui/badge";
-import { Stamp } from "@/components/ui/stamp";
 import { FormMessages, Loading } from "@/components/ui/feedback";
-import { STAGE_BY_ID } from "@/lib/domain/stages";
-import { Emblem } from "@/components/ui/emblem";
+import { StopSticker } from "@/components/ui/sticker";
 
 export const Route = createFileRoute("/studio/group")({ component: GroupPage });
 
@@ -23,6 +21,7 @@ function GroupPage() {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [leaving, setLeaving] = useState(false);
+  const [path, setPath] = useState<"join" | "create" | null>(null);
   const [reason, setReason] = useState("");
   const { pending, error, notice, run, setNotice } = useAction();
 
@@ -57,7 +56,7 @@ function GroupPage() {
                 automatically its leader.
               </p>
             </div>
-            <div className="rounded-[10px] border-2 border-dashed border-ink px-4 py-2 text-center">
+            <div className="rounded-[18px] border-2 border-dashed border-ink px-4 py-2 text-center">
               <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">Join code</p>
               <p className="font-mono text-2xl font-semibold tracking-[0.18em]">{g.joinCode}</p>
             </div>
@@ -111,19 +110,15 @@ function GroupPage() {
           ) : null}
         </Card>
 
+        {!leaving ? (
+          <button type="button" onClick={() => setLeaving(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted">
+            <LogOut className="size-4" aria-hidden /> Leaving this group?
+          </button>
+        ) : (
         <Card className="space-y-3">
-          <h2 className="font-display text-lg font-bold">Leaving the group</h2>
-          {!leaving ? (
-            <>
-              <p className="text-sm text-muted">
-                If you are dropping the course or moving groups, leave properly so your team is not
-                left waiting on you. Your past work stays on the record.
-              </p>
-              <Button variant="secondary" size="sm" onClick={() => setLeaving(true)}>
-                <LogOut className="size-4" aria-hidden /> Leave this group
-              </Button>
-            </>
-          ) : (
+          <h2 className="font-display text-lg font-bold">Leave the group</h2>
+          <p className="text-sm text-muted">Your team won’t be kept waiting on you. Your past work stays on the record.</p>
+          {(
             <>
               <Field label="Why are you leaving? (your group and lecturer will see this)">
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} />
@@ -145,74 +140,96 @@ function GroupPage() {
             </>
           )}
         </Card>
+        )}
       </div>
     );
   }
 
-  const def = STAGE_BY_ID.team;
   return (
     <div className="space-y-5">
-      <div className="flex items-start gap-4">
-        <span className="flex size-16 shrink-0 items-center justify-center rounded-[12px] border-2 border-ink bg-gold-soft shadow-[3px_3px_0_0_var(--color-ink)]">
-          <Emblem emblem={def.emblem} className="size-10" />
-        </span>
-        <div>
-          <Eyebrow>Stop 01 of 11</Eyebrow>
-          <h1 className="font-display text-3xl font-extrabold">{def.title}</h1>
-          <p className="mt-1 text-sm leading-6 text-muted">{def.mission}</p>
-        </div>
+      <div className="pt-2">
+        <StopSticker stage="team" size="lg" />
+        <h1 className="mt-4 font-display text-[34px] leading-[1.05] font-extrabold">Find your crew</h1>
+        <p className="mt-2 text-[16px] leading-7 text-ink-soft">Join your group with a code, or start one.</p>
       </div>
       <FormMessages error={error} />
-      <Card className="space-y-3">
-        <h2 className="font-display text-xl font-bold">Join with a code</h2>
-        <p className="text-sm text-muted">Someone in your group has a six-letter code. Ask them to share it.</p>
-        <Field label="Group code">
-          <Input
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="K7M2QX"
-            autoCapitalize="characters"
-            className="font-mono text-lg tracking-[0.2em] uppercase"
-          />
-        </Field>
+      <Choice2
+        open={path === "join"}
+        onOpen={() => setPath(path === "join" ? null : "join")}
+        title="I have a code"
+        sub="Someone in your group shared it"
+      >
+        <Input
+          aria-label="Group code"
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="K7M2QX"
+          autoCapitalize="characters"
+          className="h-14 text-center font-mono text-2xl tracking-[0.3em] uppercase"
+        />
         <Button
+          className="w-full"
+          size="lg"
           disabled={Boolean(pending) || code.trim().length < 4}
           onClick={() => void go("join", () => joinGroup({ data: { joinCode: code } }))}
         >
           {pending === "join" ? "Joining…" : "Join group"}
         </Button>
-      </Card>
-      <Card className="space-y-3">
-        <h2 className="font-display text-xl font-bold">Start a new group</h2>
-        <Field label="Group name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Oguaa Road Crew" />
-        </Field>
+      </Choice2>
+      <Choice2
+        open={path === "create"}
+        onOpen={() => setPath(path === "create" ? null : "create")}
+        title="Start a new group"
+        sub="You’ll get a code to share"
+      >
+        <Input aria-label="Group name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Group name, e.g. Oguaa Road Crew" className="h-12" />
         <Button
-          variant="secondary"
+          className="w-full"
+          size="lg"
           disabled={Boolean(pending) || !name.trim()}
           onClick={() => void go("create", () => createGroup({ data: { groupName: name } }))}
         >
           {pending === "create" ? "Creating…" : "Create group"}
         </Button>
-      </Card>
-      <Card className="space-y-3 border-dashed">
-        <div className="flex items-center gap-2">
-          <Stamp tone="indigo" size="xs">Practice</Stamp>
-          <h2 className="font-display text-lg font-bold">Try it with a demonstration group</h2>
-        </div>
-        <p className="text-sm leading-6 text-muted">
-          Walk the whole route alone. Nine demonstration classmates have already submitted real-world
-          problems from campus, hostels and markets — hidden until you submit yours.
-        </p>
-        <Button
-          variant="ghost"
+      </Choice2>
+      <p className="pt-2 text-center text-sm text-muted">
+        Just exploring?{" "}
+        <button
+          type="button"
           disabled={Boolean(pending)}
           onClick={() => void go("demo", () => bootstrapDemoCohort())}
-          className="border-2 border-line-strong"
+          className="font-semibold text-accent underline underline-offset-4"
         >
-          {pending === "demo" ? "Preparing…" : "Enter demonstration group"}
-        </Button>
-      </Card>
+          {pending === "demo" ? "Preparing…" : "Try a practice group"}
+        </button>
+      </p>
     </div>
+  );
+}
+
+function Choice2({
+  open,
+  onOpen,
+  title,
+  sub,
+  children,
+}: {
+  open: boolean;
+  onOpen: () => void;
+  title: string;
+  sub: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={open ? "rounded-[24px] bg-bg-elevated p-2 ring-2 ring-ink" : "rounded-[24px] bg-bg-elevated p-2 ring-1 ring-line"}>
+      <button type="button" onClick={onOpen} aria-expanded={open} className="flex w-full items-center justify-between px-3 py-3 text-left">
+        <span>
+          <span className="block font-display text-xl font-bold">{title}</span>
+          <span className="block text-sm text-muted">{sub}</span>
+        </span>
+        <ChevronRight className={open ? "size-5 rotate-90 transition-transform" : "size-5 transition-transform"} aria-hidden />
+      </button>
+      {open ? <div className="rise space-y-3 px-3 pt-1 pb-3">{children}</div> : null}
+    </section>
   );
 }

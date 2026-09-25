@@ -56,7 +56,7 @@ reason underneath. Tesla's screen has one primary action and hides the rest.
   - The full team roster moves to Team up.
 
 ### Stop pages (all eleven)
-- *Found:* each stop opens with emblem, mission, a four-line checklist,
+- *Found:* each stop opens with an icon, mission, a four-line checklist,
   feedback, then the work, then a reflection, then the advisor. Too much
   before the first action; the checklist reads like homework.
 - *Decisions:*
@@ -107,6 +107,30 @@ reason underneath. Tesla's screen has one primary action and hides the rest.
     the queue row, the group page, or to one student. Students see unread
     messages on Today and a bell in the header, and can reply.
   - Bulk message to every flagged group in one action.
+
+## Visual direction: sticker-collage minimalism
+
+Students told us cultural symbols felt like decoration, not like them; lecturers
+said screens were busy. The look is now youthful and quiet at the same time:
+
+- **Calm base, loud accents.** Warm white paper, black ink, one cobalt accent.
+  Butter, coral, lilac, mint and pink appear only as small fills: a sticker,
+  a tag, a hero card. Never as walls of colour.
+- **Stickers, not symbols.** Each stop has a simple line icon in a tinted,
+  white-ringed disc, like a laptop sticker. They are collectable: finishing a
+  stop gives you its sticker.
+- **Collage in hero moments only.** Tape, a hand-drawn scribble and a sparkle
+  appear on the landing page, the mission card and the "stop done" moment.
+  Working screens stay plain.
+- **Tap to reveal.** Every section starts as one line with a status: canvas
+  blocks, feasibility lenses, cost groups, students in a group, course
+  settings. Details open only when asked. One primary (black) button per screen.
+- **Type.** Bricolage Grotesque for headlines, Plus Jakarta Sans for reading.
+  Pill buttons and tags; rounded cards with hairline borders, no heavy shadows.
+- **Lecturers.** Three tabs (Groups, Activity, Course). The groups page opens
+  on "N groups need you" with a message button on every row. A group page has
+  three buttons: Message, Give feedback, Add to my groups. Everything else is
+  folded.
 
 ## Measures to watch in the pilot
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus, Trash2, TriangleAlert } from "lucide-react";
+import { ChevronDown, Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { useAction } from "@/hooks/use-action";
 import { saveFinanceModel } from "@/lib/server/venture-work";
@@ -18,7 +18,6 @@ import { Reflect } from "@/components/stage/Reflect";
 import { NeedsVenture } from "@/components/stage/NeedsVenture";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/input";
-import { Card, Eyebrow } from "@/components/ui/badge";
 import { FormMessages, Loading } from "@/components/ui/feedback";
 import { newId, cn } from "@/lib/utils";
 import { shortDateTime } from "@/lib/dates";
@@ -61,118 +60,132 @@ function Editor({
   onSaved: () => void;
 }) {
   const [f, setF] = useState<FinanceInputs>(initial);
-  const [note, setNote] = useState("");
+  const [show, setShow] = useState<"receipt" | "warnings" | null>(null);
   const result = useMemo(() => computeFinance(f), [f]);
   const { pending, error, notice, run } = useAction();
   const set = <K extends keyof FinanceInputs>(k: K, v: FinanceInputs[K]) => setF((x) => ({ ...x, [k]: v }));
 
+  const sum = (ls: CostLine[]) => ls.reduce((n, l) => n + (l.amount || 0), 0);
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="space-y-5">
-        <Card as="section" className="space-y-3">
-          <Eyebrow>1 · What you sell</Eyebrow>
-          <Field label="One unit is…" hint="Be concrete: “one weekly laundry bag”, “one plate of kenkey and fish”, “one month’s subscription”.">
-            <Input value={f.unitName} onChange={(e) => set("unitName", e.target.value)} />
-          </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Price per unit (GH₵)">
-              <MoneyInput value={f.price} onChange={(v) => set("price", v)} />
-            </Field>
-            <Field label="Who told you they’d pay this?">
-              <EvidenceSelect evidence={evidence} value={f.priceEvidenceId ?? null} onChange={(v) => set("priceEvidenceId", v)} />
-            </Field>
-          </div>
-        </Card>
-
-        <Lines
-          title="2 · Cost of each unit"
-          hint="Ingredients, packaging, transport, MoMo charges, your time — per unit sold."
-          lines={f.variableCosts}
-          evidence={evidence}
-          onChange={(v) => set("variableCosts", v)}
-          unit="per unit"
-        />
-        <Lines
-          title="3 · Monthly costs (even with no sales)"
-          hint="Stall or space rent, data bundles, phone credit, storage."
-          lines={f.fixedCosts}
-          evidence={evidence}
-          onChange={(v) => set("fixedCosts", v)}
-          unit="per month"
-        />
-        <Lines
-          title="4 · Start-up costs (once)"
-          hint="Equipment, first stock, registration, signage."
-          lines={f.startupCosts}
-          evidence={evidence}
-          onChange={(v) => set("startupCosts", v)}
-          unit="once"
-        />
-
-        <Card as="section" className="space-y-3">
-          <Eyebrow>5 · Expected sales</Eyebrow>
-          <Field label="Units you expect to sell in a normal month" hint="Base it on your interviews and tests, not on hope.">
-            <Input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              value={f.expectedUnitsPerMonth || ""}
-              onChange={(e) => set("expectedUnitsPerMonth", Number(e.target.value) || 0)}
-            />
-          </Field>
-        </Card>
-      </div>
-
-      <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-        <Receipt f={f} r={result} />
-        <BreakEvenChart r={result} expected={f.expectedUnitsPerMonth} />
-        {result.warnings.length ? (
-          <ul className="space-y-2">
-            {result.warnings.map((w) => (
-              <li key={w.code} className="flex gap-2 rounded-[8px] border-2 border-gold/60 bg-gold-soft px-3 py-2 text-sm">
-                <TriangleAlert className="mt-0.5 size-4 shrink-0 text-gold-deep" aria-hidden />
-                {w.message}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <Card className="space-y-2">
-          <Field label="What changed in this version?" optional>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Got real quotes at Kotokuraba" />
-          </Field>
-          <FormMessages error={error} notice={notice} />
-          <Button
-            className="w-full"
-            disabled={Boolean(pending)}
-            onClick={() =>
-              void run(
-                "save",
-                async () => {
-                  await saveFinanceModel({ data: { inputs: JSON.stringify(f), note } });
-                  setNote("");
-                  onSaved();
-                },
-                "Saved as a new version — earlier versions are kept.",
-              )
-            }
-          >
-            {pending ? "Saving…" : "Save these numbers"}
-          </Button>
-          {saved ? (
-            <p className="text-xs text-muted">
-              Version {saved.versions} by {saved.authorName}, {shortDateTime(saved.createdAt)}
-              {saved.note ? ` — “${saved.note}”` : ""}
-            </p>
+    <div className="space-y-4">
+      <section className="rounded-[28px] bg-ink p-6 text-white">
+        <p className="text-sm text-white/60">Break-even</p>
+        <p className="font-display text-[40px] leading-none font-extrabold">
+          {result.breakEvenUnits === null ? "Not yet" : `${result.breakEvenUnits} a month`}
+        </p>
+        <p className="mt-2 text-[15px] text-white/75">
+          {f.price > 0
+            ? `At ${formatCedis(f.price)} each, you keep ${formatCedis(result.contributionPerUnit)} per sale. Monthly profit at your expected sales: ${formatCedis(result.monthlyProfit)}.`
+            : "Set a price and your costs to see where you stop losing money."}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button type="button" onClick={() => setShow(show === "receipt" ? null : "receipt")} className="rounded-full bg-white/10 px-4 py-2 text-sm font-semibold">
+            {show === "receipt" ? "Hide receipt" : "Full receipt"}
+          </button>
+          {result.warnings.length ? (
+            <button type="button" onClick={() => setShow(show === "warnings" ? null : "warnings")} className="rounded-full bg-gold px-4 py-2 text-sm font-semibold text-ink">
+              {result.warnings.length} thing{result.warnings.length === 1 ? "" : "s"} to check
+            </button>
           ) : null}
-        </Card>
+        </div>
+      </section>
+      {show === "receipt" ? (
+        <div className="rise space-y-3">
+          <Receipt f={f} r={result} />
+          <BreakEvenChart r={result} expected={f.expectedUnitsPerMonth} />
+        </div>
+      ) : null}
+      {show === "warnings" ? (
+        <ul className="rise space-y-2">
+          {result.warnings.map((w) => (
+            <li key={w.code} className="flex gap-2 rounded-[18px] bg-gold-soft px-4 py-3 text-sm">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0 text-gold-deep" aria-hidden />
+              {w.message}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <Fold title="What you sell" summary={f.price ? `${formatCedis(f.price)} per ${f.unitName || "unit"}` : "Not set"}>
+        <Field label="One unit is…" hint="Be concrete: “one plate of kenkey and fish”, “one weekly laundry bag”.">
+          <Input value={f.unitName} onChange={(e) => set("unitName", e.target.value)} />
+        </Field>
+        <Field label="Price per unit (GH₵)">
+          <MoneyInput value={f.price} onChange={(v) => set("price", v)} />
+        </Field>
+        <Field label="Who told you they’d pay this?">
+          <EvidenceSelect evidence={evidence} value={f.priceEvidenceId ?? null} onChange={(v) => set("priceEvidenceId", v)} />
+        </Field>
+      </Fold>
+      <Fold title="Cost of each unit" summary={`${formatCedis(sum(f.variableCosts))} · ${f.variableCosts.length} item${f.variableCosts.length === 1 ? "" : "s"}`}>
+        <Lines hint="Ingredients, packaging, transport, MoMo charges — per unit sold." lines={f.variableCosts} evidence={evidence} onChange={(v) => set("variableCosts", v)} unit="per unit" />
+      </Fold>
+      <Fold title="Monthly costs" summary={`${formatCedis(sum(f.fixedCosts))} a month`}>
+        <Lines hint="Rent for a stall or space, data bundles, storage — even with no sales." lines={f.fixedCosts} evidence={evidence} onChange={(v) => set("fixedCosts", v)} unit="per month" />
+      </Fold>
+      <Fold title="Start-up costs" summary={formatCedis(sum(f.startupCosts))}>
+        <Lines hint="Equipment, first stock, registration, signage — paid once." lines={f.startupCosts} evidence={evidence} onChange={(v) => set("startupCosts", v)} unit="once" />
+      </Fold>
+      <Fold title="Expected sales" summary={f.expectedUnitsPerMonth ? `${f.expectedUnitsPerMonth} a month` : "Not set"}>
+        <Field label="Units you expect to sell in a normal month" hint="Base it on your interviews and tests, not on hope.">
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={f.expectedUnitsPerMonth || ""}
+            onChange={(e) => set("expectedUnitsPerMonth", Number(e.target.value) || 0)}
+          />
+        </Field>
+      </Fold>
+
+      <div className="space-y-2 pt-2">
+        <FormMessages error={error} notice={notice} />
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={Boolean(pending)}
+          onClick={() =>
+            void run(
+              "save",
+              async () => {
+                await saveFinanceModel({ data: { inputs: JSON.stringify(f), note: "" } });
+                onSaved();
+              },
+              "Saved. Earlier versions are kept.",
+            )
+          }
+        >
+          {pending ? "Saving…" : "Save these numbers"}
+        </Button>
+        {saved ? (
+          <p className="text-center text-xs text-muted">
+            Last saved by {saved.authorName}, {shortDateTime(saved.createdAt)}
+          </p>
+        ) : null}
       </div>
     </div>
   );
 }
 
+function Fold({ title, summary, children }: { title: string; summary: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className={cn("rounded-[22px] bg-bg-elevated ring-1", open ? "ring-ink" : "ring-line")}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">{title}</span>
+          <span className="block text-sm text-muted">{summary}</span>
+        </span>
+        <ChevronDown className={cn("size-5 shrink-0 text-muted transition-transform", open && "rotate-180")} aria-hidden />
+      </button>
+      {open ? <div className="rise space-y-3 px-4 pb-4">{children}</div> : null}
+    </section>
+  );
+}
+
 function MoneyInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
-    <div className="flex items-center rounded-[8px] border-2 border-line-strong/70 bg-bg-elevated focus-within:border-accent">
+    <div className="flex items-center rounded-[14px] border-2 border-line-strong/70 bg-bg-elevated focus-within:border-accent">
       <span className="pl-3 font-mono text-sm text-muted">GH₵</span>
       <input
         type="number"
@@ -209,14 +222,12 @@ function EvidenceSelect({
 }
 
 function Lines({
-  title,
   hint,
   lines,
   evidence,
   onChange,
   unit,
 }: {
-  title: string;
   hint: string;
   lines: CostLine[];
   evidence: EvidenceItem[];
@@ -226,13 +237,10 @@ function Lines({
   const update = (id: string, patch: Partial<CostLine>) =>
     onChange(lines.map((l) => (l.id === id ? { ...l, ...patch } : l)));
   return (
-    <Card as="section" className="space-y-3">
-      <div>
-        <Eyebrow>{title}</Eyebrow>
-        <p className="mt-0.5 text-xs text-muted">{hint}</p>
-      </div>
+    <div className="space-y-3">
+      <p className="text-sm text-muted">{hint}</p>
       {lines.map((l) => (
-        <div key={l.id} className="grid gap-2 rounded-[8px] border border-line p-2 sm:grid-cols-[1fr_130px_1fr_auto] sm:items-center sm:border-0 sm:p-0">
+        <div key={l.id} className="grid gap-2 rounded-[14px] border border-line p-2 sm:grid-cols-[1fr_130px_1fr_auto] sm:items-center sm:border-0 sm:p-0">
           <Input aria-label="Cost item" value={l.label} placeholder="Item" onChange={(e) => update(l.id, { label: e.target.value })} />
           <MoneyInput value={l.amount} onChange={(v) => update(l.id, { amount: v })} />
           <EvidenceSelect evidence={evidence} value={l.evidenceId ?? null} onChange={(v) => update(l.id, { evidenceId: v })} />
@@ -240,7 +248,7 @@ function Lines({
             type="button"
             aria-label="Remove line"
             onClick={() => onChange(lines.filter((x) => x.id !== l.id))}
-            className="flex size-9 items-center justify-center justify-self-end rounded-[6px] text-muted hover:bg-bg-subtle hover:text-clay"
+            className="flex size-9 items-center justify-center justify-self-end rounded-[12px] text-muted hover:bg-bg-subtle hover:text-clay"
           >
             <Trash2 className="size-4" aria-hidden />
           </button>
@@ -251,9 +259,9 @@ function Lines({
         onClick={() => onChange([...lines, { id: newId(), label: "", amount: 0, evidenceId: null }])}
         className="inline-flex items-center gap-1 text-sm font-semibold text-accent"
       >
-        <Plus className="size-4" aria-hidden /> Add cost ({unit})
+        <Plus className="size-4" aria-hidden /> Add a cost ({unit})
       </button>
-    </Card>
+    </div>
   );
 }
 
@@ -305,7 +313,7 @@ function BreakEvenChart({ r, expected }: { r: FinanceResult; expected: number })
   const x = (u: number) => pad.l + (u / maxUnits) * (W - pad.l - pad.r);
   const y = (p: number) => pad.t + ((maxP - p) / (maxP - minP || 1)) * (H - pad.t - pad.b);
   return (
-    <figure className="rounded-[10px] border-2 border-ink bg-bg-elevated p-3">
+    <figure className="rounded-[18px] ring-1 ring-line bg-bg-elevated p-3">
       <figcaption className="text-xs font-semibold">Monthly profit as sales grow</figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 w-full" role="img" aria-label={`Break-even at ${r.breakEvenUnits} units a month`}>
         <line x1={pad.l} x2={W - pad.r} y1={y(0)} y2={y(0)} stroke="var(--color-line-strong)" strokeWidth="1.5" />

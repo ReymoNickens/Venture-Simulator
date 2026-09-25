@@ -63,7 +63,7 @@ function OpportunityPage() {
           cta={mine ? "Continue your draft" : "Start"}
           onStart={() => setMode("flow")}
         >
-          <p className="mt-4 rounded-[8px] bg-white/10 px-3 py-2 text-sm leading-6 text-bg-elevated/85">
+          <p className="mt-4 rounded-[14px] bg-white/10 px-3 py-2 text-sm leading-6 text-bg-elevated/85">
             Haven’t found one yet? Spend twenty minutes at Science Market, the shuttle stop or Kotokuraba.
             Watch where people wait, complain, or pay more than they should.
           </p>
@@ -80,7 +80,7 @@ function OpportunityPage() {
       <StageHeader stage="spot" data={data} />
       {justSaved ? <p className="text-sm font-semibold text-accent">{justSaved}</p> : null}
       {mine ? (
-        <section className="relative overflow-hidden rounded-[12px] border-2 border-ink bg-[#f3e6c8] p-5 shadow-[4px_4px_0_0_var(--color-ink)]">
+        <section className="relative overflow-hidden rounded-[22px] border-2 border-ink bg-[#f3e6c8] p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <Mail className="size-5" aria-hidden /> Your opportunity
@@ -105,7 +105,7 @@ function OpportunityPage() {
         </section>
       ) : null}
       {!data.canOpenSelection ? (
-        <section className="rounded-[12px] border-2 border-dashed border-ink/50 p-5 text-center">
+        <section className="rounded-[22px] border-2 border-dashed border-ink/50 p-5 text-center">
           <p className="font-display text-4xl font-extrabold tabular">
             {done}
             <span className="text-muted">/{total}</span>
@@ -121,7 +121,7 @@ function OpportunityPage() {
           </p>
         </section>
       ) : (
-        <Link to="/studio/select" className="block rounded-[12px] border-2 border-ink bg-gold p-4 text-center font-display text-lg font-extrabold shadow-[3px_3px_0_0_var(--color-ink)]">
+        <Link to="/studio/select" className="block rounded-[22px] ring-1 ring-line bg-gold p-4 text-center font-display text-lg font-extrabold">
           All envelopes are open. See every idea →
         </Link>
       )}

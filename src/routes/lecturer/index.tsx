@@ -1,35 +1,39 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, MessageCircle, Search, Send } from "lucide-react";
+import { ChevronDown, MessageCircle, Search, Send } from "lucide-react";
 import { useStaff } from "@/hooks/lecturer-context";
 import { getCohort } from "@/lib/server/lecturer";
 import { STAGES, STAGE_BY_ID } from "@/lib/domain/stages";
-import { FlagList } from "@/components/lecturer/FlagList";
-import { QuickMessage } from "@/components/lecturer/QuickMessage";
-import { Feed } from "@/components/lecturer/Feed";
 import { errorMessage } from "@/hooks/use-action";
-import { Emblem } from "@/components/ui/emblem";
-import { Card, Eyebrow, EmptyNote } from "@/components/ui/badge";
+import { QuickMessage } from "@/components/lecturer/QuickMessage";
+import { StopSticker } from "@/components/ui/sticker";
+import { EmptyNote } from "@/components/ui/badge";
 import { FormMessages, Loading } from "@/components/ui/feedback";
 import { daysAgo } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/lecturer/")({ component: Queue });
+export const Route = createFileRoute("/lecturer/")({ component: Groups });
 
 type Cohort = Awaited<ReturnType<typeof getCohort>>;
-type Filter = "attention" | "replies" | "mine" | "unassigned" | "all";
+type Group = Cohort["groups"][number];
+type Filter = "need" | "messages" | "all";
+type Target =
+  | { kind: "one"; groupId: string; label: string }
+  | { kind: "many"; offeringId: string; groupIds: string[]; label: string };
 
-function Queue() {
+/**
+ * One question for a busy lecturer: which groups need me? Healthy groups stay
+ * out of the way; everything else about a group is one tap into it.
+ */
+function Groups() {
   const { offeringId, staff } = useStaff();
   const [data, setData] = useState<Cohort | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Filter>("attention");
-  const [stage, setStage] = useState<string>("");
+  const [filter, setFilter] = useState<Filter>("need");
   const [q, setQ] = useState("");
-  const [messaging, setMessaging] = useState<
-    { kind: "one"; groupId: string; label: string } | { kind: "many"; offeringId: string; groupIds: string[]; label: string } | null
-  >(null);
-  const [sentNote, setSentNote] = useState<string | null>(null);
+  const [showStages, setShowStages] = useState(false);
+  const [messaging, setMessaging] = useState<Target | null>(null);
+  const [sent, setSent] = useState<string | null>(null);
 
   useEffect(() => {
     if (!offeringId) return;
@@ -39,86 +43,44 @@ function Queue() {
 
   const rows = useMemo(() => {
     if (!data) return [];
+    const base =
+      filter === "need"
+        ? data.groups.filter((g) => g.score >= 30)
+        : filter === "messages"
+          ? data.groups.filter((g) => g.unreadReplies > 0)
+          : data.groups;
     const needle = q.trim().toLowerCase();
-    return data.groups.filter((g) => {
-      if (filter === "attention" && g.score < 30) return false;
-      if (filter === "mine" && g.assignedStaffId !== staff.id) return false;
-      if (filter === "unassigned" && g.assignedStaffId) return false;
-      if (filter === "replies" && !g.unreadReplies) return false;
-      if (stage && g.currentStage !== stage) return false;
-      if (needle && !`${g.groupNumber} ${g.groupName} ${g.ventureName ?? ""}`.toLowerCase().includes(needle)) return false;
-      return true;
-    });
-  }, [data, filter, stage, q, staff.id]);
+    return needle
+      ? base.filter((g) => `${g.groupNumber} ${g.groupName} ${g.ventureName ?? ""}`.toLowerCase().includes(needle))
+      : base;
+  }, [data, filter, q]);
 
-  if (!offeringId) return <EmptyNote>You are not registered to any course offering yet.</EmptyNote>;
+  if (!offeringId) return <EmptyNote>You are not linked to a course yet.</EmptyNote>;
   if (error) return <FormMessages error={error} />;
   if (!data) return <Loading />;
 
-  const attention = data.groups.filter((g) => g.score >= 100).length;
-  const byStage = STAGES.map((s) => ({ s, n: data.groups.filter((g) => g.currentStage === s.id).length }));
-  const finished = data.groups.filter((g) => g.currentStage === null).length;
-  const maxN = Math.max(1, ...byStage.map((b) => b.n), finished);
-
+  const need = data.groups.filter((g) => g.score >= 30).length;
+  const withMessages = data.groups.filter((g) => g.unreadReplies > 0).length;
+  const title = staff.fullName.split(" ").slice(0, 2).join(" ");
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <Eyebrow>Good to see you, {staff.fullName}</Eyebrow>
-        <h1 className="mt-1 font-display text-3xl font-extrabold">Who needs you today</h1>
-        <p className="mt-1 max-w-[70ch] text-sm leading-6 text-muted">
-          Groups are ranked by how urgently they need a lecturer, from rules you can read on each
-          flag. Healthy groups stay out of your way.
+        <h1 className="font-display text-[32px] leading-tight font-extrabold">
+          {need ? `${need} group${need === 1 ? " needs" : "s need"} you` : "All groups are on track"}
+        </h1>
+        <p className="mt-1 text-[15px] text-muted">
+          Hello {title}. {data.groups.length} group{data.groups.length === 1 ? "" : "s"} · {data.enrolled} student{data.enrolled === 1 ? "" : "s"}
+          {data.ungrouped ? ` · ${data.ungrouped} not in a group yet` : ""}.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Tile n={data.enrolled} label="students enrolled" />
-        <Tile n={data.ungrouped} label="not yet in a group" tone={data.ungrouped ? "warn" : undefined} />
-        <Tile n={data.groups.length} label="groups" />
-        <Tile n={attention} label="urgent groups" tone={attention ? "bad" : undefined} />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-6">
-      <Card as="section">
-        <Eyebrow>Where the groups are</Eyebrow>
-        <ul className="mt-3 space-y-1.5">
-          {byStage.map(({ s, n }) => (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setStage(stage === s.id ? "" : s.id);
-                  setFilter("all");
-                }}
-                className={cn("grid w-full grid-cols-[1.25rem_13rem_1fr_2rem] items-center gap-2 rounded-[4px] text-left text-sm", stage === s.id && "bg-gold-soft")}
-                title={`${n} group${n === 1 ? "" : "s"} currently at ${s.title}`}
-              >
-                <Emblem emblem={s.emblem} className="size-4 text-muted" />
-                <span className="truncate">{s.stop}. {s.title}</span>
-                <span className="h-3.5 rounded-r-[4px] bg-accent" style={{ width: `${(n / maxN) * 100}%`, minWidth: n ? 4 : 0 }} />
-                <span className="text-right font-mono text-xs tabular">{n}</span>
-              </button>
-            </li>
-          ))}
-          <li className="grid grid-cols-[1.25rem_13rem_1fr_2rem] items-center gap-2 text-sm text-muted">
-            <span />
-            <span>Finished the route</span>
-            <span className="h-3.5 rounded-r-[4px] bg-gold" style={{ width: `${(finished / maxN) * 100}%`, minWidth: finished ? 4 : 0 }} />
-            <span className="text-right font-mono text-xs tabular">{finished}</span>
-          </li>
-        </ul>
-      </Card>
-
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex gap-1 rounded-full bg-bg-subtle p-1 text-sm font-semibold">
           {(
             [
-              ["attention", "Needs attention"],
-              ["replies", `Replies${data.groups.some((g) => g.unreadReplies) ? ` (${data.groups.filter((g) => g.unreadReplies).length})` : ""}`],
-              ["mine", "My groups"],
-              ["unassigned", "Unassigned"],
-              ["all", "All groups"],
+              ["need", `Need you · ${need}`],
+              ["messages", `New messages · ${withMessages}`],
+              ["all", "All"],
             ] as const
           ).map(([k, label]) => (
             <button
@@ -126,130 +88,112 @@ function Queue() {
               type="button"
               aria-pressed={filter === k}
               onClick={() => setFilter(k)}
-              className={cn(
-                "rounded-full border-2 px-3 py-1 text-sm font-medium",
-                filter === k ? "border-ink bg-ink text-bg-elevated" : "border-line-strong text-ink-soft",
-              )}
+              className={cn("rounded-full px-3.5 py-1.5", filter === k ? "bg-bg-elevated text-ink shadow-sm" : "text-muted")}
             >
               {label}
             </button>
           ))}
-          {stage ? (
-            <button type="button" onClick={() => setStage("")} className="rounded-full border-2 border-gold bg-gold-soft px-3 py-1 text-sm">
-              {STAGE_BY_ID[stage as keyof typeof STAGE_BY_ID]?.title} ×
-            </button>
-          ) : null}
-          <label className="ml-auto flex items-center gap-2 rounded-[8px] border-2 border-line-strong/70 bg-bg-elevated px-2.5">
-            <Search className="size-4 text-faint" aria-hidden />
-            <span className="sr-only">Find a group</span>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Group, name, venture" className="h-9 w-44 bg-transparent text-sm focus:outline-none" />
-          </label>
         </div>
-
-        {rows.length ? (
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span className="text-muted">{rows.length} group{rows.length === 1 ? "" : "s"} in this view</span>
-            <button
-              type="button"
-              onClick={() =>
-                setMessaging({
-                  kind: "many",
-                  offeringId,
-                  groupIds: rows.map((r) => r.id),
-                  label: `All ${rows.length} group${rows.length === 1 ? "" : "s"} in this view`,
-                })
-              }
-              className="inline-flex items-center gap-1.5 font-semibold text-indigo underline underline-offset-2"
-            >
-              <Send className="size-3.5" aria-hidden /> Message all of them
-            </button>
-          </div>
-        ) : null}
-        {sentNote ? <p className="text-sm font-semibold text-accent">{sentNote}</p> : null}
-        {rows.length ? (
-          <ul className="overflow-hidden rounded-[10px] border-2 border-ink bg-bg-elevated">
-            {rows.map((g) => {
-              const def = g.currentStage ? STAGE_BY_ID[g.currentStage] : null;
-              const last = g.lastActivityAt ? daysAgo(g.lastActivityAt) : null;
-              return (
-                <li key={g.id} className="flex items-stretch border-b border-line last:border-0">
-                  <Link
-                    to="/lecturer/groups/$groupId"
-                    params={{ groupId: g.id }}
-                    className="grid min-w-0 flex-1 gap-2 px-3 py-3 hover:bg-bg-subtle/60 md:grid-cols-[3rem_minmax(0,1.3fr)_minmax(0,1.1fr)_minmax(0,1.5fr)_1.25rem] md:items-center"
-                  >
-                    <span className="font-display text-2xl font-extrabold tabular text-muted">{g.groupNumber}</span>
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold">{g.ventureName ?? g.groupName}</span>
-                      <span className="block truncate text-xs text-muted">
-                        {g.ventureName ? g.groupName : "No venture yet"} · {g.realMembers} student{g.realMembers === 1 ? "" : "s"}
-                        {g.isDemo ? " · demo" : ""}
-                        {g.assignedStaffName ? ` · ${g.assignedStaffName.split(" ")[0]}` : ""}
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-2 text-sm">
-                      {def ? <Emblem emblem={def.emblem} className="size-5 text-gold-deep" /> : null}
-                      <span className="min-w-0">
-                        <span className="block truncate">{def ? `${def.stop}. ${def.title}` : "Route finished"}</span>
-                        <span className="block text-xs text-muted">
-                          {g.pulse || `${g.stagesDone}/11 done`} · {last === null ? "no activity" : last === 0 ? "active today" : `quiet ${last}d`}
-                        </span>
-                      </span>
-                    </span>
-                    <span className="space-y-1">
-                      {g.unreadReplies ? (
-                        <span className="flex items-center gap-1 text-xs font-semibold text-indigo">
-                          <MessageCircle className="size-3.5" aria-hidden /> {g.unreadReplies} new message{g.unreadReplies === 1 ? "" : "s"}
-                        </span>
-                      ) : null}
-                      <FlagList flags={g.flags} />
-                    </span>
-                    <ChevronRight className="hidden size-5 text-muted md:block" aria-hidden />
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setMessaging({ kind: "one", groupId: g.id, label: `Group ${g.groupNumber} · ${g.ventureName ?? g.groupName}` })}
-                    aria-label={`Message group ${g.groupNumber}`}
-                    className="flex w-12 shrink-0 items-center justify-center border-l border-line text-muted hover:bg-indigo-soft hover:text-indigo"
-                  >
-                    <Send className="size-4" aria-hidden />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <EmptyNote>
-            {filter === "attention" ? "No group needs urgent attention right now." : "No groups match."}
-          </EmptyNote>
-        )}
-      </section>
-        </div>
-        <aside className="lg:sticky lg:top-4 lg:self-start">
-          <Feed offeringId={offeringId} />
-        </aside>
+        <label className="ml-auto flex items-center gap-2 rounded-full bg-bg-elevated px-3 ring-1 ring-line">
+          <Search className="size-4 text-faint" aria-hidden />
+          <span className="sr-only">Find a group</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a group" className="h-9 w-36 bg-transparent text-sm focus:outline-none" />
+        </label>
       </div>
+
+      {sent ? <p className="text-sm font-semibold text-mint">{sent}</p> : null}
+
+      {rows.length ? (
+        <ul className="space-y-2.5">
+          {rows.map((g) => (
+            <GroupCard
+              key={g.id}
+              g={g}
+              onMessage={() => setMessaging({ kind: "one", groupId: g.id, label: `Group ${g.groupNumber} · ${g.ventureName ?? g.groupName}` })}
+            />
+          ))}
+        </ul>
+      ) : (
+        <EmptyNote>
+          {filter === "need" ? "Nobody needs you right now. 🎉" : filter === "messages" ? "No new messages." : "No groups yet."}
+        </EmptyNote>
+      )}
+
+      {rows.length > 1 ? (
+        <button
+          type="button"
+          onClick={() => setMessaging({ kind: "many", offeringId, groupIds: rows.map((r) => r.id), label: `These ${rows.length} groups` })}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo"
+        >
+          <Send className="size-4" aria-hidden /> Message all {rows.length} of these groups
+        </button>
+      ) : null}
+
+      <section>
+        <button type="button" onClick={() => setShowStages((v) => !v)} aria-expanded={showStages} className="inline-flex items-center gap-1 text-sm font-semibold text-muted">
+          Where are the groups? <ChevronDown className={cn("size-4 transition-transform", showStages && "rotate-180")} aria-hidden />
+        </button>
+        {showStages ? <StageSpread groups={data.groups} /> : null}
+      </section>
+
       {messaging ? (
-        <QuickMessage
-          target={messaging}
-          onClose={() => setMessaging(null)}
-          onSent={() => setSentNote(`Sent to ${messaging.label}.`)}
-        />
+        <QuickMessage target={messaging} onClose={() => setMessaging(null)} onSent={() => setSent(`Sent to ${messaging.label}.`)} />
       ) : null}
     </div>
   );
 }
 
-function Tile({ n, label, tone }: { n: number; label: string; tone?: "warn" | "bad" }) {
+function GroupCard({ g, onMessage }: { g: Group; onMessage: () => void }) {
+  const def = g.currentStage ? STAGE_BY_ID[g.currentStage] : null;
+  const last = g.lastActivityAt ? daysAgo(g.lastActivityAt) : null;
+  const top = g.flags[0];
   return (
-    <div
-      className={cn(
-        "rounded-[10px] border-2 bg-bg-elevated px-3 py-3",
-        tone === "bad" ? "border-clay" : tone === "warn" ? "border-gold" : "border-ink",
-      )}
-    >
-      <p className="font-display text-3xl font-extrabold tabular">{n}</p>
-      <p className="text-xs text-muted">{label}</p>
-    </div>
+    <li className="flex items-stretch overflow-hidden rounded-[22px] bg-bg-elevated ring-1 ring-line">
+      <Link to="/lecturer/groups/$groupId" params={{ groupId: g.id }} className="flex min-w-0 flex-1 items-center gap-3 p-4 hover:bg-bg-subtle/50">
+        {def ? <StopSticker stage={def.id} size="md" /> : <span className="size-12 shrink-0 rounded-full bg-mint-soft" />}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold">
+            {g.ventureName ?? g.groupName}
+            <span className="font-normal text-muted"> · Group {g.groupNumber}</span>
+          </span>
+          <span className="block truncate text-sm text-muted">
+            {def ? `Stop ${def.stop}: ${def.title}` : "Finished"} ·{" "}
+            {last === null ? "not started" : last === 0 ? "active today" : `quiet for ${last} days`}
+          </span>
+          {g.unreadReplies ? (
+            <span className="mt-1 flex items-center gap-1 text-sm font-semibold text-indigo">
+              <MessageCircle className="size-4" aria-hidden /> {g.unreadReplies} new message{g.unreadReplies === 1 ? "" : "s"}
+            </span>
+          ) : top ? (
+            <span className={cn("mt-1 block truncate text-sm", top.severity === "high" ? "text-clay" : "text-warn")}>{top.message}</span>
+          ) : null}
+        </span>
+      </Link>
+      <button
+        type="button"
+        onClick={onMessage}
+        aria-label={`Message group ${g.groupNumber}`}
+        className="flex w-14 shrink-0 items-center justify-center border-l border-line text-muted hover:bg-indigo-soft hover:text-indigo"
+      >
+        <Send className="size-4" aria-hidden />
+      </button>
+    </li>
+  );
+}
+
+function StageSpread({ groups }: { groups: Group[] }) {
+  const counts = STAGES.map((s) => ({ s, n: groups.filter((g) => g.currentStage === s.id).length }));
+  const max = Math.max(1, ...counts.map((c) => c.n));
+  return (
+    <ul className="rise mt-3 space-y-2 rounded-[22px] bg-bg-elevated p-4 ring-1 ring-line">
+      {counts.map(({ s, n }) => (
+        <li key={s.id} className="grid grid-cols-[1.75rem_11rem_1fr_1.5rem] items-center gap-2 text-sm" title={`${n} at ${s.title}`}>
+          <StopSticker stage={s.id} size="xs" tilt={false} muted={!n} />
+          <span className={cn("truncate", !n && "text-faint")}>{s.title}</span>
+          <span className="h-2.5 rounded-full bg-accent" style={{ width: `${(n / max) * 100}%`, minWidth: n ? 6 : 0 }} />
+          <span className="text-right text-xs font-semibold tabular">{n}</span>
+        </li>
+      ))}
+    </ul>
   );
 }

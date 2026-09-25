@@ -8,8 +8,7 @@ import type { CourseOffering } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/badge";
-import { APP_NAME } from "@/lib/brand";
-import { KenteBand } from "@/components/ui/kente";
+import { LogoMark } from "@/components/ui/sticker";
 
 export const Route = createFileRoute("/onboarding")({ component: Onboarding });
 
@@ -58,10 +57,9 @@ function Onboarding() {
 
   return (
     <main className="min-h-dvh text-ink">
-      <KenteBand />
       <div className="mx-auto max-w-md px-5 py-10">
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">{APP_NAME}</p>
-        <h1 className="mt-2 font-display text-4xl font-extrabold">Akwaaba.</h1>
+        <LogoMark className="size-12" />
+        <h1 className="mt-5 font-display text-4xl font-extrabold">Akwaaba 👋</h1>
         <p className="mt-2 text-[15px] leading-6 text-ink-soft">
           Three details so your lecturer knows it’s you. Your index number is not a password.
         </p>
@@ -70,7 +68,7 @@ function Onboarding() {
             <Field label="Full name">
               <Input required value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </Field>
-            <Field label="Index number" hint="Used as your academic identity, not as a login.">
+            <Field label="Index number">
               <Input
                 required
                 value={indexNumber}

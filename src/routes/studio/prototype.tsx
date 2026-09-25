@@ -133,7 +133,7 @@ function BuildForm({ onDone, onCancel, maxPhotoBytes }: { onDone: () => void; on
       render: (v, set) => (
         <>
           <BigInput label="Cost in cedis" value={v.cost} onChange={(cost) => set({ cost })} inputMode="decimal" placeholder="0" />
-          <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-[10px] border-2 border-dashed border-line-strong px-4 py-3 text-sm font-semibold">
+          <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-[18px] border-2 border-dashed border-line-strong px-4 py-3 text-sm font-semibold">
             <Camera className="size-5" aria-hidden /> {v.photo ? "Change photo" : "Add a photo of it"}
             <input
               type="file"
@@ -147,7 +147,7 @@ function BuildForm({ onDone, onCancel, maxPhotoBytes }: { onDone: () => void; on
             />
           </label>
           {photoError ? <p className="mt-1 text-sm text-clay">{photoError}</p> : null}
-          {v.photo ? <img src={v.photo.dataUrl} alt="Prototype" className="mt-2 max-h-40 rounded-[8px] border-2 border-ink" /> : null}
+          {v.photo ? <img src={v.photo.dataUrl} alt="Prototype" className="mt-2 max-h-40 rounded-[14px] border-2 border-ink" /> : null}
         </>
       ),
       summary: (v) => `GH₵ ${Number(v.cost) || 0}${v.photo ? " · photo" : ""}`,
@@ -192,12 +192,12 @@ function PrototypeCard({
   const [testing, setTesting] = useState(false);
   const ok = tests.filter((t) => t.outcome === "succeeded").length;
   return (
-    <section className="overflow-hidden rounded-[12px] border-2 border-ink bg-bg-elevated">
-      <div className="flex flex-wrap items-start gap-3 border-b-2 border-ink bg-gold-soft/60 p-4">
+    <section className="overflow-hidden rounded-[22px] ring-1 ring-line bg-bg-elevated">
+      <div className="flex flex-wrap items-start gap-3 border-b border-line bg-gold-soft/60 p-4">
         {p.hasPhoto ? (
-          <EvidencePhoto id={p.id} kind="prototype" className="size-20 rounded-[8px] border-2 border-ink object-cover" alt={p.title} />
+          <EvidencePhoto id={p.id} kind="prototype" className="size-20 rounded-[14px] border-2 border-ink object-cover" alt={p.title} />
         ) : (
-          <span className="flex size-20 items-center justify-center rounded-[8px] border-2 border-dashed border-ink/40">
+          <span className="flex size-20 items-center justify-center rounded-[14px] border-2 border-dashed border-ink/40">
             <FlaskConical className="size-7 text-muted" aria-hidden />
           </span>
         )}
@@ -342,7 +342,7 @@ function TestForm({ prototypeId, data, onSaved, onCancel }: { prototypeId: strin
                   type="button"
                   aria-pressed={v.relationship === r}
                   onClick={() => set({ relationship: r })}
-                  className={`flex-1 rounded-[10px] border-2 py-3 font-semibold ${v.relationship === r ? (r === "supports" ? "border-ink bg-accent text-accent-fg" : "border-ink bg-clay text-accent-fg") : "border-line-strong"}`}
+                  className={`flex-1 rounded-[18px] border-2 py-3 font-semibold ${v.relationship === r ? (r === "supports" ? "border-ink bg-accent text-accent-fg" : "border-ink bg-clay text-accent-fg") : "border-line-strong"}`}
                 >
                   It {r}
                 </button>

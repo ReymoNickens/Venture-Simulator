@@ -35,7 +35,7 @@ function MessagesPage() {
         <h1 className="mt-1 font-display text-3xl font-extrabold">Messages</h1>
         <p className="mt-1 text-sm text-muted">Your group and your lecturers, in one thread.</p>
       </div>
-      <section className="rounded-[12px] border-2 border-ink bg-bg px-3">
+      <section className="rounded-[22px] ring-1 ring-line bg-bg px-3">
         <Thread messages={messages} viewer="student" />
       </section>
       <div className="space-y-2">
@@ -45,7 +45,7 @@ function MessagesPage() {
           onChange={(e) => setBody(e.target.value)}
           placeholder={privately ? "Only your lecturers will see this…" : "Write to your group and lecturers…"}
           rows={3}
-          className="w-full rounded-[10px] border-2 border-line-strong/70 bg-bg-elevated px-3 py-2.5 text-[15px] focus-visible:border-accent focus-visible:outline-none"
+          className="w-full rounded-[18px] border-2 border-line-strong/70 bg-bg-elevated px-3 py-2.5 text-[15px] focus-visible:border-accent focus-visible:outline-none"
         />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <button

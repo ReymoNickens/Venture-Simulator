@@ -47,7 +47,7 @@ export function EvidencePicker({
               <button
                 type="button"
                 onClick={() => toggle(e.id)}
-                className="inline-flex max-w-full items-center gap-1 rounded-[6px] border-2 border-accent bg-accent-soft px-2 py-1 text-xs text-accent"
+                className="inline-flex max-w-full items-center gap-1 rounded-[12px] border-2 border-accent bg-accent-soft px-2 py-1 text-xs text-accent"
                 title="Remove"
               >
                 <Link2 className="size-3 shrink-0" aria-hidden />
@@ -71,7 +71,7 @@ export function EvidencePicker({
         <p className="text-xs text-muted">Your notebook is empty. Log evidence first.</p>
       )}
       {open ? (
-        <div className="rounded-[8px] border-2 border-line-strong/70 bg-bg-elevated">
+        <div className="rounded-[14px] border-2 border-line-strong/70 bg-bg-elevated">
           <label className="flex items-center gap-2 border-b border-line px-2.5">
             <Search className="size-4 text-faint" aria-hidden />
             <span className="sr-only">Search evidence</span>

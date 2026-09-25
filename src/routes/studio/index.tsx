@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Lock, Megaphone, MessageCircle } from "lucide-react";
+import { ArrowRight, Lock, Megaphone, MessageCircle, Zap } from "lucide-react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { useAction } from "@/hooks/use-action";
 import { progressFromSnapshot } from "@/lib/domain/stage-input";
@@ -11,7 +11,8 @@ import { saveOffline } from "@/lib/offline/actions";
 import { dueLabel, isOverdue } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { Emblem } from "@/components/ui/emblem";
+import { StopSticker, Sparkle } from "@/components/ui/sticker";
+import type { Tint } from "@/lib/domain/stages";
 import { Stamp } from "@/components/ui/stamp";
 import { Textarea } from "@/components/ui/input";
 import { FormMessages, Loading } from "@/components/ui/feedback";
@@ -19,6 +20,16 @@ import { Ring } from "@/components/stage/StageHeader";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/studio/")({ component: Today });
+
+/** The hero takes the colour of the stop you are on. */
+const HERO: Record<Tint, string> = {
+  butter: "bg-gold text-ink",
+  coral: "bg-clay-soft text-ink",
+  lilac: "bg-indigo-soft text-ink",
+  cobalt: "bg-accent-soft text-ink",
+  mint: "bg-mint-soft text-ink",
+  pink: "bg-[#ffe3f1] text-ink",
+};
 
 /**
  * Today answers three questions, in this order, and nothing else:
@@ -47,7 +58,7 @@ function Today() {
     <div className="space-y-5">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-[30px] leading-tight font-extrabold sm:text-4xl">
+          <h1 className="font-display text-[28px] leading-tight font-extrabold sm:text-4xl">
             {greeting()}, {first}.
           </h1>
           <p className="mt-0.5 text-sm text-muted">
@@ -65,38 +76,30 @@ function Today() {
       </div>
 
       {def && current ? (
-        <section className="overflow-hidden rounded-[14px] border-2 border-ink bg-ink text-bg-elevated shadow-[5px_5px_0_0_var(--color-gold)]">
-          <div className="kente h-2" aria-hidden />
-          <div className="p-5">
-            <div className="flex items-center gap-3">
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-[10px] border-2 border-gold bg-gold text-ink">
-                <Emblem emblem={def.emblem} className="size-8" />
+        <section className={cn("relative overflow-hidden rounded-[28px] p-6", HERO[def.tint])}>
+          <Sparkle className="absolute top-5 right-6 size-5 opacity-70" />
+          <StopSticker stage={def.id} size="lg" />
+          <p className="mt-5 text-sm font-semibold opacity-75">Your next move</p>
+          <h2 className="font-display text-[30px] leading-[1.05] font-extrabold">{def.title}</h2>
+          <p className="mt-2 text-[16px] leading-7 opacity-90">
+            {nextUnmet ? nextUnmet.label : def.mission}
+            {nextUnmet?.detail ? <span className="opacity-70"> ({nextUnmet.detail})</span> : null}
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <Link to={def.href} className={buttonVariants({ size: "lg" })}>
+              Let’s go <ArrowRight className="size-4" aria-hidden />
+            </Link>
+            {due ? (
+              <span className={cn("text-sm font-semibold", isOverdue(due.dueAt) ? "text-clay" : "opacity-75")}>
+                {dueLabel(due.dueAt)}
               </span>
-              <div>
-                <p className="font-mono text-[11px] tracking-[0.16em] text-gold uppercase">Your next move · stop {def.stop}</p>
-                <h2 className="font-display text-2xl leading-tight font-extrabold">{def.title}</h2>
-              </div>
-            </div>
-            <p className="mt-3 text-[16px] leading-7 text-bg-elevated/85">
-              {nextUnmet ? nextUnmet.label : def.mission}
-              {nextUnmet?.detail ? <span className="text-bg-elevated/60"> — {nextUnmet.detail}</span> : null}
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <Link to={def.href} className={buttonVariants({ variant: "gold", size: "lg" })}>
-                Let’s go <ArrowRight className="size-4" aria-hidden />
-              </Link>
-              {due ? (
-                <span className={cn("font-mono text-xs uppercase", isOverdue(due.dueAt) ? "font-semibold text-clay" : "text-bg-elevated/60")}>
-                  {dueLabel(due.dueAt)}
-                </span>
-              ) : null}
-            </div>
+            ) : null}
           </div>
         </section>
       ) : null}
 
       {data.life.unreadMessages > 0 && latestStaff ? (
-        <Link to="/studio/messages" className="flex items-start gap-3 rounded-[12px] border-2 border-indigo bg-indigo-soft p-4">
+        <Link to="/studio/messages" className="flex items-start gap-3 rounded-[22px] bg-indigo-soft p-4">
           <MessageCircle className="mt-0.5 size-5 shrink-0 text-indigo" aria-hidden />
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-indigo">
@@ -110,7 +113,7 @@ function Today() {
       {shock ? <MarketShock event={shock} onSaved={() => void refresh()} /> : null}
 
       {announcement && daysSince(announcement.createdAt) <= 7 ? (
-        <section className="flex items-start gap-3 rounded-[12px] border-2 border-line-strong/70 bg-bg-elevated p-4">
+        <section className="flex items-start gap-3 rounded-[22px] bg-bg-elevated p-4 ring-1 ring-line">
           <Megaphone className="mt-0.5 size-5 shrink-0 text-gold-deep" aria-hidden />
           <div className="min-w-0">
             <p className="font-semibold">{announcement.title}</p>
@@ -123,12 +126,12 @@ function Today() {
       ) : null}
 
       {ahead && def ? (
-        <section className="flex items-center gap-3 rounded-[12px] border-2 border-dashed border-ink/40 p-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-ink/40 text-faint">
+        <section className="flex items-center gap-3 rounded-[22px] border-2 border-dashed border-line-strong p-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-bg-subtle text-faint">
             <Lock className="size-4" aria-hidden />
           </span>
           <div className="min-w-0">
-            <p className="font-mono text-[11px] tracking-[0.16em] text-muted uppercase">After this · stop {ahead.stop}</p>
+            <p className="text-xs font-semibold text-muted">After this · stop {ahead.stop}</p>
             <p className="text-[15px] leading-6 text-ink-soft italic">{ahead.teaser}</p>
           </div>
         </section>
@@ -163,7 +166,7 @@ function TeamFeed({ data }: { data: WorkspaceSnapshot }) {
   if (!lines.length) return null;
   return (
     <section>
-      <p className="mb-2 font-mono text-[11px] tracking-[0.16em] text-muted uppercase">Your team lately</p>
+      <p className="mb-3 text-xs font-semibold text-muted">Your team lately</p>
       <ul className="space-y-2">
         {lines.map(({ e, text }) => (
           <li key={e.id} className="flex items-baseline justify-between gap-3 text-sm">
@@ -181,14 +184,14 @@ function MarketShock({ event, onSaved }: { event: MarketEvent; onSaved: () => vo
   const [body, setBody] = useState("");
   const { pending, error, notice, run, setNotice } = useAction();
   return (
-    <section className="rounded-[12px] border-2 border-clay bg-clay-soft/60 p-4">
+    <section className="rounded-[22px] bg-clay-soft p-4">
       <div className="flex items-start gap-3">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-[8px] border-2 border-clay bg-bg-elevated text-clay">
-          <Emblem emblem="mframadan" className="size-7" />
+        <span className="sticker flex size-11 shrink-0 rotate-[-6deg] items-center justify-center rounded-full bg-clay text-white">
+          <Zap className="size-5" aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Stamp tone="clay" size="xs" tilt={-2}>
+            <Stamp tone="clay" size="xs">
               Breaking
             </Stamp>
             {event.respondBy ? <span className="font-mono text-[11px] text-clay uppercase">answer {dueLabel(event.respondBy)}</span> : null}

@@ -33,15 +33,15 @@ export function Reflect({
   // stop is done (the final decision stop needs it as part of the work).
   if (!done && stage !== "decide" && !mine.length) {
     return (
-      <div className="flex items-center gap-3 rounded-[10px] border-2 border-dashed border-line-strong px-4 py-3 text-sm text-muted">
+      <div className="flex items-center gap-3 rounded-[18px] border-2 border-dashed border-line-strong px-4 py-3 text-sm text-muted">
         <Lock className="size-4 shrink-0" aria-hidden />
         <span>A short private reflection unlocks when this stop is done.</span>
       </div>
     );
   }
   return (
-    <section className="notebook rounded-[10px] border-2 border-ink/80 py-4 pr-4 pl-10">
-      <p className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.16em] text-muted">
+    <section className="note px-4 pt-5 pb-4">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-muted">
         <Lock className="size-3" aria-hidden /> Private reflection
       </p>
       <h2 className="mt-1 font-display text-lg font-bold">{prompt}</h2>

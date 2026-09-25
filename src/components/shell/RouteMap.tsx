@@ -1,101 +1,68 @@
 import { Link } from "@tanstack/react-router";
-import { Bus, Check, Lock } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import { STAGE_BY_ID, type StageProgress } from "@/lib/domain/stages";
 import type { Milestone } from "@/lib/domain/types";
-import { Emblem } from "@/components/ui/emblem";
+import { StopSticker } from "@/components/ui/sticker";
 import { cn } from "@/lib/utils";
 import { dueLabel } from "@/lib/dates";
 
 /**
- * The journey drawn as a tro-tro route: a road with numbered stops. Done
- * stops are stamped, the recommended next stop has the bus, locked stops are
- * greyed out until the group reaches them.
+ * The journey, top to bottom. Each stop is its sticker and its name — the
+ * line under it appears only where it helps: "now" gets the task, locked
+ * stops get a teaser, done stops get nothing.
  */
 export function RouteMap({
   progress,
   milestones = [],
   compact = false,
-  onNavigate,
 }: {
   progress: StageProgress[];
   milestones?: Milestone[];
   compact?: boolean;
-  onNavigate?: () => void;
 }) {
   return (
-    <ol className="relative">
-      {progress.map((p, i) => {
+    <ol className="space-y-1">
+      {progress.map((p) => {
         const def = STAGE_BY_ID[p.id];
-        const due = milestones.find((m) => m.stage === p.id);
-        const last = i === progress.length - 1;
         const locked = p.state === "locked";
-        const inner = (
-          <div className={cn("flex gap-3", compact ? "py-1.5" : "py-2.5")}>
-            <div className="relative flex w-9 shrink-0 flex-col items-center">
-              <span
-                className={cn(
-                  "relative z-10 flex size-9 items-center justify-center rounded-full border-2 text-xs font-bold tabular",
-                  p.state === "done" && "border-ink bg-accent text-accent-fg",
-                  p.state === "current" && "border-ink bg-gold text-ink shadow-[2px_2px_0_0_var(--color-ink)]",
-                  p.state === "open" && "border-ink/70 bg-bg-elevated text-ink",
-                  locked && "border-line-strong bg-bg-subtle text-faint",
-                )}
-              >
-                {p.state === "done" ? (
-                  <Check className="size-4" strokeWidth={3} aria-hidden />
-                ) : p.state === "current" ? (
-                  <Bus className="bus-idle size-4" aria-hidden />
-                ) : locked ? (
-                  <Lock className="size-3.5" aria-hidden />
-                ) : (
-                  def.stop
-                )}
-              </span>
-              {!last ? (
-                <span
-                  aria-hidden
-                  className={cn(
-                    "absolute top-9 bottom-[-12px] w-[3px]",
-                    p.state === "done" ? "bg-ink" : "bg-[repeating-linear-gradient(180deg,var(--color-line-strong)_0_6px,transparent_6px_11px)]",
-                  )}
-                />
-              ) : null}
-            </div>
-            <div className={cn("min-w-0 flex-1", compact ? "pt-1.5" : "pt-1")}>
-              <div className="flex items-center gap-2">
-                <span className={cn("font-display text-[15px] font-bold leading-tight", locked && "text-faint")}>
-                  {def.title}
+        const now = p.state === "current";
+        const due = milestones.find((m) => m.stage === p.id);
+        const body = (
+          <div
+            className={cn(
+              "flex items-center gap-3 rounded-[16px] px-2.5 py-2",
+              now && "bg-bg-elevated ring-1 ring-line",
+            )}
+          >
+            <span className="relative">
+              <StopSticker stage={p.id} size="sm" muted={locked || p.state === "done"} tilt={!locked} />
+              {p.state === "done" ? (
+                <span className="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full bg-mint text-white ring-2 ring-bg">
+                  <Check className="size-2.5" strokeWidth={4} aria-label="done" />
                 </span>
-                {!compact ? (
-                  <Emblem emblem={def.emblem} className={cn("size-4", locked ? "text-faint" : "text-gold-deep")} />
-                ) : null}
-              </div>
-              {!compact ? (
-                <p className={cn("mt-0.5 text-xs", locked ? "text-faint italic" : "text-muted")}>
-                  {locked ? def.teaser : def.short}
-                  {!locked ? ` · ${p.met}/${p.criteria.length}` : ""}
-                  {due && p.state !== "done" ? (
-                    <span className="ml-1 font-medium text-clay">· {dueLabel(due.dueAt)}</span>
-                  ) : null}
-                </p>
               ) : null}
-            </div>
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className={cn("flex items-center gap-2 text-sm font-semibold", locked && "text-faint", p.state === "done" && "text-muted")}>
+                <span className="truncate">{def.title}</span>
+                {now ? <span className="rounded-full bg-gold px-2 py-[1px] text-[10px] font-bold text-ink">NOW</span> : null}
+                {locked ? <Lock className="size-3 shrink-0" aria-label="locked" /> : null}
+              </span>
+              {!compact && (now || locked) ? (
+                <span className={cn("mt-0.5 block text-xs leading-5", locked ? "text-faint italic" : "text-muted")}>
+                  {locked ? def.teaser : `${p.met} of ${p.criteria.length} done${due ? ` · ${dueLabel(due.dueAt)}` : ""}`}
+                </span>
+              ) : null}
+            </span>
           </div>
         );
         return (
           <li key={p.id}>
             {locked ? (
-              <div aria-disabled className="cursor-not-allowed">
-                {inner}
-              </div>
+              <div aria-disabled>{body}</div>
             ) : (
-              <Link
-                to={def.href}
-                onClick={onNavigate}
-                className="block rounded-[8px] px-1 hover:bg-bg-subtle/70"
-                activeProps={{ className: "bg-bg-subtle" }}
-              >
-                {inner}
+              <Link to={def.href} className="block rounded-[16px] hover:bg-bg-subtle/70">
+                {body}
               </Link>
             )}
           </li>

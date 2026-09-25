@@ -8,7 +8,7 @@ import type {
 import { cn } from "@/lib/utils";
 
 const control =
-  "w-full rounded-[8px] border-2 border-line-strong/70 bg-bg-elevated text-[15px] text-ink placeholder:text-faint transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-0";
+  "w-full rounded-[14px] border border-line-strong bg-bg-elevated text-[15px] text-ink placeholder:text-faint transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(control, "h-11 px-3", className)} {...props} />;
@@ -93,10 +93,10 @@ export function Choice<T extends string>({
             aria-pressed={o.value === value}
             onClick={() => onChange(o.value)}
             className={cn(
-              "min-h-9 rounded-[7px] border-2 px-3 py-1 text-sm transition-colors",
+              "min-h-9 rounded-full border px-3.5 py-1 text-sm transition-colors",
               o.value === value
-                ? "border-ink bg-ink text-bg-elevated"
-                : "border-line-strong/70 bg-bg-elevated text-ink-soft hover:border-ink/50",
+                ? "border-ink bg-ink text-white"
+                : "border-line-strong bg-bg-elevated text-ink-soft hover:border-ink/40",
             )}
           >
             {o.label}

@@ -37,7 +37,7 @@ function DecidePage() {
       <StageHeader stage="decide" data={data} />
       <LookBack data={data} />
       {ratified ? (
-        <section className="rounded-[12px] border-2 border-ink bg-bg-elevated p-4 shadow-[4px_4px_0_0_var(--color-ink)]">
+        <section className="rounded-[22px] ring-1 ring-line bg-bg-elevated p-4">
           <Stamp tone={DECISION_TONE[ratified.decision]} size="md" tilt={-5}>
             {ratified.decision}
           </Stamp>
@@ -104,7 +104,7 @@ function LookBack({ data }: { data: WorkspaceSnapshot }) {
       <h2 className="mt-1 font-display text-xl font-bold">What your record says</h2>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {cells.map(([n, label, sub]) => (
-          <div key={label} className="rounded-[8px] border-2 border-line-strong/60 bg-bg p-2.5">
+          <div key={label} className="rounded-[14px] border-2 border-line-strong/60 bg-bg p-2.5">
             <p className="font-display text-2xl font-extrabold tabular">{n}</p>
             <p className="text-xs leading-4 text-muted">{label}</p>
             {sub ? <p className="mt-0.5 text-[11px] text-ink-soft">{sub}</p> : null}
@@ -160,7 +160,7 @@ function DecisionVote({ data, d, onSaved }: { data: WorkspaceSnapshot; d: Ventur
       onSaved();
     });
   return (
-    <section className="rounded-[12px] border-2 border-ink bg-bg-elevated p-4 shadow-[4px_4px_0_0_var(--color-gold)]">
+    <section className="rounded-[22px] ring-1 ring-line bg-bg-elevated p-4">
       <div className="flex items-center gap-2">
         <Stamp tone={DECISION_TONE[d.decision]} tilt={-4}>{d.decision}?</Stamp>
         <span className="text-xs text-muted">proposed by {d.proposedByName}</span>
@@ -214,11 +214,24 @@ function PeerRatings({ data, onSaved }: { data: WorkspaceSnapshot; onSaved: () =
     Object.fromEntries(peers.map((p) => [p.studentId, existing.get(p.studentId)?.comment ?? ""])),
   );
   const { pending, error, notice, run } = useAction();
+  const [open, setOpen] = useState(false);
   if (!peers.length) return null;
+  if (!open) {
+    const done = peers.every((p) => existing.has(p.studentId));
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center justify-between rounded-[22px] bg-bg-elevated p-4 text-left ring-1 ring-line">
+        <span>
+          <span className="block font-semibold">Rate your teammates</span>
+          <span className="block text-sm text-muted">{done ? "Done — tap to change" : "Private. Only your lecturer sees it."}</span>
+        </span>
+        <Lock className="size-4 text-muted" aria-hidden />
+      </button>
+    );
+  }
   const labels = ["", "Barely", "Some", "Fair share", "A lot", "Carried us"];
   return (
-    <section className="rounded-[10px] border-2 border-ink bg-bg-elevated p-4">
-      <p className="flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.16em] text-muted uppercase">
+    <section className="rounded-[18px] ring-1 ring-line bg-bg-elevated p-4">
+      <p className="flex items-center gap-1.5 text-xs font-semibold text-muted">
         <Lock className="size-3" aria-hidden /> Confidential
       </p>
       <h2 className="mt-1 font-display text-xl font-bold">How much did each teammate contribute?</h2>
@@ -237,7 +250,7 @@ function PeerRatings({ data, onSaved }: { data: WorkspaceSnapshot; onSaved: () =
                   aria-pressed={scores[p.studentId] === n}
                   onClick={() => setScores((s) => ({ ...s, [p.studentId]: n }))}
                   className={cn(
-                    "rounded-[6px] border-2 px-2.5 py-1 text-xs",
+                    "rounded-[12px] border-2 px-2.5 py-1 text-xs",
                     scores[p.studentId] === n ? "border-ink bg-ink text-bg-elevated" : "border-line-strong text-ink-soft",
                   )}
                 >
@@ -250,7 +263,7 @@ function PeerRatings({ data, onSaved }: { data: WorkspaceSnapshot; onSaved: () =
               value={comments[p.studentId] ?? ""}
               onChange={(e) => setComments((c) => ({ ...c, [p.studentId]: e.target.value }))}
               placeholder="Optional: what did they do?"
-              className="h-10 w-full rounded-[8px] border-2 border-line-strong/70 bg-bg-elevated px-3 text-sm"
+              className="h-10 w-full rounded-[14px] border-2 border-line-strong/70 bg-bg-elevated px-3 text-sm"
             />
           </li>
         ))}

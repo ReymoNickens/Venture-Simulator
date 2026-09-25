@@ -27,7 +27,7 @@ function FeasibilityPage() {
   return (
     <div className="space-y-6">
       <StageHeader stage="feasibility" data={data} />
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-2.5">
         {FEASIBILITY_LENSES.map((lens) => (
           <Lens
             key={lens.key}
@@ -66,28 +66,26 @@ function Lens({
   onSaved: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(false);
   const [verdict, setVerdict] = useState<Verdict>(current?.verdict ?? "uncertain");
   const [reasoning, setReasoning] = useState("");
   const [evidenceIds, setEvidenceIds] = useState<string[]>(current?.evidenceIds ?? []);
   const { pending, error, run } = useAction();
   return (
-    <section className="flex flex-col rounded-[10px] border-2 border-ink bg-bg-elevated">
-      <div className="border-b-2 border-ink px-4 py-3">
-        <div className="flex items-start justify-between gap-2">
-          <h2 className="font-display text-xl font-extrabold">{title}</h2>
-          {current ? (
-            <Stamp tone={VERDICT_TONE[current.verdict]} tilt={-5}>
-              {current.verdict}
-            </Stamp>
-          ) : (
-            <Stamp tone="muted" tilt={-3}>
-              Not judged
-            </Stamp>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-muted">{question}</p>
-      </div>
-      <div className="flex-1 space-y-3 px-4 py-3">
+    <section className={`rounded-[22px] bg-bg-elevated ring-1 ${open ? "ring-ink" : "ring-line"}`}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">{title}</span>
+          <span className="block text-sm text-muted">{question}</span>
+        </span>
+        {current ? (
+          <Stamp tone={VERDICT_TONE[current.verdict]}>{current.verdict}</Stamp>
+        ) : (
+          <Stamp tone="muted">Not judged</Stamp>
+        )}
+      </button>
+      {open ? (
+      <div className="rise space-y-3 px-4 pb-4">
         {current && !editing ? (
           <>
             <p className="text-sm leading-6 whitespace-pre-line">{current.reasoning}</p>
@@ -138,10 +136,11 @@ function Lens({
           </div>
         ) : (
           <Button size="sm" variant="secondary" onClick={() => setEditing(true)}>
-            Re-assess
+            Change verdict
           </Button>
         )}
       </div>
+      ) : null}
     </section>
   );
 }

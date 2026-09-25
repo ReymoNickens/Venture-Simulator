@@ -26,10 +26,10 @@ export function QuickMessage({
   const { pending, error, notice, run } = useAction();
   return (
     <div role="dialog" aria-modal aria-label="Send a message" className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-3 sm:items-center">
-      <div className="rise w-full max-w-lg rounded-[14px] border-2 border-ink bg-bg-elevated p-4 shadow-[5px_5px_0_0_var(--color-ink)]">
+      <div className="rise w-full max-w-lg rounded-[14px] ring-1 ring-line bg-bg-elevated p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <p className="font-mono text-[11px] tracking-[0.16em] text-muted uppercase">Message</p>
+            <p className="text-xs font-semibold text-muted">Message</p>
             <p className="font-display text-lg font-extrabold">{target.label}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-1.5 hover:bg-bg-subtle">
@@ -49,7 +49,7 @@ export function QuickMessage({
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={4}
-          className="mt-3 w-full rounded-[10px] border-2 border-line-strong/70 bg-bg px-3 py-2.5 text-[15px] focus-visible:border-accent focus-visible:outline-none"
+          className="mt-3 w-full rounded-[18px] border-2 border-line-strong/70 bg-bg px-3 py-2.5 text-[15px] focus-visible:border-accent focus-visible:outline-none"
         />
         <p className="mt-1 text-xs text-muted">Students see it on their Today screen and in their message bell.</p>
         <FormMessages error={error} notice={notice} />

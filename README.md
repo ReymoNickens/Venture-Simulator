@@ -79,7 +79,7 @@ src/routes/          pages (landing, login, studio journey)
 src/lib/domain/      types, state machine, stages, finance, flags, market events
 src/lib/server/      authz, mutations, governance, venture work, lecturer, advisor
 src/lib/offline/     IndexedDB, outbox, photo compression, sync
-src/components/      shell, stage, forms, advisor, lecturer, ui (emblems, stamps, kente)
+src/components/      shell, stage, forms, advisor, lecturer, ui (stickers, tags, buttons)
 src/routes/lecturer/ staff room (queue, group detail, course set-up)
 docs/                architecture, coverage, deviations, manual tests
 ```

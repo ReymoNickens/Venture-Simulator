@@ -74,8 +74,8 @@ export function AdvisorPanel({
   }
 
   return (
-    <section className={cn("overflow-hidden rounded-[12px] border-2 border-ink bg-bg-elevated", className)}>
-      <div className="flex items-center justify-between gap-2 border-b-2 border-ink bg-ink px-4 py-2.5 text-bg-elevated">
+    <section className={cn("overflow-hidden rounded-[22px] ring-1 ring-line bg-bg-elevated", className)}>
+      <div className="flex items-center justify-between gap-2 border-b border-line bg-ink px-4 py-3 text-bg-elevated">
         <div>
           <p className="font-display text-base font-bold">The Advisor</p>
           <p className="text-[11px] text-bg-elevated/70">Asks hard questions. Never writes your answers.</p>
@@ -94,7 +94,7 @@ export function AdvisorPanel({
         ) : null}
         {messages.map((m) =>
           m.role === "advisor" ? (
-            <div key={m.id} className="mr-6 rounded-[10px] rounded-tl-[2px] border-2 border-ink bg-gold-soft px-3 py-2.5 text-sm leading-6">
+            <div key={m.id} className="mr-6 rounded-[18px] rounded-tl-[2px] ring-1 ring-line bg-gold-soft px-3 py-2.5 text-sm leading-6">
               {m.metadata?.challengeType ? (
                 <Stamp tone="clay" size="xs" tilt={-2} className="mb-1.5">
                   {m.metadata.challengeType}
@@ -108,7 +108,7 @@ export function AdvisorPanel({
               ) : null}
             </div>
           ) : (
-            <div key={m.id} className="ml-8 rounded-[10px] rounded-tr-[2px] bg-bg-subtle px-3 py-2.5 text-sm leading-6">
+            <div key={m.id} className="ml-8 rounded-[18px] rounded-tr-[2px] bg-bg-subtle px-3 py-2.5 text-sm leading-6">
               {m.studentId && m.studentId !== data.student?.id ? (
                 <p className="mb-0.5 text-[11px] font-semibold text-muted">
                   {data.members.find((x) => x.studentId === m.studentId)?.fullName ?? "Teammate"}
@@ -122,9 +122,9 @@ export function AdvisorPanel({
         <div ref={endRef} />
       </div>
 
-      <div className="border-t-2 border-ink/10 px-3 pb-3 sm:px-4">
+      <div className="border-t border-line px-3 pb-3 sm:px-4">
         {offline ? (
-          <p className="mt-3 flex items-start gap-2 rounded-[8px] bg-warn-soft px-3 py-2 text-sm text-warn">
+          <p className="mt-3 flex items-start gap-2 rounded-[14px] bg-warn-soft px-3 py-2 text-sm text-warn">
             <WifiOff className="mt-0.5 size-4 shrink-0" aria-hidden /> {OFFLINE_AI}
           </p>
         ) : (
