@@ -1,4 +1,5 @@
 export const DEFAULT_GROUP_SIZE = 10;
+export const ADVISOR_MAX_CHARS = 1500;
 export const DEFAULT_MAX_PHOTO_BYTES = 800_000;
 export const DEFAULT_MAX_PHOTO_EDGE = 1280;
 export const JPEG_QUALITY = 0.72;
@@ -7,10 +8,10 @@ export const ASSUMPTION_LANGUAGE =
   /\b(everyone|everybody|all students|most students|will (buy|pay|use)|obviously|always|never)\b/i;
 
 export const SOURCE_TYPES = [
+  { value: "observation", label: "Observation" },
   { value: "interview", label: "Interview" },
   { value: "survey", label: "Survey" },
-  { value: "observation", label: "Observation" },
-  { value: "quotation", label: "Quotation" },
+  { value: "quotation", label: "Quote (words or prices)" },
   { value: "photo", label: "Photograph" },
   { value: "other", label: "Other" },
 ] as const;

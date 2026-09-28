@@ -8,7 +8,7 @@ import type { CourseOffering } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/badge";
-import { APP_NAME } from "@/lib/brand";
+import { LogoMark } from "@/components/ui/sticker";
 
 export const Route = createFileRoute("/onboarding")({ component: Onboarding });
 
@@ -26,11 +26,14 @@ function Onboarding() {
   // editable afterward — see upsertProfile.
   const [identityLocked, setIdentityLocked] = useState(false);
 
+  // Keyed on the id, not the user object: useCurrentUserState builds a new
+  // object every render, and depending on it re-fetched offerings in a loop.
+  const userId = user?.id ?? null;
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     void listOfferings().then((rows) => {
       setOfferings(rows);
-      if (rows[0]) setOfferingId(rows[0].id);
+      setOfferingId((current) => current || rows[0]?.id || "");
     });
     void getWorkspace().then(({ student }) => {
       if (!student) return;
@@ -39,7 +42,7 @@ function Onboarding() {
       setProgramme(student.programme);
       setIdentityLocked(true);
     });
-  }, [user]);
+  }, [userId]);
 
   if (isPending) {
     return <div className="min-h-dvh bg-bg" />;
@@ -63,12 +66,12 @@ function Onboarding() {
   }
 
   return (
-    <main className="min-h-dvh bg-bg pl-3 text-ink">
+    <main className="min-h-dvh text-ink">
       <div className="mx-auto max-w-md px-5 py-10">
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">{APP_NAME}</p>
-        <h1 className="mt-2 font-display text-3xl">Your academic identity</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          This is separate from how you signed in. Index numbers are not passwords, and they must be unique.
+        <LogoMark className="size-12" />
+        <h1 className="mt-5 font-display text-4xl font-extrabold">Akwaaba 👋</h1>
+        <p className="mt-2 text-[15px] leading-6 text-ink-soft">
+          Three details so your lecturer knows it’s you. Your index number is not a password.
         </p>
         <Card className="mt-6">
           <form className="space-y-4" onSubmit={(e) => void submit(e)}>
@@ -82,17 +85,13 @@ function Onboarding() {
             </Field>
             <Field
               label="Index number"
-              hint={
-                identityLocked
-                  ? "Set by your instructor's roster — not editable."
-                  : "Used as your academic identity, not as a login."
-              }
+              hint={identityLocked ? "Set by your instructor's roster — not editable." : undefined}
             >
               <Input
                 required
                 value={indexNumber}
                 onChange={(e) => setIndexNumber(e.target.value)}
-                placeholder="e.g. 10987654"
+                placeholder="e.g. PS/ITC/22/0001"
                 disabled={identityLocked}
               />
             </Field>
@@ -104,7 +103,8 @@ function Onboarding() {
                 placeholder="e.g. Business Administration"
               />
             </Field>
-            <Field label="Course offering">
+            <div className={offerings.length > 1 ? "" : "hidden"}>
+            <Field label="Course">
               <select
                 required
                 className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
@@ -118,9 +118,10 @@ function Onboarding() {
                 ))}
               </select>
             </Field>
+            </div>
             {error ? <p className="text-sm text-bad">{error}</p> : null}
             <Button type="submit" className="w-full" disabled={saving}>
-              {saving ? "Saving…" : "Continue"}
+              {saving ? "Saving…" : "Enter the studio"}
             </Button>
           </form>
         </Card>

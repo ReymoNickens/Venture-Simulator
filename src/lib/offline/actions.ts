@@ -3,6 +3,7 @@ import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
 import { enqueue, processOutbox } from "./sync";
 import { isEffectivelyOnline } from "./status";
 import { newId } from "@/lib/utils";
+import { OFFLINE_CALLS, type OfflineCallName } from "./calls";
 
 async function tryOnline<T>(fn: () => Promise<T>, fallback: () => Promise<T>): Promise<T> {
   if (!(await isEffectivelyOnline())) return fallback();
@@ -78,6 +79,28 @@ export async function saveLink(input: {
     async () => {
       await enqueue("link_assumption_evidence", { ...input, clientId });
       return { id: clientId, queued: true as const };
+    },
+  );
+}
+
+/**
+ * Call a server function now, or — with no connection — queue it and report
+ * `queued: true` so the screen can say "Saved on this phone".
+ */
+export async function saveOffline<N extends OfflineCallName>(
+  fn: N,
+  data: Parameters<(typeof OFFLINE_CALLS)[N]>[0] extends { data: infer D } ? D : never,
+): Promise<{ queued: boolean }> {
+  const payload = { ...(data as object), clientId: (data as { clientId?: string }).clientId ?? newId() };
+  const call = OFFLINE_CALLS[fn] as unknown as (arg: { data: unknown }) => Promise<unknown>;
+  return tryOnline<{ queued: boolean }>(
+    async () => {
+      await call({ data: payload });
+      return { queued: false };
+    },
+    async () => {
+      await enqueue("call", { fn, data: payload });
+      return { queued: true };
     },
   );
 }

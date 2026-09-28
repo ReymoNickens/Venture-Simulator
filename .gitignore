@@ -24,10 +24,6 @@ dist/
 .vscode/
 *.swp
 
-# App Builder internals (not part of the product)
-.grok/
-AGENTS.md
-AGENTS.project.md
 .node_modules.lock
 
 # local QA artifacts

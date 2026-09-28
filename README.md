@@ -1,6 +1,6 @@
 # Experiential Venture Platform
 
-Slice 1 of a progressive web app for university entrepreneurship education.
+A progressive web app for university entrepreneurship education in Ghana: students practise the whole venture process — from spotting a problem to pitching — with evidence, not just a written plan.
 
 **GitHub:** [ReymoNickens/Venture-Simulator](https://github.com/ReymoNickens/Venture-Simulator)
 
@@ -10,52 +10,77 @@ Working name: **Experiential Venture Platform** (override with `VITE_APP_NAME`).
 
 Students independently investigate a real problem, keep that work private until the group is ready, record individual judgement before a group decision, and build an evidence record the AI advisor is allowed to challenge — not to complete.
 
-## Journey (this slice)
+## The route (student side)
 
-1. Sign in with your student email address or index number (pre-provisioned roster; see [Sign-in](#sign-in))
-2. Academic profile (name, index number, programme) — separate from login
-3. Create or join a group (join code, configurable capacity)
-4. Write and submit an individual opportunity (private until selection)
-5. Record a personal preference, then a group selection rationale
-6. Talk to a challenging AI advisor
-7. Log evidence (with classification and optional photo)
-8. Log assumptions and link evidence (supports / challenges)
-9. Keep working offline; sync when the network returns
+Eleven stops, each with a field mission, a “done” checklist computed from the record, optional milestone, lecturer feedback and a private reflection:
 
-Not in this slice: feasibility, finance, prototypes, lecturer dashboard, contribution scoring, business-plan generation.
+1. **Team up** — create or join a group (join code, WhatsApp share, leave with a reason)
+2. **Spot a problem** — individual opportunity, sealed until everyone has submitted
+3. **Choose together** — compare, record your own preference first (peers’ preferences stay hidden until you do), propose, majority ratifies
+4. **What must be true?** — assumption ledger with a risk grid; mark assumptions held up / broke
+5. **Go and listen** — interview guide and consent script; offline interview log that becomes evidence
+6. **Model the business** — canvas; every note is stamped GUESS until linked to evidence
+7. **Can it work?** — four feasibility lenses, each verdict citing evidence
+8. **Run the numbers** — unit economics, break-even, payback, cedi/price stress tests, sourced-cost check
+9. **Build & test** — cheap prototypes and offline user tests
+10. **Persevere, pivot or stop** — look-back summary, majority decision, confidential peer ratings
+11. **Pitch day** — business plan assembled from the record (printable) and a pitch-slide mode
 
-See [docs/CONCEPT-COVERAGE.md](docs/CONCEPT-COVERAGE.md) for what the full concept required that a shorter prompt had dropped, and [docs/DEVIATIONS.md](docs/DEVIATIONS.md) for stack differences.
+Also: **Today** (next move, what changed, a sealed glimpse of the next stop, team activity), **Notebook** (all evidence), **Messages** (group thread with lecturers, private option), **Advisor** (challenging AI with daily caps). Everything but the advisor and messages works offline.
 
-## Demonstration cohort
+Every long form is a one-question-per-screen flow with autosave. Finishing a stop is stamped and reveals the next one. Places, examples, demo classmates and market shocks are set in Cape Coast and around UCC. The reasoning behind every screen is in [docs/UX-AUDIT.md](docs/UX-AUDIT.md).
 
-After creating a student profile, open **Enter demonstration cohort**. Nine peers submit grounded campus/hostel/market opportunities. Their work stays hidden until you submit yours, then selection opens.
+## The staff room (lecturer side, `/lecturer`)
 
-Use **Simulate offline** in the top bar to test local save and replay.
+Built for one lecturer to ~400 students — it works by exception:
+
+- **Attention queue** — groups ranked by readable rules (stalled, blocked on named members, silent members, untested critical assumptions, opinion-heavy evidence, advisor use without fieldwork, missed milestones, unanswered shocks) and a stage funnel.
+- **What's happening** — the cohort's activity as sentences, beside the queue.
+- **Messages** — message any group (or one student privately) from the queue in one tap, or every group in the current view at once; replies surface as a filter.
+- **Group drill-down** — the conversation, contribution per member, confidential peer averages, private reflections, the full record; mark a member inactive (unblocks the group), feedback with rubric levels and reusable comments, take ownership of a group.
+- **Course set-up** — milestones, announcements, Ghana-grounded market shocks, CSV gradebook.
+
+Lecturers create their account with `STAFF_ACCESS_CODE` (local database: `DEMO-STAFF`); see [Sign-in](#sign-in).
+
+## Demonstration group
+
+After creating a student profile, open **Enter demonstration group**. Nine peers submit grounded campus/hostel/market opportunities, hidden until you submit yours. Demo peers auto-endorse group proposals (labelled) so one person can walk the whole route.
+
+Use **Rehearse offline** (tap the connection pill) to test local save and replay.
 
 ## Stack
 
 - TanStack Start + Vite + Tailwind
-- Postgres (Neon when deployed, PGLite in preview)
+- Postgres (Neon when deployed, embedded PGLite locally)
 - Better Auth
 - Claude (`claude-opus-5`) for the advisor, server-side only
 
-The original concept named Next.js, Supabase, and Claude. Pedagogy follows the concept; runtime follows this host.
+The original concept named Next.js, Supabase, and Claude. Pedagogy follows the concept; the runtime differences are explained in [docs/DEVIATIONS.md](docs/DEVIATIONS.md).
 
 ## Sign-in
 
-There is no open self-registration. An instructor pre-loads the student
-roster (email + index number + name + programme) with:
+There is no open self-registration. Everyone signs in at `/login` with a password.
+
+**Students** come from a roster. A lecturer or administrator pre-loads it
+(email + index number + name + programme) with:
 
 ```
 node scripts/roster-import.mjs roster.csv [courseOfferingId]
 ```
 
-(CSV columns: `email,index_number,full_name,programme`.) A student then
-**activates** their own account at `/login` by entering the email and index
-number their instructor has on file plus a password of their choosing — this
-only succeeds against an unclaimed roster row. From then on they sign in with
-EITHER identifier (their email or their index number) plus that password.
+(CSV columns: `email,index_number,full_name,programme`.) On their first visit a
+student taps **Activate your account** and enters the email and index number
+on file plus a password of their choosing; this only succeeds against an
+unclaimed roster row, and their name comes from the roster. From then on they
+sign in with EITHER their email or their index number, plus that password.
 Index number doubles as Better Auth's `username`, matched case-insensitively.
+
+**Lecturers** tap **Lecturer without an account?** and create one with their
+email, name, a password and the staff access code (`STAFF_ACCESS_CODE`, issued
+by the course administrator; `DEMO-STAFF` on the local database). On their
+first visit to the staff room they pick the course they teach. From then on
+they sign in with their email and password and land in the staff room. With
+no `STAFF_ACCESS_CODE` set, lecturer sign-up is closed.
 
 ## Environment
 
@@ -67,18 +92,35 @@ Do not put secrets in the client. Deployed apps receive:
 | `ANTHROPIC_API_KEY` | server | Advisor (never `VITE_`-prefixed) |
 | `BETTER_AUTH_URL` | server | This app's public URL |
 | `BETTER_AUTH_SECRET` | server | Session signing secret |
-| `VITE_APP_NAME` | client | Optional display name |
+| `STAFF_ACCESS_CODE` | server | Code lecturers enter to create their account |
+| `VITE_APP_NAME` | client + server | Optional display name, also the installed app's name |
+| `VITE_APP_SHORT_NAME` | client + server | Optional home-screen label (≤12 characters; default "Venture") |
 
-Copy [`.env.example`](.env.example) when running outside this host. Never commit a real `.env`.
+Copy [`.env.example`](.env.example) for the list. Never commit a real `.env`.
+
+## Running locally
+
+```
+npm install
+npm run dev        # http://localhost:8080
+npm run preview    # after `npm run build`: the production build on :8081
+```
+
+With no `DATABASE_URL`, the app uses an in-memory PGLite database that resets
+when the server restarts. It comes with five demo roster students: activate
+`ama@demo.ucc.edu.gh` with index number `DEMO/0001` (through `DEMO/0005`), or
+create a lecturer account with the code `DEMO-STAFF`. The login page shows
+these hints on the local database only.
 
 ## Repo map
 
 ```
 migrations/          schema, RLS, catalogue seed
 src/routes/          pages (landing, login, studio journey)
-src/lib/domain/      types, state machine, pedagogical copy
-src/lib/server/      authz, mutations, advisor, demo bootstrap
+src/lib/domain/      types, state machine, stages, finance, flags, market events
+src/lib/server/      authz, mutations, governance, venture work, lecturer, advisor
 src/lib/offline/     IndexedDB, outbox, photo compression, sync
-src/components/      shell, forms, advisor
+src/components/      shell, stage, forms, advisor, lecturer, ui (stickers, tags, buttons)
+src/routes/lecturer/ staff room (queue, group detail, course set-up)
 docs/                architecture, coverage, deviations, manual tests
 ```

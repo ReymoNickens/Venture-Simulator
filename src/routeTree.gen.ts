@@ -10,19 +10,41 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LecturerRouteImport } from './routes/lecturer'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as LecturerIndexRouteImport } from './routes/lecturer/index'
+import { Route as LecturerActivityRouteImport } from './routes/lecturer/activity'
+import { Route as LecturerCourseRouteImport } from './routes/lecturer/course'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
+import { Route as StudioAdvisorRouteImport } from './routes/studio/advisor'
+import { Route as StudioCanvasRouteImport } from './routes/studio/canvas'
+import { Route as StudioDecideRouteImport } from './routes/studio/decide'
+import { Route as StudioFeasibilityRouteImport } from './routes/studio/feasibility'
 import { Route as StudioGroupRouteImport } from './routes/studio/group'
+import { Route as StudioListenRouteImport } from './routes/studio/listen'
+import { Route as StudioMapRouteImport } from './routes/studio/map'
+import { Route as StudioMessagesRouteImport } from './routes/studio/messages'
+import { Route as StudioNotebookRouteImport } from './routes/studio/notebook'
+import { Route as StudioNumbersRouteImport } from './routes/studio/numbers'
 import { Route as StudioOpportunityRouteImport } from './routes/studio/opportunity'
+import { Route as StudioPitchRouteImport } from './routes/studio/pitch'
+import { Route as StudioPrototypeRouteImport } from './routes/studio/prototype'
+import { Route as StudioRecapRouteImport } from './routes/studio/recap'
 import { Route as StudioSelectRouteImport } from './routes/studio/select'
 import { Route as StudioVentureRouteImport } from './routes/studio/venture'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as LecturerGroupsGroupIdRouteImport } from './routes/lecturer/groups/$groupId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LecturerRoute = LecturerRouteImport.update({
+  id: '/lecturer',
+  path: '/lecturer',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -40,9 +62,44 @@ const StudioRoute = StudioRouteImport.update({
   path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LecturerIndexRoute = LecturerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LecturerRoute,
+} as any)
+const LecturerActivityRoute = LecturerActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => LecturerRoute,
+} as any)
+const LecturerCourseRoute = LecturerCourseRouteImport.update({
+  id: '/course',
+  path: '/course',
+  getParentRoute: () => LecturerRoute,
+} as any)
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioAdvisorRoute = StudioAdvisorRouteImport.update({
+  id: '/advisor',
+  path: '/advisor',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioCanvasRoute = StudioCanvasRouteImport.update({
+  id: '/canvas',
+  path: '/canvas',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioDecideRoute = StudioDecideRouteImport.update({
+  id: '/decide',
+  path: '/decide',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioFeasibilityRoute = StudioFeasibilityRouteImport.update({
+  id: '/feasibility',
+  path: '/feasibility',
   getParentRoute: () => StudioRoute,
 } as any)
 const StudioGroupRoute = StudioGroupRouteImport.update({
@@ -50,9 +107,49 @@ const StudioGroupRoute = StudioGroupRouteImport.update({
   path: '/group',
   getParentRoute: () => StudioRoute,
 } as any)
+const StudioListenRoute = StudioListenRouteImport.update({
+  id: '/listen',
+  path: '/listen',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioMapRoute = StudioMapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioMessagesRoute = StudioMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioNotebookRoute = StudioNotebookRouteImport.update({
+  id: '/notebook',
+  path: '/notebook',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioNumbersRoute = StudioNumbersRouteImport.update({
+  id: '/numbers',
+  path: '/numbers',
+  getParentRoute: () => StudioRoute,
+} as any)
 const StudioOpportunityRoute = StudioOpportunityRouteImport.update({
   id: '/opportunity',
   path: '/opportunity',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioPitchRoute = StudioPitchRouteImport.update({
+  id: '/pitch',
+  path: '/pitch',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioPrototypeRoute = StudioPrototypeRouteImport.update({
+  id: '/prototype',
+  path: '/prototype',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioRecapRoute = StudioRecapRouteImport.update({
+  id: '/recap',
+  path: '/recap',
   getParentRoute: () => StudioRoute,
 } as any)
 const StudioSelectRoute = StudioSelectRouteImport.update({
@@ -70,83 +167,189 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LecturerGroupsGroupIdRoute = LecturerGroupsGroupIdRouteImport.update({
+  id: '/groups/$groupId',
+  path: '/groups/$groupId',
+  getParentRoute: () => LecturerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/lecturer': typeof LecturerRouteWithChildren
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/studio': typeof StudioRouteWithChildren
+  '/lecturer/activity': typeof LecturerActivityRoute
+  '/lecturer/course': typeof LecturerCourseRoute
+  '/studio/advisor': typeof StudioAdvisorRoute
+  '/studio/canvas': typeof StudioCanvasRoute
+  '/studio/decide': typeof StudioDecideRoute
+  '/studio/feasibility': typeof StudioFeasibilityRoute
   '/studio/group': typeof StudioGroupRoute
+  '/studio/listen': typeof StudioListenRoute
+  '/studio/map': typeof StudioMapRoute
+  '/studio/messages': typeof StudioMessagesRoute
+  '/studio/notebook': typeof StudioNotebookRoute
+  '/studio/numbers': typeof StudioNumbersRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
+  '/studio/pitch': typeof StudioPitchRoute
+  '/studio/prototype': typeof StudioPrototypeRoute
+  '/studio/recap': typeof StudioRecapRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
+  '/lecturer/': typeof LecturerIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/lecturer/groups/$groupId': typeof LecturerGroupsGroupIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/lecturer/activity': typeof LecturerActivityRoute
+  '/lecturer/course': typeof LecturerCourseRoute
+  '/studio/advisor': typeof StudioAdvisorRoute
+  '/studio/canvas': typeof StudioCanvasRoute
+  '/studio/decide': typeof StudioDecideRoute
+  '/studio/feasibility': typeof StudioFeasibilityRoute
   '/studio/group': typeof StudioGroupRoute
+  '/studio/listen': typeof StudioListenRoute
+  '/studio/map': typeof StudioMapRoute
+  '/studio/messages': typeof StudioMessagesRoute
+  '/studio/notebook': typeof StudioNotebookRoute
+  '/studio/numbers': typeof StudioNumbersRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
+  '/studio/pitch': typeof StudioPitchRoute
+  '/studio/prototype': typeof StudioPrototypeRoute
+  '/studio/recap': typeof StudioRecapRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
+  '/lecturer': typeof LecturerIndexRoute
   '/studio': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/lecturer/groups/$groupId': typeof LecturerGroupsGroupIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/lecturer': typeof LecturerRouteWithChildren
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/studio': typeof StudioRouteWithChildren
+  '/lecturer/activity': typeof LecturerActivityRoute
+  '/lecturer/course': typeof LecturerCourseRoute
+  '/studio/advisor': typeof StudioAdvisorRoute
+  '/studio/canvas': typeof StudioCanvasRoute
+  '/studio/decide': typeof StudioDecideRoute
+  '/studio/feasibility': typeof StudioFeasibilityRoute
   '/studio/group': typeof StudioGroupRoute
+  '/studio/listen': typeof StudioListenRoute
+  '/studio/map': typeof StudioMapRoute
+  '/studio/messages': typeof StudioMessagesRoute
+  '/studio/notebook': typeof StudioNotebookRoute
+  '/studio/numbers': typeof StudioNumbersRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
+  '/studio/pitch': typeof StudioPitchRoute
+  '/studio/prototype': typeof StudioPrototypeRoute
+  '/studio/recap': typeof StudioRecapRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/venture': typeof StudioVentureRoute
+  '/lecturer/': typeof LecturerIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/lecturer/groups/$groupId': typeof LecturerGroupsGroupIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/lecturer'
     | '/login'
     | '/onboarding'
     | '/studio'
+    | '/lecturer/activity'
+    | '/lecturer/course'
+    | '/studio/advisor'
+    | '/studio/canvas'
+    | '/studio/decide'
+    | '/studio/feasibility'
     | '/studio/group'
+    | '/studio/listen'
+    | '/studio/map'
+    | '/studio/messages'
+    | '/studio/notebook'
+    | '/studio/numbers'
     | '/studio/opportunity'
+    | '/studio/pitch'
+    | '/studio/prototype'
+    | '/studio/recap'
     | '/studio/select'
     | '/studio/venture'
+    | '/lecturer/'
     | '/studio/'
     | '/api/auth/$'
+    | '/lecturer/groups/$groupId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/onboarding'
+    | '/lecturer/activity'
+    | '/lecturer/course'
+    | '/studio/advisor'
+    | '/studio/canvas'
+    | '/studio/decide'
+    | '/studio/feasibility'
     | '/studio/group'
+    | '/studio/listen'
+    | '/studio/map'
+    | '/studio/messages'
+    | '/studio/notebook'
+    | '/studio/numbers'
     | '/studio/opportunity'
+    | '/studio/pitch'
+    | '/studio/prototype'
+    | '/studio/recap'
     | '/studio/select'
     | '/studio/venture'
+    | '/lecturer'
     | '/studio'
     | '/api/auth/$'
+    | '/lecturer/groups/$groupId'
   id:
     | '__root__'
     | '/'
+    | '/lecturer'
     | '/login'
     | '/onboarding'
     | '/studio'
+    | '/lecturer/activity'
+    | '/lecturer/course'
+    | '/studio/advisor'
+    | '/studio/canvas'
+    | '/studio/decide'
+    | '/studio/feasibility'
     | '/studio/group'
+    | '/studio/listen'
+    | '/studio/map'
+    | '/studio/messages'
+    | '/studio/notebook'
+    | '/studio/numbers'
     | '/studio/opportunity'
+    | '/studio/pitch'
+    | '/studio/prototype'
+    | '/studio/recap'
     | '/studio/select'
     | '/studio/venture'
+    | '/lecturer/'
     | '/studio/'
     | '/api/auth/$'
+    | '/lecturer/groups/$groupId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LecturerRoute: typeof LecturerRouteWithChildren
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   StudioRoute: typeof StudioRouteWithChildren
@@ -160,6 +363,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lecturer': {
+      id: '/lecturer'
+      path: '/lecturer'
+      fullPath: '/lecturer'
+      preLoaderRoute: typeof LecturerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -183,11 +393,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lecturer/': {
+      id: '/lecturer/'
+      path: '/'
+      fullPath: '/lecturer/'
+      preLoaderRoute: typeof LecturerIndexRouteImport
+      parentRoute: typeof LecturerRoute
+    }
+    '/lecturer/activity': {
+      id: '/lecturer/activity'
+      path: '/activity'
+      fullPath: '/lecturer/activity'
+      preLoaderRoute: typeof LecturerActivityRouteImport
+      parentRoute: typeof LecturerRoute
+    }
+    '/lecturer/course': {
+      id: '/lecturer/course'
+      path: '/course'
+      fullPath: '/lecturer/course'
+      preLoaderRoute: typeof LecturerCourseRouteImport
+      parentRoute: typeof LecturerRoute
+    }
     '/studio/': {
       id: '/studio/'
       path: '/'
       fullPath: '/studio/'
       preLoaderRoute: typeof StudioIndexRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/advisor': {
+      id: '/studio/advisor'
+      path: '/advisor'
+      fullPath: '/studio/advisor'
+      preLoaderRoute: typeof StudioAdvisorRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/canvas': {
+      id: '/studio/canvas'
+      path: '/canvas'
+      fullPath: '/studio/canvas'
+      preLoaderRoute: typeof StudioCanvasRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/decide': {
+      id: '/studio/decide'
+      path: '/decide'
+      fullPath: '/studio/decide'
+      preLoaderRoute: typeof StudioDecideRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/feasibility': {
+      id: '/studio/feasibility'
+      path: '/feasibility'
+      fullPath: '/studio/feasibility'
+      preLoaderRoute: typeof StudioFeasibilityRouteImport
       parentRoute: typeof StudioRoute
     }
     '/studio/group': {
@@ -197,11 +456,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioGroupRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/studio/listen': {
+      id: '/studio/listen'
+      path: '/listen'
+      fullPath: '/studio/listen'
+      preLoaderRoute: typeof StudioListenRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/map': {
+      id: '/studio/map'
+      path: '/map'
+      fullPath: '/studio/map'
+      preLoaderRoute: typeof StudioMapRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/messages': {
+      id: '/studio/messages'
+      path: '/messages'
+      fullPath: '/studio/messages'
+      preLoaderRoute: typeof StudioMessagesRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/notebook': {
+      id: '/studio/notebook'
+      path: '/notebook'
+      fullPath: '/studio/notebook'
+      preLoaderRoute: typeof StudioNotebookRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/numbers': {
+      id: '/studio/numbers'
+      path: '/numbers'
+      fullPath: '/studio/numbers'
+      preLoaderRoute: typeof StudioNumbersRouteImport
+      parentRoute: typeof StudioRoute
+    }
     '/studio/opportunity': {
       id: '/studio/opportunity'
       path: '/opportunity'
       fullPath: '/studio/opportunity'
       preLoaderRoute: typeof StudioOpportunityRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/pitch': {
+      id: '/studio/pitch'
+      path: '/pitch'
+      fullPath: '/studio/pitch'
+      preLoaderRoute: typeof StudioPitchRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/prototype': {
+      id: '/studio/prototype'
+      path: '/prototype'
+      fullPath: '/studio/prototype'
+      preLoaderRoute: typeof StudioPrototypeRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/recap': {
+      id: '/studio/recap'
+      path: '/recap'
+      fullPath: '/studio/recap'
+      preLoaderRoute: typeof StudioRecapRouteImport
       parentRoute: typeof StudioRoute
     }
     '/studio/select': {
@@ -225,20 +540,69 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lecturer/groups/$groupId': {
+      id: '/lecturer/groups/$groupId'
+      path: '/groups/$groupId'
+      fullPath: '/lecturer/groups/$groupId'
+      preLoaderRoute: typeof LecturerGroupsGroupIdRouteImport
+      parentRoute: typeof LecturerRoute
+    }
   }
 }
 
+interface LecturerRouteChildren {
+  LecturerActivityRoute: typeof LecturerActivityRoute
+  LecturerCourseRoute: typeof LecturerCourseRoute
+  LecturerIndexRoute: typeof LecturerIndexRoute
+  LecturerGroupsGroupIdRoute: typeof LecturerGroupsGroupIdRoute
+}
+
+const LecturerRouteChildren: LecturerRouteChildren = {
+  LecturerActivityRoute: LecturerActivityRoute,
+  LecturerCourseRoute: LecturerCourseRoute,
+  LecturerIndexRoute: LecturerIndexRoute,
+  LecturerGroupsGroupIdRoute: LecturerGroupsGroupIdRoute,
+}
+
+const LecturerRouteWithChildren = LecturerRoute._addFileChildren(
+  LecturerRouteChildren,
+)
+
 interface StudioRouteChildren {
+  StudioAdvisorRoute: typeof StudioAdvisorRoute
+  StudioCanvasRoute: typeof StudioCanvasRoute
+  StudioDecideRoute: typeof StudioDecideRoute
+  StudioFeasibilityRoute: typeof StudioFeasibilityRoute
   StudioGroupRoute: typeof StudioGroupRoute
+  StudioListenRoute: typeof StudioListenRoute
+  StudioMapRoute: typeof StudioMapRoute
+  StudioMessagesRoute: typeof StudioMessagesRoute
+  StudioNotebookRoute: typeof StudioNotebookRoute
+  StudioNumbersRoute: typeof StudioNumbersRoute
   StudioOpportunityRoute: typeof StudioOpportunityRoute
+  StudioPitchRoute: typeof StudioPitchRoute
+  StudioPrototypeRoute: typeof StudioPrototypeRoute
+  StudioRecapRoute: typeof StudioRecapRoute
   StudioSelectRoute: typeof StudioSelectRoute
   StudioVentureRoute: typeof StudioVentureRoute
   StudioIndexRoute: typeof StudioIndexRoute
 }
 
 const StudioRouteChildren: StudioRouteChildren = {
+  StudioAdvisorRoute: StudioAdvisorRoute,
+  StudioCanvasRoute: StudioCanvasRoute,
+  StudioDecideRoute: StudioDecideRoute,
+  StudioFeasibilityRoute: StudioFeasibilityRoute,
   StudioGroupRoute: StudioGroupRoute,
+  StudioListenRoute: StudioListenRoute,
+  StudioMapRoute: StudioMapRoute,
+  StudioMessagesRoute: StudioMessagesRoute,
+  StudioNotebookRoute: StudioNotebookRoute,
+  StudioNumbersRoute: StudioNumbersRoute,
   StudioOpportunityRoute: StudioOpportunityRoute,
+  StudioPitchRoute: StudioPitchRoute,
+  StudioPrototypeRoute: StudioPrototypeRoute,
+  StudioRecapRoute: StudioRecapRoute,
   StudioSelectRoute: StudioSelectRoute,
   StudioVentureRoute: StudioVentureRoute,
   StudioIndexRoute: StudioIndexRoute,
@@ -249,6 +613,7 @@ const StudioRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LecturerRoute: LecturerRouteWithChildren,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   StudioRoute: StudioRouteWithChildren,

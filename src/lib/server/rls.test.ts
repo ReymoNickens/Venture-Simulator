@@ -212,3 +212,155 @@ describe("RLS actually enforces group isolation (not just executable SQL)", () =
     }
   });
 });
+
+describe("RLS for sync conflicts (offline edits that arrive after ideas open)", () => {
+  const insert = (id: string, studentId: string) =>
+    `insert into sync_conflicts (id, student_id, entity_type, entity_id, local_snapshot, server_snapshot)
+     values ('${id}', '${studentId}', 'opportunity', 'opp-a', '{}', '{}')`;
+
+  it("lets a student record their own conflict and read it back", async () => {
+    const pg = await freshSeededDb();
+    try {
+      const rows = await asUser(pg, "auth-a", async (tx) => {
+        await tx.query(insert("conf-a", "student-a"));
+        return (await tx.query(`select id from sync_conflicts`)).rows;
+      });
+      assert.deepEqual(rows, [{ id: "conf-a" }]);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("denies recording a conflict as another student, or reading theirs", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await assert.rejects(() => asUser(pg, "auth-a", (tx) => tx.query(insert("conf-x", "student-b"))));
+      await asUser(pg, "auth-b", (tx) => tx.query(insert("conf-b", "student-b")));
+      const seen = await asUser(pg, "auth-a", async (tx) => (await tx.query(`select id from sync_conflicts`)).rows);
+      assert.deepEqual(seen, []);
+    } finally {
+      await pg.close();
+    }
+  });
+});
+
+/** Group A gets a second member and a venture; group B a venture of its own. */
+async function withVentures(pg: PGlite): Promise<void> {
+  await pg.query(
+    `insert into students (id, auth_user_id, full_name, index_number, programme) values ('student-a2','auth-a2','Student A2','IDX-a2','Test')`,
+  );
+  await pg.query(
+    `insert into group_members (id, group_id, student_id, membership_status) values ('member-a2','group-a','student-a2','active')`,
+  );
+  for (const g of ["a", "b"]) {
+    await pg.query(
+      `insert into ventures (id, group_id, opportunity_id, name, selection_rationale) values ($1,$2,$3,'V','because')`,
+      [`venture-${g}`, `group-${g}`, `opp-${g}`],
+    );
+  }
+  await pg.query(
+    `insert into interviews (id, venture_id, student_id, interviewee_profile, key_quotes) values ('int-b','venture-b','student-b','Trader','quote')`,
+  );
+  await pg.query(
+    `insert into reflections (id, student_id, group_id, stage, body) values ('ref-a','student-a','group-a','decide','private thoughts')`,
+  );
+  await pg.query(
+    `insert into peer_ratings (id, group_id, rater_student_id, ratee_student_id, score) values ('pr-a','group-a','student-a','student-a2',2)`,
+  );
+}
+
+describe("RLS for the later venture stages", () => {
+  it("denies reading another group's interviews", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      const rows = await asUser(pg, "auth-a", (tx) => tx.query("select id from interviews"));
+      assert.equal(rows.rows.length, 0);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("keeps a reflection private from the author's own teammates", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      const teammate = await asUser(pg, "auth-a2", (tx) => tx.query("select id from reflections"));
+      assert.equal(teammate.rows.length, 0);
+      const author = await asUser(pg, "auth-a", (tx) => tx.query("select id from reflections"));
+      assert.equal(author.rows.length, 1);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("hides a peer rating from the teammate being rated", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      const ratee = await asUser(pg, "auth-a2", (tx) => tx.query("select id from peer_ratings"));
+      assert.equal(ratee.rows.length, 0);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("denies writing an interview into another group's venture", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      await assert.rejects(() =>
+        asUser(pg, "auth-a", (tx) =>
+          tx.query(
+            `insert into interviews (id, venture_id, student_id, interviewee_profile, key_quotes) values ('int-x','venture-b','student-a','x','y')`,
+          ),
+        ),
+      );
+    } finally {
+      await pg.close();
+    }
+  });
+});
+
+describe("RLS for messages", () => {
+  it("keeps a private staff-to-student message from the rest of the group", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      await pg.query(`insert into staff (id, auth_user_id, full_name) values ('staff-1','auth-staff','Dr. X')`);
+      await pg.query(
+        `insert into messages (id, group_id, author_staff_id, recipient_student_id, body) values ('m-priv','group-a','staff-1','student-a','private note')`,
+      );
+      await pg.query(`insert into messages (id, group_id, author_staff_id, body) values ('m-all','group-a','staff-1','to everyone')`);
+      const teammate = await asUser(pg, "auth-a2", (tx) => tx.query<{ id: string }>("select id from messages order by id"));
+      assert.deepEqual(teammate.rows.map((r) => r.id), ["m-all"]);
+      const recipient = await asUser(pg, "auth-a", (tx) => tx.query<{ id: string }>("select id from messages order by id"));
+      assert.deepEqual(recipient.rows.map((r) => r.id), ["m-all", "m-priv"]);
+      const otherGroup = await asUser(pg, "auth-b", (tx) => tx.query("select id from messages"));
+      assert.equal(otherGroup.rows.length, 0);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("stops a student from posting as staff or into another group", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await withVentures(pg);
+      await assert.rejects(() =>
+        asUser(pg, "auth-a", (tx) =>
+          tx.query(`insert into messages (id, group_id, author_student_id, body) values ('x','group-b','student-a','hi')`),
+        ),
+      );
+      await assert.rejects(() =>
+        asUser(pg, "auth-a", (tx) =>
+          tx.query(
+            `insert into messages (id, group_id, author_student_id, recipient_student_id, body) values ('y','group-a','student-a','student-a2','psst')`,
+          ),
+        ),
+      );
+    } finally {
+      await pg.close();
+    }
+  });
+});

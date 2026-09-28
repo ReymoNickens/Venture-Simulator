@@ -3,7 +3,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
-import type { AdvisorMetadata, AdvisorStage } from "@/lib/domain/types";
+import type { AdvisorMetadata, AdvisorStage, GroupStatus } from "@/lib/domain/types";
+import { canViewPeerOpportunities } from "@/lib/domain/state-machine";
+import { ADVISOR_MAX_CHARS } from "@/lib/domain/config";
 import { AppError, loadGroupForStudent, logEvent, requireStudent } from "./authz";
 
 const SYSTEM = `You are the AI advisor inside an experiential venture studio for university students in Ghana.
@@ -19,6 +21,9 @@ Rules:
 6. Distinguish assumptions from evidence. If a sentence reads like "everyone wants this", press on it.
 7. When a group is selecting, ask about the alternatives they are rejecting and why.
 8. When evidence is logged, challenge mis-classification. Do not silently rewrite the student's claim.
+   Canvas blocks marked (NO EVIDENCE) are guesses — say so when relevant.
+   Interviews: if they asked "would you buy it?", explain why that answer is weak and ask about past behaviour and actual spending instead.
+   Numbers: question prices and costs that were not collected from the real market.
 9. Keep replies short: 2–4 sentences. This is a conversation, not an essay.
 10. Stay respectful. A challenge should feel like a serious question, not a rejection.
 11. Suggest a next investigation the students could actually do on campus, in a hostel, or in a nearby market — as a question, not a task list.
@@ -64,15 +69,21 @@ function parseAdvisor(raw: string): { message: string; metadata: AdvisorMetadata
   return { message: trimmed, metadata: {} };
 }
 
-async function assembleContext(groupId: string, stage: AdvisorStage): Promise<string> {
+async function assembleContext(
+  groupId: string,
+  studentId: string,
+  stage: AdvisorStage,
+): Promise<string> {
   const sql = await getSql();
   const group = await sql<{ status: string; group_name: string }>`
     select status, group_name from groups where id = ${groupId} limit 1
   `;
-  // The advisor's own curated context brief (never returned verbatim to the
-  // client) legitimately reasons about every submitted opportunity in the
-  // group — including peers' — even during opportunity_collection, before
-  // opportunities_select's privacy gate would otherwise allow it.
+  const status = (group[0]?.status ?? "forming") as GroupStatus;
+  // Peers' opportunities enter the brief only once the group itself could see
+  // them. Before selection opens the advisor sees the asking student's own
+  // opportunity and nothing else — otherwise "what did the others submit?"
+  // would leak ideas the privacy rule exists to protect.
+  const peersVisible = canViewPeerOpportunities(status);
   const opps = await withRlsBypass(
     () => sql<{
       problem: string;
@@ -87,7 +98,8 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
              o.current_alternatives, o.potential_customer, o.uncertainties
       from opportunities o
       join students s on s.id = o.student_id
-      where o.group_id = ${groupId} and o.status <> 'draft'
+      where o.group_id = ${groupId}
+        and (o.student_id = ${studentId} or (${peersVisible} and o.status <> 'draft'))
     `,
   );
   const venture = await sql<{ name: string; selection_rationale: string; opportunity_id: string }>`
@@ -122,8 +134,63 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
     limit 12
   `;
 
+  const work = venture[0]
+    ? await (async () => {
+        const interviews = await sql<{ interviewee_profile: string; key_quotes: string; would_pay: string }>`
+          select i.interviewee_profile, left(i.key_quotes, 200) as key_quotes, i.would_pay
+          from interviews i join ventures v on v.id = i.venture_id
+          where v.group_id = ${groupId}
+          order by i.created_at desc limit 6
+        `;
+        const interviewCount = await sql<{ n: number }>`
+          select count(*)::int as n from interviews i join ventures v on v.id = i.venture_id
+          where v.group_id = ${groupId}
+        `;
+        const canvas = await sql<{ block: string; body: string; evidenced: boolean }>`
+          select c.block, left(c.body, 160) as body,
+                 exists (select 1 from canvas_entry_evidence l where l.entry_id = c.id) as evidenced
+          from canvas_entries c join ventures v on v.id = c.venture_id
+          where v.group_id = ${groupId} and c.status = 'active'
+          order by c.created_at desc limit 18
+        `;
+        const feas = await sql<{ lens: string; verdict: string }>`
+          select distinct on (f.lens) f.lens, f.verdict
+          from feasibility_assessments f join ventures v on v.id = f.venture_id
+          where v.group_id = ${groupId}
+          order by f.lens, f.created_at desc
+        `;
+        const finance = await sql<{ inputs: string }>`
+          select f.inputs from financial_models f join ventures v on v.id = f.venture_id
+          where v.group_id = ${groupId} order by f.created_at desc limit 1
+        `;
+        const tests = await sql<{ outcome: string; n: number }>`
+          select t.outcome, count(*)::int as n
+          from prototype_tests t join ventures v on v.id = t.venture_id
+          where v.group_id = ${groupId} group by t.outcome
+        `;
+        return [
+          interviewCount[0]?.n
+            ? `INTERVIEWS (${interviewCount[0].n} total; latest):\n${interviews
+                .map((i) => `- ${i.interviewee_profile} [would pay: ${i.would_pay}]: “${i.key_quotes}”`)
+                .join("\n")}`
+            : "INTERVIEWS: none yet.",
+          canvas.length
+            ? `CANVAS:\n${canvas.map((c) => `- ${c.block}${c.evidenced ? "" : " (NO EVIDENCE)"}: ${c.body}`).join("\n")}`
+            : "CANVAS: empty.",
+          feas.length ? `FEASIBILITY: ${feas.map((f) => `${f.lens}=${f.verdict}`).join(", ")}` : "",
+          finance[0] ? `NUMBERS (student-entered JSON): ${finance[0].inputs.slice(0, 600)}` : "",
+          tests.length ? `PROTOTYPE TESTS: ${tests.map((t) => `${t.outcome}×${t.n}`).join(", ")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+      })()
+    : "";
+
   return [
     `COURSE RULES: Students must back claims with evidence. The platform does not pick winners.`,
+    peersVisible
+      ? ""
+      : `PRIVACY: Selection has not opened. Only the asking student's own opportunity is shown. Never describe, hint at, or confirm what other members submitted — say it stays private until selection opens.`,
     `STAGE: ${stage}. Group status: ${group[0]?.status ?? "unknown"}. Group: ${group[0]?.group_name ?? ""}.`,
     opps.length
       ? `OPPORTUNITIES:\n${opps
@@ -145,7 +212,47 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
     assumptions.length
       ? `ASSUMPTIONS:\n${assumptions.map((a) => `- [${a.importance}/${a.confidence}] ${a.statement}`).join("\n")}`
       : "ASSUMPTIONS: none.",
-  ].join("\n\n");
+    work,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+/**
+ * Per-student and per-group daily caps. Thousands of students share one API
+ * budget; without these one enthusiastic (or scripted) account can drain it
+ * for everyone. Counted from the stored conversation itself, so there is no
+ * separate counter to drift.
+ */
+async function assertAdvisorQuota(studentId: string, groupId: string): Promise<void> {
+  const sql = await getSql();
+  const limits = await sql<{ ai_daily_student_limit: number; ai_daily_group_limit: number }>`
+    select o.ai_daily_student_limit, o.ai_daily_group_limit
+    from groups g join course_offerings o on o.id = g.course_offering_id
+    where g.id = ${groupId} limit 1
+  `;
+  const perStudent = Number(limits[0]?.ai_daily_student_limit ?? 25);
+  const perGroup = Number(limits[0]?.ai_daily_group_limit ?? 120);
+  const counts = await sql<{ mine: number; ours: number }>`
+    select
+      count(*) filter (where student_id = ${studentId})::int as mine,
+      count(*)::int as ours
+    from ai_advisor_messages
+    where group_id = ${groupId} and role = 'student'
+      and created_at >= date_trunc('day', now())
+  `;
+  if (Number(counts[0]?.mine ?? 0) >= perStudent) {
+    throw new AppError(
+      "AI_LIMIT",
+      `You have used today's ${perStudent} advisor questions. Go and collect evidence — the advisor resets tomorrow.`,
+    );
+  }
+  if (Number(counts[0]?.ours ?? 0) >= perGroup) {
+    throw new AppError(
+      "AI_LIMIT",
+      "Your group has used today's advisor allowance. Compare notes with your teammates and try again tomorrow.",
+    );
+  }
 }
 
 export const sendAdvisorMessage = createServerFn({ method: "POST" })
@@ -161,8 +268,15 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
     if (!group) throw new AppError("NO_GROUP", "Join a group first.");
     const content = data.content.trim();
     if (!content) throw new AppError("INVALID", "Write something to the advisor.");
+    if (content.length > ADVISOR_MAX_CHARS) {
+      throw new AppError(
+        "INVALID",
+        `Keep it under ${ADVISOR_MAX_CHARS} characters — ask one question at a time.`,
+      );
+    }
 
     const sql = await getSql();
+    await assertAdvisorQuota(student.id, group.id);
     let sessionId = data.sessionId;
     if (sessionId) {
       const found = await sql<{ id: string; group_id: string }>`
@@ -208,7 +322,7 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
       where session_id = ${sessionId}
       order by created_at asc
     `;
-    const brief = await assembleContext(group.id, data.stage);
+    const brief = await assembleContext(group.id, student.id, data.stage);
     const messages: Anthropic.MessageParam[] = [
       { role: "user", content: `CONTEXT FOR THIS TURN:\n${brief}` },
       ...history.slice(-12).map(
@@ -219,12 +333,16 @@ export const sendAdvisorMessage = createServerFn({ method: "POST" })
       ),
     ];
 
-    const anthropic = new Anthropic({ apiKey });
+    const anthropic = new Anthropic({ apiKey, timeout: 60_000 });
     let raw: string;
     try {
       const response = await anthropic.messages.create({
         model: "claude-opus-5",
-        max_tokens: 1024,
+        // Opus 5 thinks by default and max_tokens covers thinking too; a tight
+        // cap could cut the JSON reply off. Low effort keeps replies quick and
+        // short; the room is there so a longer think never truncates the answer.
+        max_tokens: 8000,
+        output_config: { effort: "low" },
         system: SYSTEM,
         messages,
       });

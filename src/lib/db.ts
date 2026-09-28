@@ -12,10 +12,8 @@ const databaseUrl =
   rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
 
 /**
- * Active backend: real **Neon** when `DATABASE_URL` is set (deployed / configured
- * sandbox), otherwise a local embedded **PGLite** (Postgres compiled to WASM) so
- * the app has a working database even with nothing configured — the live preview
- * included. Swap in Neon later by just setting `DATABASE_URL`; no code changes.
+ * Active backend: real **Neon** when `DATABASE_URL` is set (deployed), otherwise a local embedded **PGLite** (Postgres compiled to WASM) so
+ * the app has a working database even with nothing configured. Swap in Neon later by just setting `DATABASE_URL`; no code changes.
  */
 export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
 
@@ -149,8 +147,8 @@ async function createPgliteSql(): Promise<Sql> {
 
   // Apply migrations/ (the single schema source) so preview matches production.
   // SQL is inlined by the bundler via import.meta.glob (no runtime fs); applied
-  // files are tracked in _migrations. The glob does not descend, so the opt-in
-  // auth schema under migrations/auth/ stays out. Runs once per module instance
+  // files are tracked in _migrations. The glob does not descend into
+  // subfolders. Runs once per module instance
   // — so an HMR reload after adding a migration file applies it live — with
   // passes serialized on a global chain so concurrent callers never
   // double-apply.
@@ -178,11 +176,47 @@ async function createPgliteSql(): Promise<Sql> {
     .then(migrate);
   globalRef.__pgliteMigrateChain__ = pass;
   await pass;
+  await seedPreviewRoster(pg);
 
   return toSql(async <T>(text: string, params: unknown[]) => {
     const result = await pg.query<T>(text, params);
     return result.rows;
   });
+}
+
+/**
+ * Students on the preview database's roster. Real rosters come from
+ * scripts/roster-import.mjs against DATABASE_URL, which the in-memory preview
+ * database can't take, so without these nobody could activate a student
+ * account locally. Preview (PGLite) only; never written to a real database.
+ */
+export const PREVIEW_ROSTER = [
+  { email: "ama@demo.ucc.edu.gh", indexNumber: "DEMO/0001", fullName: "Ama Owusu", programme: "Business Administration" },
+  { email: "kofi@demo.ucc.edu.gh", indexNumber: "DEMO/0002", fullName: "Kofi Mensah", programme: "Economics" },
+  { email: "esi@demo.ucc.edu.gh", indexNumber: "DEMO/0003", fullName: "Esi Arthur", programme: "Computer Science" },
+  { email: "yaw@demo.ucc.edu.gh", indexNumber: "DEMO/0004", fullName: "Yaw Boateng", programme: "Marketing" },
+  { email: "abena@demo.ucc.edu.gh", indexNumber: "DEMO/0005", fullName: "Abena Quaye", programme: "Accounting" },
+] as const;
+
+async function seedPreviewRoster(pg: import("@electric-sql/pglite").PGlite): Promise<void> {
+  const offering = await pg.query<{ id: string }>("select id from course_offerings order by academic_year desc limit 1");
+  const offeringId = offering.rows[0]?.id;
+  if (!offeringId) return;
+  for (const s of PREVIEW_ROSTER) {
+    const id = `preview_${s.indexNumber.replace(/\W/g, "_").toLowerCase()}`;
+    await pg.query(
+      `insert into students (id, auth_user_id, email, index_number, full_name, programme, is_synthetic)
+       values ($1, null, $2, $3, $4, $5, false)
+       on conflict do nothing`,
+      [id, s.email, s.indexNumber, s.fullName, s.programme],
+    );
+    await pg.query(
+      `insert into course_enrolments (id, student_id, course_offering_id, status)
+       select $1, $2, $3, 'active' where exists (select 1 from students where id = $2)
+       on conflict do nothing`,
+      [`${id}_enrolment`, id, offeringId],
+    );
+  }
 }
 
 let sqlPromise: Promise<Sql> | null = null;

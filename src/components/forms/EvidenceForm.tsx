@@ -1,146 +1,141 @@
-import { useState, type FormEvent } from "react";
-import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea } from "@/components/ui/input";
-import { Why } from "@/components/ui/why";
+import { useState } from "react";
+import { Camera } from "lucide-react";
 import { CLASSIFICATIONS, SOURCE_TYPES, ASSUMPTION_LANGUAGE } from "@/lib/domain/config";
-import { WHY } from "@/lib/domain/copy";
+import { SUGGESTED_PLACES } from "@/lib/domain/places";
+import type { EvidenceClassification, EvidenceSourceType } from "@/lib/domain/types";
 import { compressPhoto } from "@/lib/offline/photos";
 import { saveEvidence } from "@/lib/offline/actions";
+import { BigInput, BigText, Pick, StepFlow, Suggest, type Step } from "@/components/flow/StepFlow";
+
+type V = {
+  content: string;
+  title: string;
+  sourceType: EvidenceSourceType;
+  classification: EvidenceClassification | "";
+  locationContext: string;
+  observedAt: string;
+  photo: { dataUrl: string; mime: string } | null;
+};
+
+const DRAFT_DROP: (keyof V)[] = ["photo"];
+
+function steps(maxPhotoBytes: number, setPhotoError: (e: string | null) => void, photoError: string | null): Step<V>[] {
+  return [
+    {
+      id: "what",
+      question: "What did you see, hear, count or collect?",
+      hint: "Write what happened, not what you think it means.",
+      render: (v, set) => (
+        <>
+          <BigText label="What you found" value={v.content} onChange={(content) => set({ content })} placeholder="34 people queued at the shuttle stop at 7:10. Two buses in 25 minutes." rows={5} />
+          <p className="mt-4 text-sm font-semibold text-ink-soft">Give it a short title</p>
+          <BigInput label="Title" value={v.title} onChange={(title) => set({ title })} placeholder="Shuttle queue, Tuesday 7am" />
+        </>
+      ),
+      valid: (v) => (v.content.trim().length >= 10 && v.title.trim().length >= 3) || "Write what you found and give it a title.",
+      summary: (v) => `${v.title} — ${v.content}`,
+    },
+    {
+      id: "source",
+      question: "Where did it come from?",
+      render: (v, set, next) => (
+        <Pick value={v.sourceType} onChange={(sourceType) => set({ sourceType })} onPicked={next} options={SOURCE_TYPES} />
+      ),
+      summary: (v) => SOURCE_TYPES.find((s) => s.value === v.sourceType)?.label ?? "",
+    },
+    {
+      id: "kind",
+      question: "Be honest: what kind of claim is it?",
+      hint: "You decide the label. The advisor may challenge it; you stay responsible for it.",
+      render: (v, set, next) => (
+        <>
+          {ASSUMPTION_LANGUAGE.test(v.content) ? (
+            <p className="mb-3 rounded-[14px] border-2 border-gold/60 bg-gold-soft px-3 py-2 text-sm">
+              Your note says things like “everyone” or “will buy”. That usually means assumption or opinion.
+            </p>
+          ) : null}
+          <Pick value={v.classification} onChange={(classification) => set({ classification })} onPicked={next} options={CLASSIFICATIONS} />
+        </>
+      ),
+      valid: (v) => Boolean(v.classification) || "Pick the closest one — Unknown is allowed.",
+      summary: (v) => CLASSIFICATIONS.find((c) => c.value === v.classification)?.label ?? "",
+    },
+    {
+      id: "where",
+      question: "Where, and do you have a photo?",
+      optional: true,
+      render: (v, set) => (
+        <div className="space-y-3">
+          <BigInput label="Where" value={v.locationContext} onChange={(locationContext) => set({ locationContext })} placeholder="Science Market" />
+          <Suggest items={SUGGESTED_PLACES} onPick={(locationContext) => set({ locationContext })} />
+          <label className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-[18px] border-2 border-dashed border-line-strong px-4 py-3 text-sm font-semibold">
+            <Camera className="size-5" aria-hidden /> {v.photo ? "Change photo" : "Take or add a photo"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setPhotoError(null);
+                compressPhoto(file, maxPhotoBytes).then(
+                  (photo) => set({ photo }),
+                  (err: Error) => setPhotoError(err.message),
+                );
+              }}
+            />
+          </label>
+          {photoError ? <p className="text-sm text-clay">{photoError}</p> : null}
+          {v.photo ? <img src={v.photo.dataUrl} alt="Evidence preview" className="max-h-48 rounded-[14px] border-2 border-ink" /> : null}
+          <p className="text-xs text-faint">Photos are shrunk on your phone first, to save data.</p>
+        </div>
+      ),
+      summary: (v) => [v.locationContext, v.photo ? "photo attached" : ""].filter(Boolean).join(" · "),
+    },
+  ];
+}
 
 export function EvidenceForm({
   onSaved,
   maxPhotoBytes,
+  onCancel,
 }: {
-  onSaved: () => void;
+  onSaved: (queued: boolean) => void;
   maxPhotoBytes: number;
+  onCancel?: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [sourceType, setSourceType] = useState("observation");
-  const [classification, setClassification] = useState("unknown");
-  const [locationContext, setLocationContext] = useState("");
-  const [observedAt, setObservedAt] = useState("");
-  const [photo, setPhoto] = useState<{ dataUrl: string; mime: string } | null>(null);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  async function onFile(file: File | undefined) {
-    if (!file) return;
-    setError(null);
-    try {
-      setPhoto(await compressPhoto(file, maxPhotoBytes));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not use that photo.");
-    }
-  }
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setPending(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const result = await saveEvidence({
-        title,
-        content,
-        sourceType,
-        classification,
-        photoData: photo?.dataUrl ?? null,
-        photoMime: photo?.mime ?? null,
-        observedAt: observedAt || null,
-        locationContext: locationContext || null,
-      });
-      setNotice(
-        "queued" in result && result.queued
-          ? "Saved locally — will sync when connected."
-          : "Evidence logged. You remain responsible for the classification.",
-      );
-      setTitle("");
-      setContent("");
-      setPhoto(null);
-      onSaved();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save evidence.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  const looksAssumed = ASSUMPTION_LANGUAGE.test(content);
-
+  const [photoError, setPhotoError] = useState<string | null>(null);
   return (
-    <form className="space-y-4" onSubmit={(e) => void submit(e)}>
-      <Field label="Title">
-        <Input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short label" />
-      </Field>
-      <Field label="What did you collect?">
-        <Textarea required value={content} onChange={(e) => setContent(e.target.value)} />
-      </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Source">
-          <select
-            className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-            value={sourceType}
-            onChange={(e) => setSourceType(e.target.value)}
-          >
-            {SOURCE_TYPES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Your classification">
-          <select
-            className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-            value={classification}
-            onChange={(e) => setClassification(e.target.value)}
-          >
-            {CLASSIFICATIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <Why text={WHY.classification} />
-        </Field>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="When (optional)">
-          <Input
-            type="text"
-            inputMode="numeric"
-            placeholder="YYYY-MM-DD"
-            value={observedAt}
-            onChange={(e) => setObservedAt(e.target.value)}
-          />
-        </Field>
-        <Field label="Where (optional)">
-          <Input value={locationContext} onChange={(e) => setLocationContext(e.target.value)} />
-        </Field>
-      </div>
-      <Field label="Photo (optional, compressed on this device)">
-        <Input
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/*"
-          capture="environment"
-          onChange={(e) => void onFile(e.target.files?.[0])}
-        />
-        {photo ? (
-          <img src={photo.dataUrl} alt="Evidence" className="mt-2 max-h-40 rounded-[12px] border border-line" />
-        ) : null}
-      </Field>
-      {looksAssumed ? (
-        <p className="rounded-[12px] bg-warn-soft px-3 py-2 text-sm text-warn">
-          This reads like an assumption dressed as evidence. Consider classifying it as assumption, then ask what would test it.
-        </p>
-      ) : null}
-      {error ? <p className="text-sm text-bad">{error}</p> : null}
-      {notice ? <p className="text-sm text-accent">{notice}</p> : null}
-      <Button type="submit" disabled={pending}>
-        {pending ? "Saving…" : "Log evidence"}
-      </Button>
-    </form>
+    <StepFlow<V>
+      steps={steps(maxPhotoBytes, setPhotoError, photoError)}
+      draftKey="evidence"
+      draftDropIfFull={DRAFT_DROP}
+      initial={{
+        content: "",
+        title: "",
+        sourceType: "observation",
+        classification: "",
+        locationContext: "",
+        observedAt: new Date().toISOString().slice(0, 10),
+        photo: null,
+      }}
+      finishLabel="Log it"
+      reviewTitle="Into the notebook?"
+      onCancel={onCancel}
+      onFinish={async (v) => {
+        const r = await saveEvidence({
+          title: v.title,
+          content: v.content,
+          sourceType: v.sourceType,
+          classification: v.classification || "unknown",
+          photoData: v.photo?.dataUrl ?? null,
+          photoMime: v.photo?.mime ?? null,
+          observedAt: v.observedAt || null,
+          locationContext: v.locationContext || null,
+        });
+        onSaved("queued" in r && Boolean(r.queued));
+      }}
+    />
   );
 }

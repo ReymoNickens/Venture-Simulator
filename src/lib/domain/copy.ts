@@ -30,17 +30,18 @@ export const WHY = {
 } as const;
 
 export const CONTEXTS = [
-  "University campus",
-  "Hostel / halls",
-  "Local community",
-  "Market / retail",
-  "Agriculture",
-  "Transportation",
-  "Education services",
-  "Mobile money / payments",
+  "On campus",
+  "In a hall or hostel",
+  "Around campus (Amamoma, Kwaprow, Apewosika…)",
+  "Kotokuraba or another market",
+  "On the road — taxis, trotros, Pedu",
+  "The beach and fishing community",
+  "Tourism — the Castle, Elmina, Kakum",
+  "Farms and food",
+  "Mobile money and payments",
   "Health",
-  "Environment / waste",
-  "Other",
+  "Waste and environment",
+  "Somewhere else",
 ] as const;
 
 export const OFFLINE_AI =
