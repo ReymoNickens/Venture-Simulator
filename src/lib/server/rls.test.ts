@@ -213,6 +213,37 @@ describe("RLS actually enforces group isolation (not just executable SQL)", () =
   });
 });
 
+describe("RLS for sync conflicts (offline edits that arrive after ideas open)", () => {
+  const insert = (id: string, studentId: string) =>
+    `insert into sync_conflicts (id, student_id, entity_type, entity_id, local_snapshot, server_snapshot)
+     values ('${id}', '${studentId}', 'opportunity', 'opp-a', '{}', '{}')`;
+
+  it("lets a student record their own conflict and read it back", async () => {
+    const pg = await freshSeededDb();
+    try {
+      const rows = await asUser(pg, "auth-a", async (tx) => {
+        await tx.query(insert("conf-a", "student-a"));
+        return (await tx.query(`select id from sync_conflicts`)).rows;
+      });
+      assert.deepEqual(rows, [{ id: "conf-a" }]);
+    } finally {
+      await pg.close();
+    }
+  });
+
+  it("denies recording a conflict as another student, or reading theirs", async () => {
+    const pg = await freshSeededDb();
+    try {
+      await assert.rejects(() => asUser(pg, "auth-a", (tx) => tx.query(insert("conf-x", "student-b"))));
+      await asUser(pg, "auth-b", (tx) => tx.query(insert("conf-b", "student-b")));
+      const seen = await asUser(pg, "auth-a", async (tx) => (await tx.query(`select id from sync_conflicts`)).rows);
+      assert.deepEqual(seen, []);
+    } finally {
+      await pg.close();
+    }
+  });
+});
+
 /** Group A gets a second member and a venture; group B a venture of its own. */
 async function withVentures(pg: PGlite): Promise<void> {
   await pg.query(

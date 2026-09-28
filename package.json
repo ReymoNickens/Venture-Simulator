@@ -13,7 +13,7 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/auth/sign-in-gate.test.ts src/lib/domain/state-machine.test.ts src/lib/domain/finance.test.ts src/lib/domain/stages.test.ts src/lib/domain/flags.test.ts src/lib/domain/recap.test.ts src/lib/server/rls.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/auth/sign-in-gate.test.ts src/lib/domain/state-machine.test.ts src/lib/domain/finance.test.ts src/lib/domain/stages.test.ts src/lib/domain/flags.test.ts src/lib/domain/recap.test.ts src/lib/offline/retry.test.ts src/lib/server/rls.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

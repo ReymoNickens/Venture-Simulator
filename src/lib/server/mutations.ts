@@ -4,6 +4,7 @@ import { getSql, withRlsBypass } from "@/lib/db";
 import { joinCode, newId } from "@/lib/utils";
 import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
 import { DEFAULT_GROUP_SIZE, DEFAULT_MAX_PHOTO_BYTES } from "@/lib/domain/config";
+import { canEditOwnOpportunity } from "@/lib/domain/state-machine";
 import {
   AppError,
   loadGroupForStudent,
@@ -232,22 +233,62 @@ const emptyFields: OpportunityFields = {
 
 export const upsertOpportunity = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { fields: OpportunityFields; submit?: boolean; clientId?: string }) => input)
+  .validator(
+    (input: {
+      fields: OpportunityFields;
+      submit?: boolean;
+      clientId?: string;
+      /** Replayed from a phone's offline queue rather than typed just now. */
+      fromQueue?: boolean;
+    }) => input,
+  )
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
     if (!group) throw new AppError("NO_GROUP", "Join a group before writing an opportunity.");
-    if (group.status === "venture_created") {
-      throw new AppError("LOCKED", "The group has already selected a venture.");
-    }
     const sql = await getSql();
     const existing = await sql<{ id: string; status: string }>`
       select id, status from opportunities
       where student_id = ${student.id} and group_id = ${group.id}
       limit 1
     `;
-    const id = data.clientId || existing[0]?.id || newId();
+    const id = existing[0]?.id || data.clientId || newId();
     const fields = { ...emptyFields, ...data.fields };
+    if (!canEditOwnOpportunity(group.status)) {
+      if (!data.fromQueue) {
+        throw new AppError(
+          "LOCKED",
+          "Your group can already see every opportunity, so yours is sealed as submitted.",
+        );
+      }
+      // An edit made offline that only arrived after the ideas opened. Refusing
+      // it would leave it stuck on the phone forever; applying it would let it
+      // overwrite a sealed idea. Keep both versions for later resolution.
+      const server = existing[0]
+        ? await sql<{ snapshot: string }>`
+            select row_to_json(opportunities)::text as snapshot
+            from opportunities where id = ${existing[0].id}
+          `
+        : [];
+      const conflictId = newId();
+      await sql`
+        insert into sync_conflicts (id, student_id, entity_type, entity_id, local_snapshot, server_snapshot)
+        values (
+          ${conflictId}, ${student.id}, 'opportunity', ${id},
+          ${JSON.stringify({ fields, submit: Boolean(data.submit), clientId: data.clientId ?? null })},
+          ${server[0]?.snapshot ?? "null"}
+        )
+      `;
+      await logEvent({
+        studentId: student.id,
+        groupId: group.id,
+        eventType: "SYNC_CONFLICT",
+        entityType: "opportunity",
+        entityId: id,
+        metadata: { conflictId },
+      });
+      return { id, submitted: false, conflict: true };
+    }
     const submitting = Boolean(data.submit);
     if (submitting) {
       const required: (keyof OpportunityFields)[] = [

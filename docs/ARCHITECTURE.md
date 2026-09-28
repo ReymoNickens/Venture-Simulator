@@ -50,8 +50,10 @@ RLS policies are real SQL and actually enforced: `authMiddleware` runs every han
 2. UI states: online, offline, saved locally, syncing, synced, sync error.
 3. Photos are compressed on device, stored with the outbox item, retried on failure — never discarded.
 4. Evidence and assumptions are append-only. Opportunity edits write a revision row rather than last-write-wins.
-5. Unresolved dual edits are stored in `sync_conflicts` (schema ready; Slice 1 prefers append-only).
-6. AI requires a network. The UI says so instead of sending a request that fails silently.
+5. An opportunity can be edited only while ideas are private (`canEditOwnOpportunity`). Once the group can see every idea, each stays as sealed. An edit made offline that only reaches the server after that point is neither applied nor refused: both versions go into `sync_conflicts` for later resolution, and the queue moves on.
+6. Failed sync items are never discarded. They retry with backoff (5s doubling, capped at 10 min — `src/lib/offline/retry.ts`), on reconnect, and on a 20s background timer while online. The "retry" button skips the backoff.
+7. Forms that take longer than a minute (opportunity, evidence, assumption, interview) autosave a draft on the device per account, so a refresh or a closed tab does not lose typed work. If storage is full, an evidence draft keeps the words and drops the photo.
+8. AI requires a network. The UI says so instead of sending a request that fails silently.
 
 ## AI advisor
 

@@ -10,6 +10,7 @@ import { Stamp } from "@/components/ui/stamp";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/feedback";
 import { shortDateTime } from "@/lib/dates";
+import { canEditOwnOpportunity } from "@/lib/domain/state-machine";
 
 export const Route = createFileRoute("/studio/opportunity")({ component: OpportunityPage });
 
@@ -30,7 +31,8 @@ function OpportunityPage() {
   }
   const mine = data.myOpportunity;
   const submitted = Boolean(mine && mine.status !== "draft");
-  const locked = data.group.status === "venture_created";
+  // Once the group can see every idea, each one stays as it was sealed.
+  const locked = !canEditOwnOpportunity(data.group.status);
   const effective = mode === "view" && !submitted ? "intro" : mode;
 
   if (effective === "flow" && !locked) {
@@ -99,9 +101,13 @@ function OpportunityPage() {
           </p>
           {!locked ? (
             <Button variant="secondary" size="sm" className="mt-4" onClick={() => setMode("flow")}>
-              {data.canOpenSelection ? "Edit (your group can already see it)" : "Edit before the group sees it"}
+              Edit before the group sees it
             </Button>
-          ) : null}
+          ) : (
+            <p className="mt-4 text-xs text-muted">
+              Your group can see every idea now, so this one stays as you sealed it.
+            </p>
+          )}
         </section>
       ) : null}
       {!data.canOpenSelection ? (

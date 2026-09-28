@@ -6,6 +6,8 @@ import { emitConnectionChange, isEffectivelyOnline } from "@/lib/offline/status"
 import { processOutbox } from "@/lib/offline/sync";
 import type { OpportunityFields } from "@/lib/domain/types";
 
+const BACKGROUND_SYNC_MS = 20_000;
+
 /**
  * The studio's single source of truth. `ownerId` is the signed-in account:
  * nothing loads, caches, or syncs until it is known, and every offline read
@@ -64,6 +66,23 @@ export function useWorkspace(ownerId: string | null) {
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
   }, [refresh]);
+
+  // "online" alone is not enough: a write can fail while the phone is online
+  // (a server hiccup, a captive Wi-Fi portal). Keep retrying in the background;
+  // the queue's own backoff decides whether anything is actually sent.
+  useEffect(() => {
+    if (typeof window === "undefined" || !ownerId) return;
+    const timer = window.setInterval(() => {
+      void (async () => {
+        if (!(await isEffectivelyOnline())) return;
+        const pending = await outboxAll();
+        if (!pending.length) return;
+        const { synced } = await processOutbox();
+        if (synced > 0) void refresh();
+      })();
+    }, BACKGROUND_SYNC_MS);
+    return () => window.clearInterval(timer);
+  }, [ownerId, refresh]);
 
   return { data, loading, error, refresh };
 }

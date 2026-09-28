@@ -69,6 +69,7 @@ export function AssumptionForm({ onSaved, onCancel }: { onSaved: (queued: boolea
   return (
     <StepFlow<AV>
       steps={ASSUMPTION_STEPS}
+      draftKey="assumption"
       initial={{ statement: "", importance: "", confidence: "" }}
       finishLabel="Add to the ledger"
       reviewTitle="Add this assumption?"

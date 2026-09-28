@@ -17,6 +17,8 @@ type V = {
   photo: { dataUrl: string; mime: string } | null;
 };
 
+const DRAFT_DROP: (keyof V)[] = ["photo"];
+
 function steps(maxPhotoBytes: number, setPhotoError: (e: string | null) => void, photoError: string | null): Step<V>[] {
   return [
     {
@@ -107,6 +109,8 @@ export function EvidenceForm({
   return (
     <StepFlow<V>
       steps={steps(maxPhotoBytes, setPhotoError, photoError)}
+      draftKey="evidence"
+      draftDropIfFull={DRAFT_DROP}
       initial={{
         content: "",
         title: "",

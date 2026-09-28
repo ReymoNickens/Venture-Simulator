@@ -4,6 +4,7 @@ import { getOfflineOwner, outboxAll, outboxDelete, outboxPut } from "./idb";
 import { emitConnectionChange, isEffectivelyOnline } from "./status";
 import type { OutboxItem } from "./idb";
 import { OFFLINE_CALLS, type OfflineCallName } from "./calls";
+import { isDue, nextAttemptAt } from "./retry";
 
 export async function enqueue(type: OutboxItem["type"], payload: unknown, id?: string): Promise<string> {
   const item: OutboxItem = {
@@ -20,29 +21,33 @@ export async function enqueue(type: OutboxItem["type"], payload: unknown, id?: s
   return item.id;
 }
 
-let running: Promise<{ synced: number; failed: number }> | null = null;
+type SyncResult = { synced: number; failed: number };
+let running: Promise<SyncResult> | null = null;
 
 /**
  * Replay queued writes for the signed-in account. Serialised: two overlapping
  * runs (a refresh racing an "online" event) would otherwise both dispatch the
  * same item. Server writes are idempotent on clientId, but there is no reason
  * to send them twice on a student's data bundle.
+ *
+ * Failed items wait out a backoff (./retry.ts) unless `force` is set — the
+ * student pressing "retry" should always try right now.
  */
-export function processOutbox(): Promise<{ synced: number; failed: number }> {
-  running ??= runOutbox().finally(() => {
+export function processOutbox(opts: { force?: boolean } = {}): Promise<SyncResult> {
+  running ??= runOutbox(Boolean(opts.force)).finally(() => {
     running = null;
   });
   return running;
 }
 
-async function runOutbox(): Promise<{ synced: number; failed: number }> {
+async function runOutbox(force: boolean): Promise<SyncResult> {
   if (!getOfflineOwner()) return { synced: 0, failed: 0 };
   if (!(await isEffectivelyOnline())) return { synced: 0, failed: 0 };
   const items = await outboxAll();
   let synced = 0;
   let failed = 0;
   for (const item of items) {
-    if (item.status === "done") continue;
+    if (!isDue(item, new Date(), force)) continue;
     const next: OutboxItem = { ...item, status: "syncing", attempts: item.attempts + 1 };
     await outboxPut(next);
     emitConnectionChange();
@@ -56,6 +61,7 @@ async function runOutbox(): Promise<{ synced: number; failed: number }> {
         ...next,
         status: "error",
         lastError: message,
+        nextAttemptAt: nextAttemptAt(next.attempts, new Date()),
       });
       failed += 1;
     }
@@ -80,6 +86,7 @@ async function dispatch(item: OutboxItem): Promise<void> {
           fields: p.fields as OpportunityFields,
           submit: Boolean(p.submit),
           clientId: String(p.clientId ?? item.id),
+          fromQueue: true,
         },
       });
       return;
@@ -89,6 +96,7 @@ async function dispatch(item: OutboxItem): Promise<void> {
           fields: p.fields as OpportunityFields,
           submit: true,
           clientId: String(p.clientId ?? item.id),
+          fromQueue: true,
         },
       });
       return;

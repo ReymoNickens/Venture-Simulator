@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  canEditOwnOpportunity,
   canViewPeerOpportunities,
   evaluateGroupStatus,
   opportunityVisibleToPeer,
@@ -142,5 +143,18 @@ describe("evaluateProposal", () => {
       evaluateProposal({ activeMembers: 10, endorsements: 1, objections: 0, quorumPct: 51 }),
       "open",
     );
+  });
+});
+
+describe("canEditOwnOpportunity", () => {
+  it("allows edits while ideas are still private", () => {
+    assert.equal(canEditOwnOpportunity("forming"), true);
+    assert.equal(canEditOwnOpportunity("opportunity_collection"), true);
+  });
+
+  it("freezes every opportunity once the group can see them", () => {
+    assert.equal(canEditOwnOpportunity("selection_ready"), false);
+    assert.equal(canEditOwnOpportunity("selection"), false);
+    assert.equal(canEditOwnOpportunity("venture_created"), false);
   });
 });

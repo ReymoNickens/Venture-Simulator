@@ -33,6 +33,8 @@ export type OutboxItem = {
   attempts: number;
   lastError: string | null;
   status: "pending" | "syncing" | "error" | "done";
+  /** Earliest time a failed item is retried (see ./retry.ts). */
+  nextAttemptAt?: string | null;
 };
 
 function openDb(): Promise<IDBDatabase> {

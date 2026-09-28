@@ -34,9 +34,9 @@ export function useConnection() {
     simulating,
     async toggleSimulatedOffline() {
       await setSimulatingOffline(!simulating);
-      if (simulating) void processOutbox();
+      if (simulating) void processOutbox({ force: true });
     },
-    retry: () => processOutbox(),
+    retry: () => processOutbox({ force: true }),
   };
 }
 

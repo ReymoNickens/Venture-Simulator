@@ -1,6 +1,6 @@
 # Where we left off
 
-_Paused 25 September 2026 on branch `claude/gifted-euler-jn2g54`, which continues `claude/determined-keller-y1up9y`._
+_Updated 28 September 2026 on branch `claude/vigilant-johnson-9lkcia`, which continues `claude/gifted-euler-jn2g54` (itself a continuation of `claude/determined-keller-y1up9y`). This is the line to merge into `main`._
 
 ## Done
 
@@ -26,6 +26,25 @@ _Paused 25 September 2026 on branch `claude/gifted-euler-jn2g54`, which continue
   See README "Sign-in". No Grok code or services remain.
 - Checks: typecheck, lint (2 old warnings), tests and the build all pass.
   Student and lecturer walkthroughs in a browser showed no errors.
+
+- Offline and integrity fixes (28 Sep): an opportunity is sealed once the group
+  can see every idea; a late offline edit is kept in `sync_conflicts` instead of
+  being stuck or overwriting; failed syncs back off and retry in the background;
+  evidence and assumption forms autosave drafts on the device. See
+  `docs/ARCHITECTURE.md` → Offline.
+
+## Known gaps
+
+- Evidence photos are stored as data URLs in Postgres, not in private object
+  storage (see `docs/DEVIATIONS.md` §3). Fine for a pilot; move to a storage
+  bucket before a full cohort.
+- `sync_conflicts` rows are recorded but nothing in the UI shows or resolves
+  them yet. A lecturer view of them is the natural next step.
+- Two migrations share the number 0006 (`0006_roster`, `0006_group_governance`).
+  They are independent and must not be renamed; a test blocks any new clash.
+- `claude/studio-ux-lecturer` and `claude/beautiful-keller-pz2pts` hold
+  competing redesigns that were never merged. Cherry-pick from them if needed;
+  do not merge them wholesale.
 
 ## Ideas not started yet
 

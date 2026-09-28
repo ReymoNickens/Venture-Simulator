@@ -20,6 +20,17 @@ export function canViewPeerOpportunities(status: GroupStatus): boolean {
   );
 }
 
+/**
+ * A student's own opportunity can be written and edited only while ideas are
+ * still private. Once the group can see everyone's work, the sealed version
+ * stands — otherwise a student could quietly rewrite theirs after reading
+ * their teammates', which defeats independent discovery. (Every earlier
+ * version is still kept in opportunity_revisions.)
+ */
+export function canEditOwnOpportunity(status: GroupStatus): boolean {
+  return !canViewPeerOpportunities(status);
+}
+
 export function nextCollectionStatus(memberCount: number): GroupStatus {
   return memberCount <= 1 ? "forming" : "opportunity_collection";
 }

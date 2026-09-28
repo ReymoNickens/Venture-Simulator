@@ -36,6 +36,7 @@ export function StepFlow<V extends object>({
   steps,
   initial,
   draftKey,
+  draftDropIfFull,
   finishLabel,
   reviewTitle = "Check it, then send",
   onFinish,
@@ -46,6 +47,12 @@ export function StepFlow<V extends object>({
   initial: V;
   /** Autosave key; drafts are stored per signed-in account. */
   draftKey?: string;
+  /**
+   * Large answers (a photo) to leave out of the draft when this phone's
+   * storage is full — the typed words matter more than a picture that can be
+   * retaken.
+   */
+  draftDropIfFull?: (keyof V)[];
   finishLabel: string;
   reviewTitle?: string;
   onFinish: (values: V) => Promise<void>;
@@ -81,9 +88,16 @@ export function StepFlow<V extends object>({
     try {
       localStorage.setItem(storageKey, JSON.stringify(values));
     } catch {
-      /* storage full or blocked — the flow still works, just without autosave */
+      try {
+        if (!draftDropIfFull?.length) throw new Error("nothing to drop");
+        const slim: Partial<V> = { ...values };
+        for (const k of draftDropIfFull) delete slim[k];
+        localStorage.setItem(storageKey, JSON.stringify(slim));
+      } catch {
+        /* storage full or blocked — the flow still works, just without autosave */
+      }
     }
-  }, [values, storageKey]);
+  }, [values, storageKey, draftDropIfFull]);
 
   // Put the cursor in the answer, so a student can just type.
   useEffect(() => {
