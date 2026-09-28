@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { pendingMigrations } from "../../scripts/migration-plan.mjs";
+import { databaseGuardError, poolSettings } from "./db-config";
 
 /** Which database backend is active. */
 export type DbSource = "neon" | "pglite";
@@ -16,6 +17,10 @@ const databaseUrl =
  * the app has a working database even with nothing configured. Swap in Neon later by just setting `DATABASE_URL`; no code changes.
  */
 export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
+
+/** Set when this process must not serve (production with no database). */
+const guardError = typeof process !== "undefined" ? databaseGuardError(process.env) : null;
+if (guardError && typeof window === "undefined") console.error(`[db] ${guardError}`);
 
 /**
  * Minimal shared SQL surface, satisfied by both Neon and PGLite. Both the
@@ -97,7 +102,7 @@ async function getNeonPool(): Promise<import("pg").Pool> {
     types.setTypeParser(OID_INT8, Number);
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
-    return new Pool({ connectionString: databaseUrl });
+    return new Pool(poolSettings(databaseUrl as string, process.env));
   })().catch((err) => {
     globalRef.__pgPoolPromise__ = undefined;
     throw err;
@@ -222,6 +227,7 @@ async function seedPreviewRoster(pg: import("@electric-sql/pglite").PGlite): Pro
 let sqlPromise: Promise<Sql> | null = null;
 
 async function createSql(): Promise<Sql> {
+  if (guardError) throw new Error(guardError);
   if (typeof window !== "undefined") {
     throw new Error(
       "@/lib/db is server-only — call getSql() from a createServerFn handler " +
@@ -276,6 +282,7 @@ const requestScope = new AsyncLocalStorage<RequestScope>();
  * plus its two opportunity-status updates) become atomic as a side effect.
  */
 export async function runInScope<T>(mode: ScopeMode, fn: () => Promise<T>): Promise<T> {
+  if (guardError) throw new Error(guardError);
   if (dbSource === "neon") {
     const pool = await getNeonPool();
     const client = await pool.connect();
@@ -381,7 +388,7 @@ export function ensureDbReady(): Promise<void> {
 const globalBoot = globalThis as typeof globalThis & {
   __pgBootstrapPromise__?: Promise<void>;
 };
-if (typeof window === "undefined" && dbSource === "pglite") {
+if (typeof window === "undefined" && dbSource === "pglite" && !guardError) {
   globalBoot.__pgBootstrapPromise__ ??= ensureDbReady().catch((err) => {
     globalBoot.__pgBootstrapPromise__ = undefined;
     console.error("[db] PGLite bootstrap failed:", err);

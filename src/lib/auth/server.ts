@@ -34,6 +34,7 @@ import { APIError } from "better-auth/api";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import { ensureDbReady, getPglite, getSql, withRlsBypass } from "../db";
+import { poolSettings } from "../db-config";
 import { newId } from "../utils";
 import { expectedStaffCode, staffCodeMatches } from "../server/staff-code";
 import { emailAndPasswordEnabled } from "./email-password";
@@ -100,7 +101,7 @@ const databaseUrl = env("DATABASE_URL");
 // SAME DB as app data. Both use the Better Auth schema in
 // `migrations/0001_auth.sql`.
 const database = databaseUrl
-  ? new Pool({ connectionString: databaseUrl })
+  ? new Pool(poolSettings(databaseUrl, process.env, "auth"))
   : { dialect: pgliteDialect(() => getPglite()), type: "postgres" as const };
 
 /** Prefix for this app's auth cookie names. */
