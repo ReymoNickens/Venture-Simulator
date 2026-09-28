@@ -2,15 +2,9 @@ import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
 import { evaluateGroupStatus } from "@/lib/domain/state-machine";
 import type { CourseOffering, Group, GroupStatus, Student } from "@/lib/domain/types";
+import { AppError } from "./app-error";
 
-export class AppError extends Error {
-  code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = "Error";
-    this.code = code;
-  }
-}
+export { AppError };
 
 export interface Actor {
   userId: string;

@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { z } from "zod";
+import { dateish, input, LIMITS, line, noInput, safeId, text, title, uuid } from "@/lib/domain/schemas";
 import { dbSource, getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
 import { MARKET_EVENT_BY_KEY } from "@/lib/domain/market-events";
@@ -35,6 +37,7 @@ const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v ? String(v)
 
 export const getStaffStatus = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
+  .validator(input(noInput))
   .handler(async ({ context }) => {
     const staff = await loadStaff(context.userId);
     const sql = await getSql();
@@ -65,7 +68,16 @@ export const getStaffStatus = createServerFn({ method: "GET" })
  */
 export const registerStaff = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { fullName: string; title?: string; accessCode?: string; offeringId: string }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        fullName: line(120, "Your name"),
+        title: line(60, "Title").optional(),
+        accessCode: line(120, "Access code").optional(),
+        offeringId: safeId,
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const sql = await getSql();
     const record = await sql<{ id: string }>`select id from staff where auth_user_id = ${context.userId} limit 1`;
@@ -103,7 +115,7 @@ export const registerStaff = createServerFn({ method: "POST" })
 
 export const getCohort = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: { offeringId: string }) => input)
+  .validator(input(z.strictObject({ offeringId: safeId })))
   .handler(async ({ context, data }) => {
     const staff = await requireStaff(context.userId, data.offeringId);
     const sql = await getSql();
@@ -166,7 +178,7 @@ export const getCohort = createServerFn({ method: "GET" })
 
 export const getGroupDetail = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: { groupId: string }) => input)
+  .validator(input(z.strictObject({ groupId: uuid })))
   .handler(async ({ context, data }) => {
     const staff = await requireStaffForGroup(context.userId, data.groupId);
     const sql = await getSql();
@@ -356,7 +368,16 @@ export const getGroupDetail = createServerFn({ method: "GET" })
 
 export const setMemberStatus = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { groupId: string; memberId: string; status: "active" | "inactive"; reason: string }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        groupId: uuid,
+        memberId: uuid,
+        status: z.enum(["active", "inactive"], { message: "Choose a status." }),
+        reason: text(LIMITS.short, "The reason"),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     await requireStaffForGroup(context.userId, data.groupId);
     if (data.status !== "active" && data.status !== "inactive") throw new AppError("INVALID", "Choose a status.");
@@ -389,7 +410,16 @@ export const setMemberStatus = createServerFn({ method: "POST" })
 
 export const giveFeedback = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { groupId: string; stage: string; body: string; level?: number | null }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        groupId: uuid,
+        stage: line(40, "Stage"),
+        body: text(LIMITS.long, "Feedback"),
+        level: z.number().int().min(1).max(4).nullish(),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const staff = await requireStaffForGroup(context.userId, data.groupId);
     if (!STAGES.some((s) => s.id === data.stage)) throw new AppError("INVALID", "Choose a stage.");
@@ -410,7 +440,7 @@ export const giveFeedback = createServerFn({ method: "POST" })
 
 export const assignGroup = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { groupId: string; assign: boolean }) => input)
+  .validator(input(z.strictObject({ groupId: uuid, assign: z.boolean() })))
   .handler(async ({ context, data }) => {
     const staff = await requireStaffForGroup(context.userId, data.groupId);
     const sql = await getSql();
@@ -423,7 +453,7 @@ export const assignGroup = createServerFn({ method: "POST" })
 
 export const postAnnouncement = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { offeringId: string; title: string; body: string }) => input)
+  .validator(input(z.strictObject({ offeringId: safeId, title, body: text(LIMITS.long, "The message") })))
   .handler(async ({ context, data }) => {
     const staff = await requireStaff(context.userId, data.offeringId);
     const title = data.title.trim();
@@ -440,7 +470,16 @@ export const postAnnouncement = createServerFn({ method: "POST" })
 
 export const releaseMarketEvent = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { offeringId: string; eventKey: string; groupId?: string | null; respondInDays: number }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        offeringId: safeId,
+        eventKey: line(60, "Event"),
+        groupId: uuid.nullish(),
+        respondInDays: z.number().int().min(1).max(30),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const staff = await requireStaff(context.userId, data.offeringId);
     const template = MARKET_EVENT_BY_KEY[data.eventKey];
@@ -465,7 +504,16 @@ export const releaseMarketEvent = createServerFn({ method: "POST" })
 
 export const setMilestone = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { offeringId: string; stage: string; dueAt: string | null; note?: string }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        offeringId: safeId,
+        stage: line(40, "Stage"),
+        dueAt: dateish.nullable(),
+        note: text(LIMITS.short, "Note").optional(),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     await requireStaff(context.userId, data.offeringId);
     if (!STAGES.some((s) => s.id === data.stage)) throw new AppError("INVALID", "Choose a stage.");
@@ -491,7 +539,7 @@ export const setMilestone = createServerFn({ method: "POST" })
  */
 export const getGradebook = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: { offeringId: string }) => input)
+  .validator(input(z.strictObject({ offeringId: safeId })))
   .handler(async ({ context, data }) => {
     await requireStaff(context.userId, data.offeringId);
     const sql = await getSql();
@@ -538,7 +586,7 @@ export const getGradebook = createServerFn({ method: "GET" })
 /** The cohort's notable moments as sentences — what groups are actually doing. */
 export const getCohortFeed = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: { offeringId: string; mineOnly?: boolean }) => input)
+  .validator(input(z.strictObject({ offeringId: safeId, mineOnly: z.boolean().optional() })))
   .handler(async ({ context, data }) => {
     const staff = await requireStaff(context.userId, data.offeringId);
     const sql = await getSql();

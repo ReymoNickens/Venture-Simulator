@@ -1,5 +1,12 @@
 import { upsertOpportunity, createEvidence, createAssumption, linkEvidence } from "@/lib/server/mutations";
-import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
+import type {
+  Confidence,
+  EvidenceClassification,
+  EvidenceSourceType,
+  Importance,
+  OpportunityFields,
+  RelationshipType,
+} from "@/lib/domain/types";
 import { enqueue, processOutbox } from "./sync";
 import { isEffectivelyOnline } from "./status";
 import { newId } from "@/lib/utils";
@@ -36,10 +43,10 @@ export async function saveOpportunity(fields: OpportunityFields, submit: boolean
 export async function saveEvidence(input: {
   title: string;
   content: string;
-  sourceType: string;
-  classification: string;
+  sourceType: EvidenceSourceType;
+  classification: EvidenceClassification;
   photoData?: string | null;
-  photoMime?: string | null;
+  photoMime?: "image/jpeg" | null;
   observedAt?: string | null;
   locationContext?: string | null;
 }) {
@@ -55,8 +62,8 @@ export async function saveEvidence(input: {
 
 export async function saveAssumption(input: {
   statement: string;
-  importance: string;
-  confidence: string;
+  importance: Importance;
+  confidence: Confidence;
 }) {
   const clientId = newId();
   return tryOnline(

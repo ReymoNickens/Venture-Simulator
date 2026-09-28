@@ -1,3 +1,5 @@
+import { publicMiddleware } from "@/lib/auth/middleware";
+import { input, noInput } from "@/lib/domain/schemas";
 import { createServerFn } from "@tanstack/react-start";
 import { dbSource, PREVIEW_ROSTER } from "@/lib/db";
 import { PREVIEW_STAFF_CODE } from "./staff-code";
@@ -7,7 +9,9 @@ import { PREVIEW_STAFF_CODE } from "./staff-code";
  * (never with a real DATABASE_URL), so a local preview can be tried as a
  * student or a lecturer.
  */
-export const getSignInHints = createServerFn({ method: "GET" }).handler(async () => {
+export const getSignInHints = createServerFn({ method: "GET" })
+  .middleware([publicMiddleware])
+  .validator(input(noInput)).handler(async () => {
   if (dbSource !== "pglite") return null;
   const student = PREVIEW_ROSTER[0];
   return {

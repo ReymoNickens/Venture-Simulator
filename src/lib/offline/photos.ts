@@ -3,7 +3,7 @@ import { DEFAULT_MAX_PHOTO_BYTES, DEFAULT_MAX_PHOTO_EDGE, JPEG_QUALITY, ALLOWED_
 export async function compressPhoto(
   file: File,
   maxBytes = DEFAULT_MAX_PHOTO_BYTES,
-): Promise<{ dataUrl: string; mime: string }> {
+): Promise<{ dataUrl: string; mime: "image/jpeg" }> {
   if (!ALLOWED_PHOTO_TYPES.includes(file.type as (typeof ALLOWED_PHOTO_TYPES)[number])) {
     throw new Error("Use a JPEG, PNG, or WebP photo.");
   }
@@ -31,7 +31,7 @@ export async function compressPhoto(
     throw new Error("The photo is still too large after compression. Try a closer, smaller shot.");
   }
   const dataUrl = await blobToDataUrl(blob);
-  return { dataUrl, mime: "image/jpeg" };
+  return { dataUrl, mime: "image/jpeg" as const };
 }
 
 export function blobToDataUrl(blob: Blob): Promise<string> {

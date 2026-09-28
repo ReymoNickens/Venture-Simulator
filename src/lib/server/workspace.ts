@@ -1,3 +1,4 @@
+import { input, noInput } from "@/lib/domain/schemas";
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, withRlsBypass } from "@/lib/db";
@@ -40,6 +41,7 @@ function parseMeta(raw: string | null): Record<string, string | number | boolean
 
 export const getWorkspace = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
+  .validator(input(noInput))
   .handler(async ({ context }): Promise<WorkspaceSnapshot> => {
     const student = await loadStudent(context.userId);
     const isStaff = student ? false : Boolean(await loadStaff(context.userId));
@@ -541,6 +543,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
 
 export const listOfferings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
+  .validator(input(noInput))
   .handler(async (): Promise<CourseOffering[]> => {
     const sql = await getSql();
     const rows = await sql.query<OfferingRow>(

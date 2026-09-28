@@ -89,7 +89,7 @@ type BV = {
   learningGoal: string;
   description: string;
   cost: string;
-  photo: { dataUrl: string; mime: string } | null;
+  photo: { dataUrl: string; mime: "image/jpeg" } | null;
 };
 
 function BuildForm({ onDone, onCancel, maxPhotoBytes }: { onDone: () => void; onCancel?: () => void; maxPhotoBytes: number }) {

@@ -1,3 +1,4 @@
+import { input, noInput } from "@/lib/domain/schemas";
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, withRlsBypass } from "@/lib/db";
@@ -188,6 +189,7 @@ const PEERS: {
 
 export const bootstrapDemoCohort = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
+  .validator(input(noInput))
   .handler(async ({ context }) => {
     const student = await requireStudent(context.userId);
     const offering = await loadOfferingForStudent(student.id);

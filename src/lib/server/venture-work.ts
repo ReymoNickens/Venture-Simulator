@@ -1,5 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { z } from "zod";
+import {
+  confidence,
+  dateish,
+  input,
+  LIMITS,
+  line,
+  photoData,
+  photoMime,
+  relationshipType,
+  safeId,
+  text,
+  title,
+  uuid,
+  vote,
+} from "@/lib/domain/schemas";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
 import { CANVAS_BLOCKS, FEASIBILITY_LENSES, PLAN_SECTIONS, PROTOTYPE_KINDS, STAGES, VERDICTS } from "@/lib/domain/stages";
@@ -25,24 +41,26 @@ const CHANNELS = ["in_person", "phone", "whatsapp", "other"] as const;
 export const logInterview = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
-    (input: {
-      clientId?: string;
-      intervieweeProfile: string;
-      segment?: string;
-      location?: string;
-      conductedOn?: string | null;
-      channel?: string;
-      consent: boolean;
-      keyQuotes: string;
-      pains?: string;
-      currentSolution?: string;
-      spendSignal?: string;
-      wouldPay?: string;
-      painLevel?: number | null;
-      surprise?: string;
-      assumptionId?: string | null;
-      relationship?: string | null;
-    }) => input,
+    input(
+      z.strictObject({
+        clientId: uuid.optional(),
+        intervieweeProfile: line(LIMITS.short, "Who you spoke to"),
+        segment: line(LIMITS.short, "Segment").optional(),
+        location: line(LIMITS.short, "Where").optional(),
+        conductedOn: dateish.nullish(),
+        channel: z.enum(CHANNELS).optional(),
+        consent: z.boolean(),
+        keyQuotes: text(LIMITS.long, "What they actually said"),
+        pains: text(LIMITS.long, "Pains").optional(),
+        currentSolution: text(LIMITS.short, "What they do today").optional(),
+        spendSignal: text(LIMITS.short, "What they spend").optional(),
+        wouldPay: z.enum(WOULD_PAY).optional(),
+        painLevel: z.number().int().min(1).max(5).nullish(),
+        surprise: text(LIMITS.long, "What surprised you").optional(),
+        assumptionId: uuid.nullish(),
+        relationship: relationshipType.nullish(),
+      }),
+    ),
   )
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
@@ -118,7 +136,16 @@ export const logInterview = createServerFn({ method: "POST" })
 
 export const addCanvasEntry = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { clientId?: string; block: string; body: string; evidenceIds?: string[] }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        clientId: uuid.optional(),
+        block: line(40, "Canvas block"),
+        body: text(LIMITS.short, "The entry"),
+        evidenceIds: z.array(uuid).max(50).optional(),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
     const block = oneOf(
@@ -156,7 +183,7 @@ export const addCanvasEntry = createServerFn({ method: "POST" })
 
 export const linkCanvasEvidence = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { entryId: string; evidenceIds: string[] }) => input)
+  .validator(input(z.strictObject({ entryId: uuid, evidenceIds: z.array(uuid).max(50) })))
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
     const sql = await getSql();
@@ -186,7 +213,7 @@ export const linkCanvasEvidence = createServerFn({ method: "POST" })
 
 export const retireCanvasEntry = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { entryId: string; reason: string }) => input)
+  .validator(input(z.strictObject({ entryId: uuid, reason: text(LIMITS.short, "Your reason") })))
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
     const reason = requireText(data.reason, "Why it no longer holds", 5);
@@ -211,7 +238,16 @@ export const retireCanvasEntry = createServerFn({ method: "POST" })
 
 export const assessFeasibility = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { lens: string; verdict: string; reasoning: string; evidenceIds?: string[] }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        lens: line(40, "Lens"),
+        verdict: line(40, "Verdict"),
+        reasoning: text(LIMITS.long, "Your reasoning"),
+        evidenceIds: z.array(uuid).max(50).optional(),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
     const lens = oneOf(
@@ -246,7 +282,7 @@ export const assessFeasibility = createServerFn({ method: "POST" })
 
 export const saveFinanceModel = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { inputs: string; note?: string }) => input)
+  .validator(input(z.strictObject({ inputs: text(50_000, "The numbers"), note: text(LIMITS.short, "Note").optional() })))
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
     if (typeof data.inputs !== "string" || data.inputs.length > 50_000) {
@@ -293,15 +329,17 @@ export const saveFinanceModel = createServerFn({ method: "POST" })
 export const createPrototype = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
-    (input: {
-      title: string;
-      kind: string;
-      description: string;
-      learningGoal: string;
-      costGhs: number;
-      photoData?: string | null;
-      photoMime?: string | null;
-    }) => input,
+    input(
+      z.strictObject({
+        title,
+        kind: line(40, "Prototype type"),
+        description: text(LIMITS.long, "Description"),
+        learningGoal: text(LIMITS.short, "What it should teach you"),
+        costGhs: z.number().min(0).max(1_000_000),
+        photoData: photoData.nullish(),
+        photoMime: photoMime.nullish(),
+      }),
+    ),
   )
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
@@ -341,7 +379,7 @@ export const createPrototype = createServerFn({ method: "POST" })
 
 export const getPrototypePhoto = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: { id: string }) => input)
+  .validator(input(z.strictObject({ id: uuid })))
   .handler(async ({ data }) => {
     const sql = await getSql();
     const rows = await sql<{ photo_data: string | null }>`
@@ -354,18 +392,20 @@ export const getPrototypePhoto = createServerFn({ method: "GET" })
 export const logPrototypeTest = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
-    (input: {
-      clientId?: string;
-      prototypeId: string;
-      testerProfile: string;
-      task?: string;
-      observed: string;
-      quote?: string;
-      outcome: string;
-      wouldPay?: string;
-      assumptionId?: string | null;
-      relationship?: string | null;
-    }) => input,
+    input(
+      z.strictObject({
+        clientId: uuid.optional(),
+        prototypeId: uuid,
+        testerProfile: line(LIMITS.short, "Who tested it"),
+        task: text(LIMITS.short, "The task").optional(),
+        observed: text(LIMITS.long, "What you saw happen"),
+        quote: text(LIMITS.short, "What they said").optional(),
+        outcome: z.enum(["succeeded", "struggled", "failed"], { message: "Choose an outcome." }),
+        wouldPay: z.enum(WOULD_PAY).optional(),
+        assumptionId: uuid.nullish(),
+        relationship: relationshipType.nullish(),
+      }),
+    ),
   )
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
@@ -422,7 +462,15 @@ export const logPrototypeTest = createServerFn({ method: "POST" })
 
 export const proposeDecision = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { decision: string; rationale: string; whatChanges?: string }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        decision: line(20, "Decision"),
+        rationale: text(LIMITS.long, "Your rationale"),
+        whatChanges: text(LIMITS.long, "What changes").optional(),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
     const decision = oneOf(data.decision, ["persevere", "pivot", "stop"] as const, "decision");
@@ -473,7 +521,7 @@ export const proposeDecision = createServerFn({ method: "POST" })
 
 export const voteOnDecision = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { decisionId: string; vote: "endorse" | "object"; comment: string }) => input)
+  .validator(input(z.strictObject({ decisionId: uuid, vote, comment: text(LIMITS.long, "Your comment") })))
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
     const vote = oneOf(data.vote, ["endorse", "object"] as const, "vote");
@@ -506,7 +554,7 @@ export const voteOnDecision = createServerFn({ method: "POST" })
 
 export const savePlanSection = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { section: string; body: string }) => input)
+  .validator(input(z.strictObject({ section: line(40, "Section"), body: text(LIMITS.long, "The section") })))
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
     const section = oneOf(
@@ -535,7 +583,7 @@ export const savePlanSection = createServerFn({ method: "POST" })
 
 export const saveReflection = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { stage: string; body: string }) => input)
+  .validator(input(z.strictObject({ stage: line(40, "Stage"), body: text(LIMITS.long, "Your reflection") })))
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -565,7 +613,21 @@ export const saveReflection = createServerFn({ method: "POST" })
 
 export const ratePeers = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { ratings: { studentId: string; score: number; comment?: string }[] }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        ratings: z
+          .array(
+            z.strictObject({
+              studentId: safeId,
+              score: z.number().int().min(1).max(5),
+              comment: text(LIMITS.short, "Your comment").optional(),
+            }),
+          )
+          .max(20),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -604,7 +666,7 @@ export const ratePeers = createServerFn({ method: "POST" })
 
 export const respondToMarketEvent = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { eventId: string; body: string }) => input)
+  .validator(input(z.strictObject({ eventId: uuid, body: text(LIMITS.long, "Your response") })))
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -635,7 +697,15 @@ export const respondToMarketEvent = createServerFn({ method: "POST" })
 
 export const setAssumptionStatus = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { assumptionId: string; status: string; confidence?: string }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        assumptionId: uuid,
+        status: z.enum(["open", "testing", "supported", "challenged"], { message: "Choose a status." }),
+        confidence: confidence.optional(),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const { student, group, ventureId } = await requireVenture(context.userId);
     const status = oneOf(data.status, ["open", "testing", "supported", "challenged"] as const, "status");

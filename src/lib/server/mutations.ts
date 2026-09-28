@@ -2,7 +2,25 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { joinCode, newId } from "@/lib/utils";
-import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
+import { z } from "zod";
+import type { OpportunityFields } from "@/lib/domain/types";
+import {
+  classification,
+  confidence,
+  dateish,
+  importance,
+  input,
+  LIMITS,
+  line,
+  photoData,
+  photoMime,
+  relationshipType,
+  safeId,
+  sourceType,
+  text,
+  title,
+  uuid,
+} from "@/lib/domain/schemas";
 import { DEFAULT_GROUP_SIZE, DEFAULT_MAX_PHOTO_BYTES } from "@/lib/domain/config";
 import { canEditOwnOpportunity } from "@/lib/domain/state-machine";
 import {
@@ -15,19 +33,31 @@ import {
   requireStudent,
 } from "./authz";
 
-function fail(err: unknown): never {
-  if (err instanceof AppError) throw err;
-  throw err;
-}
+const opportunityFields = z.strictObject({
+  problem: text(LIMITS.long, "The problem"),
+  affectedPeople: text(LIMITS.short, "Who has it"),
+  context: text(LIMITS.short, "Where"),
+  observedEvidence: text(LIMITS.long, "What you observed"),
+  currentAlternatives: text(LIMITS.long, "What people do today"),
+  whyItMatters: text(LIMITS.long, "Why it matters"),
+  possibleSolution: text(LIMITS.long, "Possible solution"),
+  potentialCustomer: text(LIMITS.short, "Potential customer"),
+  revenueMechanism: text(LIMITS.short, "How it could earn"),
+  uncertainties: text(LIMITS.long, "What you don't know"),
+});
 
 export const upsertProfile = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: {
-    fullName: string;
-    indexNumber: string;
-    programme: string;
-    offeringId: string;
-  }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        fullName: line(120, "Your name"),
+        indexNumber: line(40, "Index number"),
+        programme: line(120, "Programme"),
+        offeringId: safeId,
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const programme = data.programme.trim();
     if (!programme) {
@@ -97,9 +127,9 @@ export const upsertProfile = createServerFn({ method: "POST" })
 
 export const createGroup = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { groupName: string }) => input)
+  .validator(input(z.strictObject({ groupName: line(80, "The group name") })))
   .handler(async ({ context, data }) => {
-    try {
+    {
       const student = await requireStudent(context.userId);
       const offering = await loadOfferingForStudent(student.id);
       if (!offering) throw new AppError("NO_OFFERING", "Enrol in a course offering first.");
@@ -149,14 +179,22 @@ export const createGroup = createServerFn({ method: "POST" })
         entityId: groupId,
       });
       return { groupId, joinCode: code, groupNumber };
-    } catch (err) {
-      fail(err);
     }
   });
 
 export const joinGroup = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { joinCode: string }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        joinCode: z
+          .string()
+          .trim()
+          .toUpperCase()
+          .regex(/^[A-Z0-9]{4,12}$/, { message: "Join codes are 4–12 letters and numbers." }),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const existing = await loadGroupForStudent(student.id);
@@ -234,13 +272,15 @@ const emptyFields: OpportunityFields = {
 export const upsertOpportunity = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
-    (input: {
-      fields: OpportunityFields;
-      submit?: boolean;
-      clientId?: string;
-      /** Replayed from a phone's offline queue rather than typed just now. */
-      fromQueue?: boolean;
-    }) => input,
+    input(
+      z.strictObject({
+        fields: opportunityFields.partial(),
+        submit: z.boolean().optional(),
+        clientId: uuid.optional(),
+        /** Replayed from a phone's offline queue rather than typed just now. */
+        fromQueue: z.boolean().optional(),
+      }),
+    ),
   )
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
@@ -358,7 +398,7 @@ export const upsertOpportunity = createServerFn({ method: "POST" })
 
 export const recordPreference = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { opportunityId: string; rationale: string }) => input)
+  .validator(input(z.strictObject({ opportunityId: uuid, rationale: text(LIMITS.long, "Your reason") })))
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -397,17 +437,21 @@ export const recordPreference = createServerFn({ method: "POST" })
 
 export const createEvidence = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: {
-    clientId?: string;
-    title: string;
-    content: string;
-    sourceType: string;
-    classification: string;
-    photoData?: string | null;
-    photoMime?: string | null;
-    observedAt?: string | null;
-    locationContext?: string | null;
-  }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        clientId: uuid.optional(),
+        title,
+        content: text(LIMITS.long, "What you found"),
+        sourceType,
+        classification,
+        photoData: photoData.nullish(),
+        photoMime: photoMime.nullish(),
+        observedAt: dateish.nullish(),
+        locationContext: line(LIMITS.short, "Where").nullish(),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -455,12 +499,16 @@ export const createEvidence = createServerFn({ method: "POST" })
 
 export const createAssumption = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: {
-    clientId?: string;
-    statement: string;
-    importance: string;
-    confidence: string;
-  }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        clientId: uuid.optional(),
+        statement: text(LIMITS.short, "The assumption"),
+        importance,
+        confidence,
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -490,12 +538,16 @@ export const createAssumption = createServerFn({ method: "POST" })
 
 export const linkEvidence = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: {
-    clientId?: string;
-    assumptionId: string;
-    evidenceItemId: string;
-    relationshipType: RelationshipType;
-  }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        clientId: uuid.optional(),
+        assumptionId: uuid,
+        evidenceItemId: uuid,
+        relationshipType,
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);

@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { z } from "zod";
+import { input, LIMITS, noInput, safeId, text, uuid } from "@/lib/domain/schemas";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
 import { AppError, loadGroupForStudent, logEvent, requireStudent } from "./authz";
@@ -27,7 +29,7 @@ async function markRead(userId: string, groupId: string) {
 /** A student writes to their group thread, or privately to staff. */
 export const sendMessage = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { body: string; privateToStaff?: boolean }) => input)
+  .validator(input(z.strictObject({ body: text(LIMITS.long, "Your message"), privateToStaff: z.boolean().optional() })))
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -46,6 +48,7 @@ export const sendMessage = createServerFn({ method: "POST" })
 
 export const markMessagesRead = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
+  .validator(input(noInput))
   .handler(async ({ context }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -56,7 +59,11 @@ export const markMessagesRead = createServerFn({ method: "POST" })
 /** Staff write to one group, or privately to one student in it. */
 export const sendStaffMessage = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { groupId: string; body: string; recipientStudentId?: string | null }) => input)
+  .validator(
+    input(
+      z.strictObject({ groupId: uuid, body: text(LIMITS.long, "Your message"), recipientStudentId: safeId.nullish() }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const staff = await requireStaffForGroup(context.userId, data.groupId);
     const body = cleanBody(data.body);
@@ -82,7 +89,11 @@ export const sendStaffMessage = createServerFn({ method: "POST" })
 /** One message to many groups — e.g. every group behind on a milestone. */
 export const sendStaffMessageBulk = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { offeringId: string; groupIds: string[]; body: string }) => input)
+  .validator(
+    input(
+      z.strictObject({ offeringId: safeId, groupIds: z.array(uuid).min(1).max(500), body: text(LIMITS.long, "Your message") }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const staff = await requireStaff(context.userId, data.offeringId);
     const body = cleanBody(data.body);
@@ -105,7 +116,7 @@ export const sendStaffMessageBulk = createServerFn({ method: "POST" })
 
 export const markThreadRead = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { groupId: string }) => input)
+  .validator(input(z.strictObject({ groupId: uuid })))
   .handler(async ({ context, data }) => {
     await requireStaffForGroup(context.userId, data.groupId);
     await markRead(context.userId, data.groupId);

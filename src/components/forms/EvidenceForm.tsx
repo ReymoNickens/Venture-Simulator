@@ -14,7 +14,7 @@ type V = {
   classification: EvidenceClassification | "";
   locationContext: string;
   observedAt: string;
-  photo: { dataUrl: string; mime: string } | null;
+  photo: { dataUrl: string; mime: "image/jpeg" } | null;
 };
 
 const DRAFT_DROP: (keyof V)[] = ["photo"];

@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { z } from "zod";
+import { input, uuid } from "@/lib/domain/schemas";
 import { getSql } from "@/lib/db";
 import { AppError } from "./authz";
 
@@ -12,7 +14,7 @@ import { AppError } from "./authz";
  */
 export const getEvidencePhoto = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator((input: { id: string }) => input)
+  .validator(input(z.strictObject({ id: uuid })))
   .handler(async ({ data }) => {
     const sql = await getSql();
     const rows = await sql<{ photo_data: string | null; photo_mime: string | null }>`

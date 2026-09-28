@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { z } from "zod";
+import { input, LIMITS, line, text, uuid, vote } from "@/lib/domain/schemas";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
 import {
@@ -17,7 +19,7 @@ const MIN_OBJECTION = 15;
 
 export const proposeVenture = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { opportunityId: string; name: string; rationale: string }) => input)
+  .validator(input(z.strictObject({ opportunityId: uuid, name: line(LIMITS.title, "The venture name"), rationale: text(LIMITS.long, "The rationale") })))
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -101,7 +103,7 @@ export const proposeVenture = createServerFn({ method: "POST" })
 
 export const voteOnProposal = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { proposalId: string; vote: "endorse" | "object"; comment: string }) => input)
+  .validator(input(z.strictObject({ proposalId: uuid, vote, comment: text(LIMITS.long, "Your comment") })))
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -140,7 +142,7 @@ export const voteOnProposal = createServerFn({ method: "POST" })
 
 export const withdrawProposal = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { proposalId: string }) => input)
+  .validator(input(z.strictObject({ proposalId: uuid })))
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
@@ -165,7 +167,7 @@ export const withdrawProposal = createServerFn({ method: "POST" })
 
 export const leaveGroup = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { reason: string }) => input)
+  .validator(input(z.strictObject({ reason: text(LIMITS.short, "Your reason") })))
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);

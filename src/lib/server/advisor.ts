@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import Anthropic from "@anthropic-ai/sdk";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { z } from "zod";
+import { advisorStage, input, LIMITS, text, uuid } from "@/lib/domain/schemas";
 import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
 import type { AdvisorMetadata, AdvisorStage, GroupStatus } from "@/lib/domain/types";
@@ -257,7 +259,15 @@ async function assertAdvisorQuota(studentId: string, groupId: string): Promise<v
 
 export const sendAdvisorMessage = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator((input: { stage: AdvisorStage; content: string; sessionId?: string }) => input)
+  .validator(
+    input(
+      z.strictObject({
+        stage: advisorStage,
+        content: text(LIMITS.advisor, "Your message"),
+        sessionId: uuid.optional(),
+      }),
+    ),
+  )
   .handler(async ({ context, data }) => {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {

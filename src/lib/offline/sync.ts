@@ -1,5 +1,12 @@
 import { upsertOpportunity, createEvidence, createAssumption, linkEvidence } from "@/lib/server/mutations";
-import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
+import type {
+  Confidence,
+  EvidenceClassification,
+  EvidenceSourceType,
+  Importance,
+  OpportunityFields,
+  RelationshipType,
+} from "@/lib/domain/types";
 import { getOfflineOwner, outboxAll, outboxDelete, outboxPut } from "./idb";
 import { emitConnectionChange, isEffectivelyOnline } from "./status";
 import type { OutboxItem } from "./idb";
@@ -106,10 +113,11 @@ async function dispatch(item: OutboxItem): Promise<void> {
           clientId: String(p.clientId ?? item.id),
           title: String(p.title ?? ""),
           content: String(p.content ?? ""),
-          sourceType: String(p.sourceType ?? "other"),
-          classification: String(p.classification ?? "unknown"),
+          // Queued payloads are re-validated by the server on replay.
+          sourceType: (p.sourceType ?? "other") as EvidenceSourceType,
+          classification: (p.classification ?? "unknown") as EvidenceClassification,
           photoData: (p.photoData as string | null) ?? null,
-          photoMime: (p.photoMime as string | null) ?? null,
+          photoMime: p.photoData ? "image/jpeg" : null,
           observedAt: (p.observedAt as string | null) ?? null,
           locationContext: (p.locationContext as string | null) ?? null,
         },
@@ -120,8 +128,8 @@ async function dispatch(item: OutboxItem): Promise<void> {
         data: {
           clientId: String(p.clientId ?? item.id),
           statement: String(p.statement ?? ""),
-          importance: String(p.importance ?? "medium"),
-          confidence: String(p.confidence ?? "low"),
+          importance: (p.importance ?? "medium") as Importance,
+          confidence: (p.confidence ?? "low") as Confidence,
         },
       });
       return;
