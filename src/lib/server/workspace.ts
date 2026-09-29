@@ -51,7 +51,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       preferenceProgress: { recorded: 0, required: 0 },
       canOpenSelection: false,
       canRecordGroupDecision: false,
-      aiAvailable: Boolean(process.env.XAI_API_KEY),
+      aiAvailable: Boolean(process.env.ANTHROPIC_API_KEY),
     };
     if (!student) return empty;
 
@@ -432,7 +432,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       preferenceProgress: { recorded, required },
       canOpenSelection,
       canRecordGroupDecision,
-      aiAvailable: Boolean(process.env.XAI_API_KEY),
+      aiAvailable: Boolean(process.env.ANTHROPIC_API_KEY),
     };
   });
 

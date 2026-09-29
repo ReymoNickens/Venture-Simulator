@@ -1,4 +1,4 @@
-// Phase 2, Slice 0 regression tests for migrations/0006_cohort_scoped_roles.sql:
+// Phase 2, Slice 0 regression tests for migrations/0007_cohort_scoped_roles.sql:
 // lecturers see only their own cohorts, read-only, and nobody can grant
 // themselves a role.
 import assert from "node:assert/strict";

@@ -9,7 +9,7 @@ migrations/
   0003_rls.sql           executable RLS + future lecturer hook
   0004_seed.sql          course catalogue only
   0005_runtime_role.sql  restricted app_runtime role that makes RLS load-bearing
-  0006_cohort_scoped_roles.sql  lecturers read-only + own cohorts; no self-granted roles
+  0007_cohort_scoped_roles.sql  lecturers read-only + own cohorts; no self-granted roles
 src/lib/domain/          types, group state machine, microcopy
 src/lib/server/          createServerFn handlers, scoped by session
 src/lib/offline/         IndexedDB + outbox + photo compress
@@ -57,7 +57,7 @@ RLS policies are real SQL and actually enforced: `authMiddleware` runs every han
 ## AI advisor
 
 - Called only from `sendAdvisorMessage` (server function).
-- Model: `grok-4.5` via `XAI_API_KEY`.
+- Model: `claude-opus-5` via `ANTHROPIC_API_KEY`.
 - Context is assembled from the current stage, venture, alternatives, rationale, recent evidence/assumptions, and recent messages — not the whole database.
 - Response is parsed as `{ message, challenge_type, requires_evidence, related_assumption_id, suggested_next_action }`.
 - Deterministic operations (join, capacity, required fields) never call the model.

@@ -34,4 +34,4 @@ Feasibility, finance, prototypes, resource mobilisation, simulation, lecturer da
 
 ## Stack (documented deviation)
 
-The concept named Next.js, Supabase, and Claude. This workspace runs TanStack Start, Postgres (Neon / PGLite), Better Auth, and xAI `grok-4.5`. Pedagogy and schema follow the concept; runtime follows the host. See [DEVIATIONS.md](./DEVIATIONS.md).
+The concept named Next.js, Supabase, and Claude. This workspace runs TanStack Start, Postgres (Neon / PGLite), Better Auth, and Claude `claude-opus-5`. Pedagogy and schema follow the concept; runtime follows the host. See [DEVIATIONS.md](./DEVIATIONS.md).

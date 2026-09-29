@@ -6,7 +6,7 @@ Material differences, with reason.
 
 **Spec:** Next.js App Router, Supabase (Postgres + Auth + Storage), Claude API, Vercel.
 
-**This build:** TanStack Start, Postgres via the host (Neon in production, PGLite in preview), Better Auth, xAI `grok-4.5`, same Vercel target.
+**This build:** TanStack Start, Postgres via the host (Neon in production, PGLite in preview), Better Auth, Claude `claude-opus-5`, same Vercel target.
 
 **Why:** The app must run in this App Builder workspace. The pedagogical data model, privacy rules, state machine, offline queue, and advisor behaviour follow the concept, not the thinner VentureForge prompt.
 
@@ -44,7 +44,7 @@ A small, explicitly commented set of call sites (`joinGroup`'s lookup-by-code, `
 
 **Spec:** Anthropic Claude, server-side.
 
-**This build:** xAI `grok-4.5`, server-side, same challenge contract and structured JSON. Explicitly accepted — the choice of model is not material to this slice; the challenge behaviour, context assembly, and server-side-only boundary are what the spec actually cares about, and those are unchanged.
+**This build:** Matches the spec — Claude `claude-opus-5`, server-side, via `ANTHROPIC_API_KEY`. (An earlier revision of this build used xAI's Grok instead; that deviation is now resolved.)
 
 ## 7. Demo peers
 

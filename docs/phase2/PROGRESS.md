@@ -3,7 +3,7 @@
 ## Slice 0: Foundations (done)
 
 **What changed**
-- `migrations/0006_cohort_scoped_roles.sql`: lecturers are read-only and see only their own cohorts. Previously any lecturer would have had read *and write* on every cohort. `user_roles` now has RLS, so nobody can grant themselves a role.
+- `migrations/0007_cohort_scoped_roles.sql`: lecturers are read-only and see only their own cohorts. Previously any lecturer would have had read *and write* on every cohort. `user_roles` now has RLS, so nobody can grant themselves a role.
 - The advisor no longer sends student names to the AI provider (`src/lib/server/advisor-context.ts`).
 - `npm test` finds test files by pattern. Previously a new test file was silently skipped unless added to a list.
 - New helpers for later slices: `parseInput` (zod validation), `log` (structured logs with a personal-data allow-list), `fast-check` for property tests.
@@ -11,7 +11,7 @@
 
 **Existing features touched, with regression tests**: RLS (the existing 8 isolation tests still pass, plus 11 new), advisor context (3 new), `AppError` moved to `src/lib/server/errors.ts` and re-exported from `authz.ts` (no call site changed).
 
-**Proof**: `src/lib/server/rls-cohort.test.ts`. 9 of its 11 tests fail if migration 0006 is removed.
+**Proof**: `src/lib/server/rls-cohort.test.ts`. 9 of its 11 tests fail if migration 0007 is removed.
 
 ## Slice A: Simulation engine core (done)
 

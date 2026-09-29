@@ -2,7 +2,7 @@
 
 **Context.** The audit found `app_has_privileged_role()` was true for any lecturer and granted read AND write on every group in every cohort, and that `user_roles` had no RLS, so a request running as `app_runtime` could insert a lecturer row for itself.
 
-**Decision** (`migrations/0006_cohort_scoped_roles.sql`).
+**Decision** (`migrations/0007_cohort_scoped_roles.sql`).
 - `app_has_privileged_role()` now means admin only.
 - Lecturers get SELECT-only policies, limited to groups in offerings they hold `role_lecturer` for. Drafts stay private even from lecturers.
 - Lecturer *actions* (pause, advance, reopen, inject event, reset) will be explicit, audited server functions, not table write access.
