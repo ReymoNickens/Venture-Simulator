@@ -60,7 +60,8 @@ export type JourneyId =
   | "submit"
   | "select"
   | "evidence"
-  | "assumptions";
+  | "assumptions"
+  | "simulate";
 
 export function journeyState(input: {
   hasGroup: boolean;
@@ -70,6 +71,7 @@ export function journeyState(input: {
   hasVenture: boolean;
   evidenceCount: number;
   assumptionCount: number;
+  simulation?: { completedPeriod: number; periodCount: number; status: string } | null;
 }): Record<JourneyId, "done" | "current" | "todo"> {
   const selectOpen =
     input.groupStatus === "selection_ready" ||
@@ -82,6 +84,7 @@ export function journeyState(input: {
     select: "todo",
     evidence: "todo",
     assumptions: "todo",
+    simulate: "todo",
   };
   if (!input.hasGroup) return result;
   result.opportunity = input.hasDraftOrOpportunity ? "done" : "current";
@@ -93,5 +96,10 @@ export function journeyState(input: {
   result.evidence = input.evidenceCount > 0 ? "done" : "current";
   result.assumptions =
     input.assumptionCount > 0 ? "done" : input.evidenceCount > 0 ? "current" : "todo";
+  // Evidence work continues alongside the simulation, so running the venture
+  // opens as soon as a venture exists.
+  const sim = input.simulation;
+  result.simulate =
+    sim && (sim.status === "exited" || sim.completedPeriod >= sim.periodCount) ? "done" : "current";
   return result;
 }

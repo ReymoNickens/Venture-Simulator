@@ -48,7 +48,8 @@ export type OutboxType =
   | "submit_opportunity"
   | "create_evidence"
   | "create_assumption"
-  | "link_assumption_evidence";
+  | "link_assumption_evidence"
+  | "submit_sim_decisions";
 
 export interface Student {
   id: string;
@@ -262,4 +263,13 @@ export interface WorkspaceSnapshot {
   canOpenSelection: boolean;
   canRecordGroupDecision: boolean;
   aiAvailable: boolean;
+  /** The group's simulated venture, once launched (Phase 2, Slice B). */
+  simulation: SimulationSummary | null;
+}
+
+export interface SimulationSummary {
+  id: string;
+  completedPeriod: number;
+  periodCount: number;
+  status: "operating" | "cash_out" | "exited";
 }

@@ -18,3 +18,4 @@ by editing history.
 | [0009](0009-advisor-display-name.md) | Advisor named per cohort, discloses it is an AI | D (decided now) |
 | [0010](0010-leader-election.md) | Leader election by majority, handover, lecturer override | Governance (decided now) |
 | [0011](0011-cash-out-keeps-calendar.md) | Cash-out does not rewind time | D (decided now) |
+| [0012](0012-engine-role-writes-outcomes.md) | Only the engine role writes outcomes; students insert decisions only | B |

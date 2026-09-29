@@ -14,6 +14,7 @@ export function JourneyRail({ data }: { data: WorkspaceSnapshot }) {
     hasVenture: Boolean(data.venture),
     evidenceCount: data.evidence.length,
     assumptionCount: data.assumptions.length,
+    simulation: data.simulation,
   });
 
   return (

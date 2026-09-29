@@ -44,4 +44,5 @@ export const JOURNEY_STEPS = [
   { id: "select", label: "Select venture", href: "/studio/select" },
   { id: "evidence", label: "Collect evidence", href: "/studio/venture" },
   { id: "assumptions", label: "Test assumptions", href: "/studio/venture" },
+  { id: "simulate", label: "Run the venture", href: "/studio/simulation" },
 ] as const;

@@ -468,6 +468,8 @@ export interface Outcomes {
   reputation: number;
   inventory: Record<string, { opening: number; purchased: number; sold: number; spoiled: number; closing: number }>;
   capacityUnits: number;
+  /** Stock ordered but not yet delivered (arrives in a later period). */
+  incoming: { productId: string; supplierId: string; units: number; arrivesPeriod: number }[];
   debtOutstanding: Pesewas;
   assets: Pesewas;
   liabilities: Pesewas;

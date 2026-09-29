@@ -98,5 +98,45 @@ describe("journeyState", () => {
     });
     assert.equal(j.group, "current");
     assert.equal(j.opportunity, "todo");
+    assert.equal(j.simulate, "todo");
+  });
+
+  const withVenture = {
+    hasGroup: true,
+    hasDraftOrOpportunity: true,
+    hasSubmitted: true,
+    groupStatus: "venture_created" as const,
+    hasVenture: true,
+    evidenceCount: 0,
+    assumptionCount: 0,
+  };
+
+  it("opens the simulation as soon as a venture exists", () => {
+    assert.equal(journeyState(withVenture).simulate, "current");
+    assert.equal(
+      journeyState({ ...withVenture, simulation: { completedPeriod: 2, periodCount: 6, status: "operating" } })
+        .simulate,
+      "current",
+    );
+  });
+
+  it("marks the simulation done after the last period, or on exit", () => {
+    assert.equal(
+      journeyState({ ...withVenture, simulation: { completedPeriod: 6, periodCount: 6, status: "operating" } })
+        .simulate,
+      "done",
+    );
+    assert.equal(
+      journeyState({ ...withVenture, simulation: { completedPeriod: 3, periodCount: 6, status: "exited" } })
+        .simulate,
+      "done",
+    );
+  });
+
+  it("keeps the simulation closed before a venture exists", () => {
+    assert.equal(
+      journeyState({ ...withVenture, hasVenture: false, groupStatus: "selection" }).simulate,
+      "todo",
+    );
   });
 });

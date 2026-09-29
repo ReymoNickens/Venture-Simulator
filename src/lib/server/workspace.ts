@@ -52,6 +52,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       canOpenSelection: false,
       canRecordGroupDecision: false,
       aiAvailable: Boolean(process.env.ANTHROPIC_API_KEY),
+      simulation: null,
     };
     if (!student) return empty;
 
@@ -402,6 +403,26 @@ export const getWorkspace = createServerFn({ method: "GET" })
       recorded >= required &&
       !venture;
 
+    const simRows = await sql<{
+      id: string;
+      completed_period: number;
+      period_count: number;
+      status: "operating" | "cash_out" | "exited";
+    }>`
+      select s.id, s.completed_period, c.period_count, s.status
+      from simulations s join simulation_cohorts c on c.id = s.cohort_id
+      where s.group_id = ${group.id}
+      limit 1
+    `;
+    const simulation = simRows[0]
+      ? {
+          id: simRows[0].id,
+          completedPeriod: Number(simRows[0].completed_period),
+          periodCount: Number(simRows[0].period_count),
+          status: simRows[0].status,
+        }
+      : null;
+
     return {
       appName: APP_NAME,
       student,
@@ -433,6 +454,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       canOpenSelection,
       canRecordGroupDecision,
       aiAvailable: Boolean(process.env.ANTHROPIC_API_KEY),
+      simulation,
     };
   });
 
