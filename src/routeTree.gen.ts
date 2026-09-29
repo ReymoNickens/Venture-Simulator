@@ -17,6 +17,7 @@ import { Route as StudioIndexRouteImport } from './routes/studio/index'
 import { Route as StudioGroupRouteImport } from './routes/studio/group'
 import { Route as StudioOpportunityRouteImport } from './routes/studio/opportunity'
 import { Route as StudioSelectRouteImport } from './routes/studio/select'
+import { Route as StudioSimulationRouteImport } from './routes/studio/simulation'
 import { Route as StudioVentureRouteImport } from './routes/studio/venture'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -60,6 +61,11 @@ const StudioSelectRoute = StudioSelectRouteImport.update({
   path: '/select',
   getParentRoute: () => StudioRoute,
 } as any)
+const StudioSimulationRoute = StudioSimulationRouteImport.update({
+  id: '/simulation',
+  path: '/simulation',
+  getParentRoute: () => StudioRoute,
+} as any)
 const StudioVentureRoute = StudioVentureRouteImport.update({
   id: '/venture',
   path: '/venture',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/studio/group': typeof StudioGroupRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/select': typeof StudioSelectRoute
+  '/studio/simulation': typeof StudioSimulationRoute
   '/studio/venture': typeof StudioVentureRoute
   '/studio/': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/studio/group': typeof StudioGroupRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/select': typeof StudioSelectRoute
+  '/studio/simulation': typeof StudioSimulationRoute
   '/studio/venture': typeof StudioVentureRoute
   '/studio': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/studio/group': typeof StudioGroupRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/select': typeof StudioSelectRoute
+  '/studio/simulation': typeof StudioSimulationRoute
   '/studio/venture': typeof StudioVentureRoute
   '/studio/': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/studio/group'
     | '/studio/opportunity'
     | '/studio/select'
+    | '/studio/simulation'
     | '/studio/venture'
     | '/studio/'
     | '/api/auth/$'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/studio/group'
     | '/studio/opportunity'
     | '/studio/select'
+    | '/studio/simulation'
     | '/studio/venture'
     | '/studio'
     | '/api/auth/$'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/studio/group'
     | '/studio/opportunity'
     | '/studio/select'
+    | '/studio/simulation'
     | '/studio/venture'
     | '/studio/'
     | '/api/auth/$'
@@ -211,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioSelectRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/studio/simulation': {
+      id: '/studio/simulation'
+      path: '/simulation'
+      fullPath: '/studio/simulation'
+      preLoaderRoute: typeof StudioSimulationRouteImport
+      parentRoute: typeof StudioRoute
+    }
     '/studio/venture': {
       id: '/studio/venture'
       path: '/venture'
@@ -232,6 +251,7 @@ interface StudioRouteChildren {
   StudioGroupRoute: typeof StudioGroupRoute
   StudioOpportunityRoute: typeof StudioOpportunityRoute
   StudioSelectRoute: typeof StudioSelectRoute
+  StudioSimulationRoute: typeof StudioSimulationRoute
   StudioVentureRoute: typeof StudioVentureRoute
   StudioIndexRoute: typeof StudioIndexRoute
 }
@@ -240,6 +260,7 @@ const StudioRouteChildren: StudioRouteChildren = {
   StudioGroupRoute: StudioGroupRoute,
   StudioOpportunityRoute: StudioOpportunityRoute,
   StudioSelectRoute: StudioSelectRoute,
+  StudioSimulationRoute: StudioSimulationRoute,
   StudioVentureRoute: StudioVentureRoute,
   StudioIndexRoute: StudioIndexRoute,
 }

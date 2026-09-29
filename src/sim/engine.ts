@@ -521,6 +521,12 @@ export function runPeriodV1(input: PeriodInput): PeriodOutput {
     reputation,
     inventory: flows,
     capacityUnits: capacity,
+    incoming: pipeline.map((i) => ({
+      productId: i.productId,
+      supplierId: i.supplierId,
+      units: i.units,
+      arrivesPeriod: i.arrivesPeriod,
+    })),
     debtOutstanding,
     assets: Math.max(0, closingCash) + inventoryValue,
     liabilities: debtOutstanding + Math.max(0, -closingCash),

@@ -11,4 +11,4 @@ export { campusFoodStall } from "./scenarios/campus-food-stall.ts";
 export { cohortSeed, groupSeed } from "./seeds.ts";
 export { STRATEGIES } from "./strategies.ts";
 export { CURRENT_ENGINE_VERSION, runPeriod, supportedEngineVersions } from "./versions.ts";
-export { studentView } from "./view.ts";
+export { studentView, type StudentPeriodView } from "./view.ts";

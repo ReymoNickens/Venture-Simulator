@@ -1,4 +1,6 @@
 import { upsertOpportunity, createEvidence, createAssumption, linkEvidence } from "@/lib/server/mutations";
+import { submitSimulationDecisions } from "@/lib/server/simulation";
+import type { Decisions } from "@/sim/index";
 import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
 import { outboxAll, outboxDelete, outboxPut } from "./idb";
 import { emitConnectionChange, isEffectivelyOnline } from "./status";
@@ -100,6 +102,15 @@ async function dispatch(item: OutboxItem): Promise<void> {
           assumptionId: String(p.assumptionId ?? ""),
           evidenceItemId: String(p.evidenceItemId ?? ""),
           relationshipType: (p.relationshipType as RelationshipType) ?? "supports",
+        },
+      });
+      return;
+    case "submit_sim_decisions":
+      await submitSimulationDecisions({
+        data: {
+          simulationId: String(p.simulationId ?? ""),
+          clientId: String(p.clientId ?? item.id),
+          decisions: p.decisions as Decisions,
         },
       });
       return;
