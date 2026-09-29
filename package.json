@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
     "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --no-warnings=ExperimentalWarning --test 'src/**/*.test.ts'",
+    "sim": "node --experimental-strip-types --no-warnings=ExperimentalWarning src/sim/cli.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
