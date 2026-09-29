@@ -5,6 +5,7 @@ import { getSql, withRlsBypass } from "@/lib/db";
 import { newId } from "@/lib/utils";
 import type { AdvisorMetadata, AdvisorStage } from "@/lib/domain/types";
 import { AppError, loadGroupForStudent, logEvent, requireStudent } from "./authz";
+import { formatAdvisorBrief } from "./advisor-context";
 
 const SYSTEM = `You are the AI advisor inside an experiential venture studio for university students in Ghana.
 
@@ -73,20 +74,21 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
   // client) legitimately reasons about every submitted opportunity in the
   // group — including peers' — even during opportunity_collection, before
   // opportunities_select's privacy gate would otherwise allow it.
+  // Only student ids are read: formatAdvisorBrief pseudonymises them, so no
+  // names reach the model provider.
   const opps = await withRlsBypass(
     () => sql<{
+      student_id: string;
       problem: string;
       status: string;
-      author: string;
       observed_evidence: string;
       current_alternatives: string;
       potential_customer: string;
       uncertainties: string;
     }>`
-      select o.problem, o.status, s.full_name as author, o.observed_evidence,
+      select o.student_id, o.problem, o.status, o.observed_evidence,
              o.current_alternatives, o.potential_customer, o.uncertainties
       from opportunities o
-      join students s on s.id = o.student_id
       where o.group_id = ${groupId} and o.status <> 'draft'
     `,
   );
@@ -113,39 +115,34 @@ async function assembleContext(groupId: string, stage: AdvisorStage): Promise<st
         limit 8
       `
     : [];
-  const prefs = await sql<{ author: string; rationale: string; problem: string }>`
-    select s.full_name as author, p.rationale, o.problem
+  const prefs = await sql<{ student_id: string; rationale: string; problem: string }>`
+    select p.student_id, p.rationale, o.problem
     from opportunity_preferences p
-    join students s on s.id = p.student_id
     join opportunities o on o.id = p.opportunity_id
     where o.group_id = ${groupId}
     limit 12
   `;
 
-  return [
-    `COURSE RULES: Students must back claims with evidence. The platform does not pick winners.`,
-    `STAGE: ${stage}. Group status: ${group[0]?.status ?? "unknown"}. Group: ${group[0]?.group_name ?? ""}.`,
-    opps.length
-      ? `OPPORTUNITIES:\n${opps
-          .map(
-            (o) =>
-              `- [${o.status}] ${o.author}: ${o.problem}\n  evidence: ${o.observed_evidence}\n  alternatives: ${o.current_alternatives}\n  customer: ${o.potential_customer}\n  unknowns: ${o.uncertainties}`,
-          )
-          .join("\n")}`
-      : "OPPORTUNITIES: none submitted.",
-    prefs.length
-      ? `PREFERENCES:\n${prefs.map((p) => `- ${p.author} prefers “${p.problem}” because: ${p.rationale}`).join("\n")}`
-      : "PREFERENCES: none yet.",
-    venture[0]
-      ? `VENTURE: ${venture[0].name}\nSELECTION RATIONALE: ${venture[0].selection_rationale}`
-      : "VENTURE: not created.",
-    evidence.length
-      ? `EVIDENCE:\n${evidence.map((e) => `- (${e.classification}) ${e.title}: ${e.content}`).join("\n")}`
-      : "EVIDENCE: none.",
-    assumptions.length
-      ? `ASSUMPTIONS:\n${assumptions.map((a) => `- [${a.importance}/${a.confidence}] ${a.statement}`).join("\n")}`
-      : "ASSUMPTIONS: none.",
-  ].join("\n\n");
+  return formatAdvisorBrief({
+    stage,
+    groupStatus: group[0]?.status ?? null,
+    groupName: group[0]?.group_name ?? null,
+    opportunities: opps.map((o) => ({
+      authorId: o.student_id,
+      status: o.status,
+      problem: o.problem,
+      observedEvidence: o.observed_evidence,
+      currentAlternatives: o.current_alternatives,
+      potentialCustomer: o.potential_customer,
+      uncertainties: o.uncertainties,
+    })),
+    preferences: prefs.map((p) => ({ authorId: p.student_id, rationale: p.rationale, problem: p.problem })),
+    venture: venture[0]
+      ? { name: venture[0].name, selectionRationale: venture[0].selection_rationale }
+      : null,
+    evidence,
+    assumptions,
+  });
 }
 
 export const sendAdvisorMessage = createServerFn({ method: "POST" })
