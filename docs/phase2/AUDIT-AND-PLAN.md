@@ -1,6 +1,6 @@
 # Phase 2: Audit and Slice Plan
 
-Status: **proposal, awaiting approval.** No feature code has been written.
+Status: **approved** ("decide the best approach and proceed"). The open questions in Part 3 were decided with the recommended defaults: see `docs/decisions/0008`–`0011`.
 Baseline at `ad89f62`: typecheck clean, lint 0 errors / 1 warning, 263 tests passing (192 script + 71 app).
 
 ---

@@ -9,6 +9,7 @@ migrations/
   0003_rls.sql           executable RLS + future lecturer hook
   0004_seed.sql          course catalogue only
   0005_runtime_role.sql  restricted app_runtime role that makes RLS load-bearing
+  0006_cohort_scoped_roles.sql  lecturers read-only + own cohorts; no self-granted roles
 src/lib/domain/          types, group state machine, microcopy
 src/lib/server/          createServerFn handlers, scoped by session
 src/lib/offline/         IndexedDB + outbox + photo compress
@@ -24,7 +25,7 @@ src/routes/studio/       group → opportunity → select → venture
 - `assumption_evidence` is a join table with `relationship_type` (`supports` | `challenges`).
 - `ai_advisor_sessions` group messages; messages carry JSON metadata.
 - `activity_events` is append-only. No scoring in this slice.
-- `user_roles` + `app_roles` exist so a later lecturer role does not rewrite tables.
+- `user_roles` + `app_roles`: admin is global; a lecturer role is scoped to one `course_offering_id` and is read-only (ADR 0005). `user_roles` is RLS-protected so nobody grants themselves a role.
 
 IDs are UUID strings generated in application code so the schema does not require `pgcrypto`.
 
