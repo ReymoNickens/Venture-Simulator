@@ -1,44 +1,54 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { OpportunityForm } from "@/components/forms/OpportunityForm";
-import { Badge, Card } from "@/components/ui/badge";
+import { EmptyNote } from "@/components/ui/badge";
+import { Loading } from "@/components/ui/feedback";
+import { StepHeader } from "@/components/shell/StepHeader";
 
 export const Route = createFileRoute("/studio/opportunity")({ component: OpportunityPage });
 
 function OpportunityPage() {
   const { data, loading, refresh } = useStudioWorkspace();
-  if (loading || !data) return <div className="h-40 animate-pulse rounded-[28px] bg-bg-subtle" />;
+  if (loading || !data) return <Loading />;
   if (!data.group) {
     return (
-      <Card>
-        <p className="text-sm">Join a group before writing an opportunity.</p>
-        <Link to="/studio/group" className="mt-3 inline-block text-sm text-accent">
-          Go to groups
-        </Link>
-      </Card>
+      <div>
+        <StepHeader step="opportunity" title="Spot a real problem" />
+        <EmptyNote>
+          Join a group first.{" "}
+          <Link to="/studio/group" className="font-semibold text-accent underline underline-offset-2">
+            Find your group
+          </Link>
+        </EmptyNote>
+      </div>
     );
   }
 
+  const submitted = Boolean(data.myOpportunity && data.myOpportunity.status !== "draft");
+  const { submitted: done, required } = data.submissionProgress;
+
   return (
-    <div className="space-y-5">
-      <div>
-        <Badge>
-          {data.submissionProgress.submitted} / {data.submissionProgress.required} submitted
-        </Badge>
-        <h1 className="mt-2 font-display text-3xl">A problem you have seen</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          Do not start with “what business do I want to start?”. Investigate a gap on campus, in a
-          hostel, a market, a tro-tro park, or a farm. AI-generated ideas are not evidence.
-        </p>
-      </div>
+    <div>
+      <StepHeader
+        step={submitted ? "submit" : "opportunity"}
+        aside={`${done} of ${required} submitted`}
+        title={submitted ? "Your problem is in" : "Spot a real problem"}
+        lead={
+          submitted
+            ? "Your group sees it once everyone has submitted. You can still sharpen it until the group picks a venture."
+            : "Go out alone: a hostel, a market, a trotro station, a lecture hall. Find one problem you can see or count. An AI-written idea is not evidence."
+        }
+      />
       {data.myOpportunity?.syncState === "pending" ? (
-        <p className="rounded-[12px] bg-warn-soft px-3 py-2 text-sm text-warn">
-          Saved locally — will sync when connected.
+        <p className="mb-4 rounded-[14px] bg-gold-soft px-3 py-2 text-sm text-gold-deep">
+          Saved on this phone. It will send when you are back online.
         </p>
       ) : null}
-      <Card>
-        <OpportunityForm existing={data.myOpportunity} onSaved={() => void refresh()} />
-      </Card>
+      <OpportunityForm
+        existing={data.myOpportunity}
+        storageKey={`opportunity-draft:${data.student?.id ?? "me"}:${data.group.id}`}
+        onSaved={() => void refresh()}
+      />
     </div>
   );
 }

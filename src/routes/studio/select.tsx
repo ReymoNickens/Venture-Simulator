@@ -1,80 +1,101 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, Check } from "lucide-react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { recordPreference, createVenture } from "@/lib/server/mutations";
 import { AdvisorPanel } from "@/components/advisor/AdvisorPanel";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { Why } from "@/components/ui/why";
-import { Badge, Card } from "@/components/ui/badge";
+import { Card, EmptyNote } from "@/components/ui/badge";
+import { FormMessages, Loading } from "@/components/ui/feedback";
+import { Stamp } from "@/components/ui/stamp";
+import { StepHeader } from "@/components/shell/StepHeader";
 import { WHY } from "@/lib/domain/copy";
+import type { Opportunity } from "@/lib/domain/types";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/studio/select")({ component: SelectPage });
 
 function SelectPage() {
   const { data, loading, refresh } = useStudioWorkspace();
-  const [preferred, setPreferred] = useState("");
+  const [picked, setPicked] = useState("");
   const [prefWhy, setPrefWhy] = useState("");
   const [ventureName, setVentureName] = useState("");
   const [rationale, setRationale] = useState("");
-  const [selectedId, setSelectedId] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState<string | null>(null);
+  const [pending, setPending] = useState<"pref" | "venture" | null>(null);
 
-  if (loading || !data) return <div className="h-40 animate-pulse rounded-[28px] bg-bg-subtle" />;
+  if (loading || !data) return <Loading />;
   if (!data.group) {
     return (
-      <Card>
-        Join a group first.{" "}
-        <Link to="/studio/group" className="text-accent">
-          Groups
-        </Link>
-      </Card>
+      <div>
+        <StepHeader step="select" title="Pick one problem together" />
+        <EmptyNote>
+          Join a group first.{" "}
+          <Link to="/studio/group" className="font-semibold text-accent underline underline-offset-2">
+            Find your group
+          </Link>
+        </EmptyNote>
+      </div>
     );
   }
   if (!data.canOpenSelection) {
+    const { submitted, required } = data.submissionProgress;
     return (
-      <Card className="space-y-2">
-        <h1 className="font-display text-2xl">Selection is closed</h1>
-        <p className="text-sm leading-6 text-muted">
-          {data.submissionProgress.submitted} of {data.submissionProgress.required} active members have
-          submitted. Peer opportunities stay private until this threshold is met. Missing students are
-          not treated as submitted.
-        </p>
-      </Card>
+      <div>
+        <StepHeader
+          step="select"
+          title="Not open yet"
+          lead={`${submitted} of ${required} members have submitted. Everyone’s problems stay private until the whole group is in, so nobody copies anybody.`}
+        />
+        <div className="h-2.5 overflow-hidden rounded-full bg-bg-subtle" aria-hidden>
+          <div className="h-full rounded-full bg-ink" style={{ width: `${(submitted / Math.max(1, required)) * 100}%` }} />
+        </div>
+      </div>
     );
   }
 
-  const opps = data.visibleOpportunities.filter((o) => o.status !== "draft");
+  // The chosen problem leads once there is one; the rest stay on record below it.
+  const opps = data.visibleOpportunities
+    .filter((o) => o.status !== "draft")
+    .sort((a, b) => Number(b.status === "selected") - Number(a.status === "selected"));
+  const picks = new Map<string, number>();
+  for (const p of data.preferences) picks.set(p.opportunityId, (picks.get(p.opportunityId) ?? 0) + 1);
+
+  // What tapping a card means right now: your own pick first, then the group's.
+  const mode: "pref" | "decide" | null = data.venture
+    ? null
+    : !data.myPreference
+      ? "pref"
+      : data.canRecordGroupDecision
+        ? "decide"
+        : null;
+  const chosen = picked || (mode === "decide" ? data.myPreference?.opportunityId ?? "" : "");
 
   async function savePref() {
+    if (!chosen) return setError("Tap the problem you would pick first.");
     setPending("pref");
     setError(null);
     try {
-      await recordPreference({ data: { opportunityId: preferred, rationale: prefWhy } });
+      await recordPreference({ data: { opportunityId: chosen, rationale: prefWhy } });
+      setPicked("");
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not record preference.");
+      setError(err instanceof Error ? err.message : "Could not record your pick.");
     } finally {
       setPending(null);
     }
   }
 
   async function decide() {
-    const opportunityId = selectedId || data?.myPreference?.opportunityId;
-    if (!opportunityId) {
-      setError("Choose the opportunity the group is selecting.");
-      return;
-    }
+    if (!chosen) return setError("Tap the problem the group is choosing.");
     setPending("venture");
     setError(null);
     try {
       await createVenture({
-        data: {
-          opportunityId,
-          name: ventureName,
-          selectionRationale: rationale,
-        },
+        data: { opportunityId: chosen, name: ventureName, selectionRationale: rationale },
       });
       await refresh();
     } catch (err) {
@@ -90,144 +111,191 @@ function SelectPage() {
     }
   }
 
+  const { recorded, required } = data.preferenceProgress;
+
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-3xl">Compare, then decide</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          The platform will not pick a winner. Record your own preference before the group decision.
-          Rejected opportunities remain in the record.
-        </p>
-      </div>
-      <div className="grid gap-4">
-        {opps.map((o) => (
-          <Card key={o.id} className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-medium text-muted">{o.authorName}</p>
-              <Badge tone={o.status === "selected" ? "accent" : "neutral"}>{o.status}</Badge>
-            </div>
-            <h2 className="font-display text-xl leading-snug">{o.problem}</h2>
-            <dl className="grid gap-2 text-sm">
-              <div>
-                <dt className="text-xs uppercase tracking-[0.12em] text-faint">Who</dt>
-                <dd>{o.affectedPeople}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-[0.12em] text-faint">Evidence</dt>
-                <dd>{o.observedEvidence}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-[0.12em] text-faint">Alternatives</dt>
-                <dd>{o.currentAlternatives}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-[0.12em] text-faint">Customer</dt>
-                <dd>{o.potentialCustomer || "Not stated"}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-[0.12em] text-faint">Unknowns</dt>
-                <dd>{o.uncertainties}</dd>
-              </div>
-            </dl>
-          </Card>
-        ))}
-      </div>
+      <StepHeader
+        step="select"
+        aside={`${recorded} of ${required} picks in`}
+        title={data.venture ? data.venture.name : mode === "decide" ? "Now decide as a group" : "Which would you pick?"}
+        lead={
+          data.venture
+            ? "Your group has chosen. The other problems stay on record."
+            : mode === "pref"
+              ? "Read everyone’s problem, then tap the one you would choose. Say why before the group decides, so every voice is on record."
+              : mode === "decide"
+                ? "Your pick is in. Tap the problem the group is choosing and write down why it beat the others."
+                : "Your pick is in. The group decision can be recorded once enough picks are in."
+        }
+      />
 
-      {!data.venture ? (
-        <Card className="space-y-3">
-          <h2 className="font-display text-xl">Your preference (individual)</h2>
-          <p className="text-sm text-muted">
-            {data.preferenceProgress.recorded} of {data.preferenceProgress.required} members have recorded a preference.
-          </p>
-          <Field label="Preferred opportunity">
-            <select
-              className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-              value={preferred || data.myPreference?.opportunityId || ""}
-              onChange={(e) => setPreferred(e.target.value)}
-            >
-              <option value="">Select one</option>
-              {opps.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.authorName}: {o.problem.slice(0, 80)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Why this one, for you?">
-            <Textarea value={prefWhy} onChange={(e) => setPrefWhy(e.target.value)} />
-            <Why text={WHY.preference} />
-          </Field>
-          <Button
-            type="button"
-            disabled={Boolean(pending)}
-            onClick={() => void savePref()}
-          >
-            {pending === "pref" ? "Saving…" : "Record my preference"}
-          </Button>
+      {data.venture ? (
+        <Card className="space-y-3 border-ink">
+          <Stamp tone="forest">Chosen</Stamp>
+          <p className="text-[15px] leading-6">{data.venture.selectionRationale}</p>
+          <Link to="/studio/simulation" className={cn(buttonVariants({ size: "lg" }), "w-full")}>
+            Next: run the venture <ArrowRight className="size-4" aria-hidden />
+          </Link>
         </Card>
       ) : null}
 
-      {data.canOpenSelection && data.preferences.length > 0 ? (
+      <div role={mode ? "radiogroup" : undefined} aria-label="Group problems" className="space-y-3">
+        {opps.map((o) => (
+          <ProblemCard
+            key={o.id}
+            opp={o}
+            picks={picks.get(o.id) ?? 0}
+            mine={data.myPreference?.opportunityId === o.id}
+            selectable={Boolean(mode)}
+            selected={chosen === o.id}
+            onSelect={() => setPicked(o.id)}
+          />
+        ))}
+      </div>
+
+      {mode === "pref" ? (
+        <Card className="sticky bottom-24 z-10 space-y-3 shadow-[0_18px_40px_-20px_rgba(17,17,17,0.45)] lg:bottom-4">
+          <Field label={chosen ? "Why this one, for you?" : "Tap a problem above to pick it"}>
+            <Textarea value={prefWhy} onChange={(e) => setPrefWhy(e.target.value)} disabled={!chosen} className="min-h-20" />
+          </Field>
+          <Why text={WHY.preference} />
+          <Button size="lg" className="w-full" disabled={Boolean(pending) || !chosen || !prefWhy.trim()} onClick={() => void savePref()}>
+            {pending === "pref" ? "Saving…" : "Record my pick"}
+          </Button>
+          <FormMessages error={error} />
+        </Card>
+      ) : null}
+
+      {mode === "decide" ? (
+        <Card className="space-y-3">
+          <h2 className="font-display text-xl font-bold">Record the group decision</h2>
+          <Field label="Working name for the venture">
+            <Input value={ventureName} onChange={(e) => setVentureName(e.target.value)} placeholder="e.g. ShuttleBoard" />
+          </Field>
+          <Field
+            label="Why this problem rather than the others?"
+            hint={
+              rationale.trim().length < 40
+                ? `Name the problems you did not choose and why. ${40 - rationale.trim().length} more characters at least.`
+                : undefined
+            }
+          >
+            <Textarea value={rationale} onChange={(e) => setRationale(e.target.value)} />
+          </Field>
+          <Why text={WHY.rationale} />
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={Boolean(pending) || !chosen || !ventureName.trim() || rationale.trim().length < 40}
+            onClick={() => void decide()}
+          >
+            {pending === "venture" ? "Recording…" : "Record group decision"}
+          </Button>
+          <FormMessages error={error} />
+        </Card>
+      ) : null}
+
+      {data.preferences.length > 0 ? (
         <Card>
-          <h2 className="font-display text-xl">Recorded preferences</h2>
-          <ul className="mt-3 space-y-2 text-sm">
+          <h2 className="font-display text-lg font-bold">Why people picked what they picked</h2>
+          <ul className="mt-2 divide-y divide-line text-sm">
             {data.preferences.map((p) => (
-              <li key={p.id}>
-                <span className="font-medium">{p.studentName}</span>
-                <span className="text-muted"> — {p.rationale}</span>
+              <li key={p.id} className="py-2.5 leading-6">
+                <span className="font-semibold">{p.studentName}</span>
+                <span className="text-muted"> · {p.rationale}</span>
               </li>
             ))}
           </ul>
         </Card>
       ) : null}
 
-      {data.canRecordGroupDecision ? (
-        <Card className="space-y-3">
-          <h2 className="font-display text-xl">Group decision</h2>
-          <p className="text-sm text-muted">
-            This records the group’s choice. It should not be silent. Write why this over the alternatives.
-          </p>
-          <Field label="Selected opportunity">
-            <select
-              className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-              value={selectedId || data.myPreference?.opportunityId || ""}
-              onChange={(e) => setSelectedId(e.target.value)}
-            >
-              <option value="">Select one</option>
-              {opps.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.authorName}: {o.problem.slice(0, 80)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Working name">
-            <Input value={ventureName} onChange={(e) => setVentureName(e.target.value)} />
-          </Field>
-          <Field label="Why this rather than the alternatives?">
-            <Textarea value={rationale} onChange={(e) => setRationale(e.target.value)} />
-            <Why text={WHY.rationale} />
-          </Field>
-          <Button type="button" disabled={Boolean(pending)} onClick={() => void decide()}>
-            {pending === "venture" ? "Recording…" : "Record group decision"}
-          </Button>
-        </Card>
-      ) : null}
-
-      {data.venture ? (
-        <Card className="space-y-2">
-          <Badge tone="accent">Venture created</Badge>
-          <h2 className="font-display text-2xl">{data.venture.name}</h2>
-          <p className="text-sm leading-6">{data.venture.selectionRationale}</p>
-          <Link to="/studio/venture" className="text-sm text-accent">
-            Collect evidence
-          </Link>
-        </Card>
-      ) : null}
-
-      {error ? <p className="text-sm text-bad">{error}</p> : null}
-
       <AdvisorPanel data={data} stage="selection" onSent={() => void refresh()} />
+    </div>
+  );
+}
+
+function ProblemCard({
+  opp,
+  picks,
+  mine,
+  selectable,
+  selected,
+  onSelect,
+}: {
+  opp: Opportunity;
+  picks: number;
+  mine: boolean;
+  selectable: boolean;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const rejected = opp.status === "rejected";
+  return (
+    <article
+      className={cn(
+        "rounded-[20px] border bg-bg-elevated transition-[border-color,box-shadow]",
+        selected ? "border-ink shadow-[0_0_0_2px_var(--color-ink)]" : "border-line",
+        rejected && "opacity-70",
+      )}
+    >
+      <button
+        type="button"
+        role={selectable ? "radio" : undefined}
+        aria-checked={selectable ? selected : undefined}
+        disabled={!selectable}
+        onClick={onSelect}
+        className="flex w-full items-start gap-3 p-4 text-left disabled:cursor-default"
+      >
+        {selectable ? (
+          <span
+            aria-hidden
+            className={cn(
+              "mt-1 flex size-6 shrink-0 items-center justify-center rounded-full border-2",
+              selected ? "border-ink bg-ink text-white" : "border-line-strong",
+            )}
+          >
+            {selected ? <Check className="size-3.5" strokeWidth={3} /> : null}
+          </span>
+        ) : null}
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-1.5 text-xs font-semibold text-muted">
+            {opp.authorName}
+            {mine ? <Stamp tone="gold" size="xs">your pick</Stamp> : null}
+            {opp.status === "selected" ? <Stamp tone="forest" size="xs">chosen</Stamp> : null}
+            {rejected ? <Stamp tone="muted" size="xs">not chosen</Stamp> : null}
+            {picks ? <span className="ml-auto text-faint">{picks} {picks === 1 ? "pick" : "picks"}</span> : null}
+          </span>
+          <span className="mt-1 block font-display text-[17px] leading-snug font-bold">{opp.problem}</span>
+          <span className="mt-1.5 block text-sm leading-6 text-ink-soft">
+            <span className="font-semibold">Seen: </span>
+            {opp.observedEvidence}
+          </span>
+        </span>
+      </button>
+      <details className="group border-t border-line px-4">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center text-sm font-semibold text-muted">
+          <span className="group-open:hidden">More: who, how they cope, unknowns</span>
+          <span className="hidden group-open:inline">Less</span>
+        </summary>
+        <dl className="grid gap-2.5 pb-4 text-sm leading-6">
+          <Row label="Who">{opp.affectedPeople}</Row>
+          <Row label="Where">{opp.context}</Row>
+          <Row label="How they cope today">{opp.currentAlternatives}</Row>
+          <Row label="Why it matters">{opp.whyItMatters}</Row>
+          <Row label="Who might pay">{opp.potentialCustomer || "Not stated"}</Row>
+          <Row label="Still unknown">{opp.uncertainties}</Row>
+        </dl>
+      </details>
+    </article>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs font-semibold text-faint">{label}</dt>
+      <dd>{children}</dd>
     </div>
   );
 }
