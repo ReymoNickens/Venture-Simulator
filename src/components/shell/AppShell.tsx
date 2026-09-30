@@ -1,10 +1,21 @@
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { UserButton } from "@/lib/auth/gates";
+import { BookOpen, Gauge, Home, Map as MapIcon, WifiOff } from "lucide-react";
 import { APP_NAME } from "@/lib/brand";
-import { ConnectionBar } from "./ConnectionBar";
-import { JourneyRail } from "./JourneyRail";
 import type { WorkspaceSnapshot } from "@/lib/domain/types";
+import { connectionCopy, useConnection } from "@/hooks/use-connection";
+import { LogoMark } from "@/components/ui/sticker";
+import { AccountMenu } from "./AccountMenu";
+import { journeyFromSnapshot } from "@/lib/domain/journey-progress";
+import { JourneyMap } from "./JourneyMap";
+import { cn } from "@/lib/utils";
+
+const TABS = [
+  { to: "/studio", label: "Today", icon: Home, exact: true },
+  { to: "/studio/journey", label: "Journey", icon: MapIcon, exact: false },
+  { to: "/studio/venture", label: "Notebook", icon: BookOpen, exact: false },
+  { to: "/studio/simulation", label: "Run it", icon: Gauge, exact: false },
+] as const;
 
 export function AppShell({
   children,
@@ -13,24 +24,74 @@ export function AppShell({
   children: ReactNode;
   data: WorkspaceSnapshot | null;
 }) {
+  const progress = useMemo(() => (data?.student ? journeyFromSnapshot(data) : null), [data]);
+  const inDemo = Boolean(data?.members.some((m) => m.isSynthetic));
   return (
-    <div className="min-h-dvh bg-bg pl-3 text-ink sm:pl-4">
-      <ConnectionBar />
-      <header className="flex items-center justify-between gap-3 px-4 py-3">
-        <Link to="/studio" className="min-w-0">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">Studio</p>
-          <p className="truncate font-display text-lg leading-tight">{APP_NAME}</p>
-        </Link>
-        <div className="shrink-0">
-          <UserButton />
+    <div className="min-h-dvh text-ink">
+      <header className="sticky top-0 z-30 bg-bg/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
+          <Link to="/studio" className="flex min-w-0 items-center gap-2.5" aria-label={`${APP_NAME}, today`}>
+            <LogoMark />
+            <span className="hidden truncate font-display text-base font-bold sm:block">{APP_NAME}</span>
+          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <SyncPill />
+            <AccountMenu name={data?.student?.fullName} canRehearse={inDemo} />
+          </div>
         </div>
       </header>
-      {data ? (
-        <div className="px-4 pb-3">
-          <JourneyRail data={data} />
-        </div>
+
+      <div className="mx-auto flex max-w-6xl gap-10 px-4">
+        {progress ? (
+          <aside className="sticky top-20 hidden h-[calc(100dvh-6rem)] w-60 shrink-0 overflow-y-auto py-4 lg:block">
+            <JourneyMap progress={progress} compact />
+          </aside>
+        ) : null}
+        <main className="mx-auto w-full max-w-2xl min-w-0 flex-1 pt-2 pb-28 lg:pb-16">{children}</main>
+      </div>
+
+      {progress ? (
+        <nav aria-label="Studio" className="no-print fixed inset-x-3 bottom-3 z-30 lg:hidden">
+          <ul className="mx-auto grid max-w-md grid-cols-4 rounded-full bg-ink p-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]">
+            {TABS.map((t) => (
+              <li key={t.to}>
+                <Link
+                  to={t.to}
+                  activeOptions={{ exact: t.exact }}
+                  className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-full py-1.5 text-[11px] font-semibold text-white/65"
+                  activeProps={{ className: "bg-white/12 !text-white [&_svg]:text-gold" }}
+                >
+                  <t.icon className="size-5" aria-hidden />
+                  {t.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       ) : null}
-      <main className="mx-auto w-full max-w-3xl px-4 pb-16">{children}</main>
     </div>
+  );
+}
+
+/**
+ * Sync state in plain words, but only when it needs attention. "Synced" is
+ * the normal case and lives in the account menu; anything else is shown here
+ * so nobody closes the app believing unsent work was sent.
+ */
+function SyncPill() {
+  const { state } = useConnection();
+  const copy = connectionCopy(state);
+  if (copy.tone === "ok") return null;
+  return (
+    <span
+      role="status"
+      className={cn(
+        "flex max-w-[11rem] items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold",
+        copy.tone === "warn" ? "bg-gold-soft text-gold-deep" : "bg-clay-soft text-clay",
+      )}
+    >
+      <WifiOff className="size-3.5 shrink-0" aria-hidden />
+      <span className="truncate">{state === "offline" ? "Offline" : "Not synced yet"}</span>
+    </span>
   );
 }

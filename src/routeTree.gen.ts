@@ -15,6 +15,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
 import { Route as StudioGroupRouteImport } from './routes/studio/group'
+import { Route as StudioJourneyRouteImport } from './routes/studio/journey'
 import { Route as StudioOpportunityRouteImport } from './routes/studio/opportunity'
 import { Route as StudioSelectRouteImport } from './routes/studio/select'
 import { Route as StudioSimulationRouteImport } from './routes/studio/simulation'
@@ -51,6 +52,11 @@ const StudioGroupRoute = StudioGroupRouteImport.update({
   path: '/group',
   getParentRoute: () => StudioRoute,
 } as any)
+const StudioJourneyRoute = StudioJourneyRouteImport.update({
+  id: '/journey',
+  path: '/journey',
+  getParentRoute: () => StudioRoute,
+} as any)
 const StudioOpportunityRoute = StudioOpportunityRouteImport.update({
   id: '/opportunity',
   path: '/opportunity',
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/studio': typeof StudioRouteWithChildren
   '/studio/group': typeof StudioGroupRoute
+  '/studio/journey': typeof StudioJourneyRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/simulation': typeof StudioSimulationRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/studio/group': typeof StudioGroupRoute
+  '/studio/journey': typeof StudioJourneyRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/simulation': typeof StudioSimulationRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/studio': typeof StudioRouteWithChildren
   '/studio/group': typeof StudioGroupRoute
+  '/studio/journey': typeof StudioJourneyRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
   '/studio/select': typeof StudioSelectRoute
   '/studio/simulation': typeof StudioSimulationRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/studio'
     | '/studio/group'
+    | '/studio/journey'
     | '/studio/opportunity'
     | '/studio/select'
     | '/studio/simulation'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/studio/group'
+    | '/studio/journey'
     | '/studio/opportunity'
     | '/studio/select'
     | '/studio/simulation'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/studio'
     | '/studio/group'
+    | '/studio/journey'
     | '/studio/opportunity'
     | '/studio/select'
     | '/studio/simulation'
@@ -209,6 +221,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioGroupRouteImport
       parentRoute: typeof StudioRoute
     }
+    '/studio/journey': {
+      id: '/studio/journey'
+      path: '/journey'
+      fullPath: '/studio/journey'
+      preLoaderRoute: typeof StudioJourneyRouteImport
+      parentRoute: typeof StudioRoute
+    }
     '/studio/opportunity': {
       id: '/studio/opportunity'
       path: '/opportunity'
@@ -249,6 +268,7 @@ declare module '@tanstack/react-router' {
 
 interface StudioRouteChildren {
   StudioGroupRoute: typeof StudioGroupRoute
+  StudioJourneyRoute: typeof StudioJourneyRoute
   StudioOpportunityRoute: typeof StudioOpportunityRoute
   StudioSelectRoute: typeof StudioSelectRoute
   StudioSimulationRoute: typeof StudioSimulationRoute
@@ -258,6 +278,7 @@ interface StudioRouteChildren {
 
 const StudioRouteChildren: StudioRouteChildren = {
   StudioGroupRoute: StudioGroupRoute,
+  StudioJourneyRoute: StudioJourneyRoute,
   StudioOpportunityRoute: StudioOpportunityRoute,
   StudioSelectRoute: StudioSelectRoute,
   StudioSimulationRoute: StudioSimulationRoute,
