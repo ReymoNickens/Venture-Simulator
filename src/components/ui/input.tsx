@@ -8,7 +8,7 @@ import type {
 import { cn } from "@/lib/utils";
 
 const control =
-  "w-full rounded-[14px] border border-line-strong bg-bg-elevated text-[15px] text-ink placeholder:text-faint transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20";
+  "w-full rounded-[14px] border border-line-strong bg-bg-elevated text-[15px] font-normal text-ink placeholder:text-faint transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(control, "h-11 px-3", className)} {...props} />;
