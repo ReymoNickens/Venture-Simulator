@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { activateAccount, authEnabled, signIn } from "@/lib/auth/client";
-import { APP_NAME } from "@/lib/brand";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/badge";
+import { FormMessages } from "@/components/ui/feedback";
+import { LogoMark } from "@/components/ui/sticker";
 
 export const Route = createFileRoute("/login")({ component: Login });
 
@@ -36,14 +37,16 @@ function Login() {
   }
 
   return (
-    <main className="min-h-dvh bg-bg pl-3 text-ink">
+    <main className="min-h-dvh text-ink">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted">Sign in</p>
-        <h1 className="mt-2 font-display text-3xl">{APP_NAME}</h1>
-        <p className="mt-2 text-sm text-muted">
+        <LogoMark className="size-12" />
+        <h1 className="mt-5 font-display text-4xl font-extrabold">
+          {mode === "activate" ? "First time here?" : "Let’s get you in."}
+        </h1>
+        <p className="mt-2 text-[15px] leading-6 text-muted">
           {mode === "activate"
-            ? "Enter the email and index number your instructor has on file to set your password."
-            : "Sign in with your student email address or index number."}
+            ? "Enter the email and index number your lecturer has on file, then choose a password."
+            : "Sign in with your student email or index number."}
         </p>
         <Card className="mt-6 space-y-4">
           {authEnabled ? (
@@ -65,6 +68,7 @@ function Login() {
                         required
                         value={indexNumber}
                         onChange={(e) => setIndexNumber(e.target.value)}
+                        placeholder="e.g. PS/ITC/22/0001"
                         autoComplete="off"
                       />
                     </Field>
@@ -79,7 +83,7 @@ function Login() {
                     />
                   </Field>
                 )}
-                <Field label="Password">
+                <Field label={mode === "activate" ? "Choose a password" : "Password"}>
                   <Input
                     type="password"
                     required
@@ -89,14 +93,14 @@ function Login() {
                     autoComplete={mode === "activate" ? "new-password" : "current-password"}
                   />
                 </Field>
-                {error ? <p className="text-sm text-bad">{error}</p> : null}
+                <FormMessages error={error} />
                 <Button type="submit" className="w-full" disabled={pending}>
                   {pending ? "Please wait…" : mode === "activate" ? "Activate account" : "Sign in"}
                 </Button>
               </form>
               <button
                 type="button"
-                className="text-sm text-accent"
+                className="min-h-11 text-left text-sm font-semibold text-accent"
                 onClick={() => setMode(mode === "activate" ? "signin" : "activate")}
               >
                 {mode === "activate"
@@ -108,7 +112,7 @@ function Login() {
             <p className="text-sm text-muted">Sign-in is disabled.</p>
           )}
         </Card>
-        <Link to="/" className="mt-6 text-sm text-muted">
+        <Link to="/" className="mt-6 inline-flex min-h-11 items-center text-sm text-muted">
           Back
         </Link>
       </div>
