@@ -159,7 +159,7 @@ function StudioHome() {
             <JoinCode code={data.group.joinCode} />
           </div>
           <details className="group">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-semibold">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
               <span>
                 {active.length} members · {active.filter((m) => m.hasSubmittedOpportunity).length} have
                 submitted
