@@ -100,7 +100,7 @@ export function rowsToPeople(rows: readonly (readonly unknown[])[]): SheetResult
 
 /** A small CSV reader: quoted fields, doubled quotes, commas or semicolons. */
 export function parseCsv(text: string): string[][] {
-  const src = text.replace(/^﻿/, "");
+  const src = text.replace(/^\uFEFF/, "");
   const firstLine = src.split(/\r?\n/, 1)[0] ?? "";
   const sep = (firstLine.match(/;/g)?.length ?? 0) > (firstLine.match(/,/g)?.length ?? 0) ? ";" : ",";
   const rows: string[][] = [];
