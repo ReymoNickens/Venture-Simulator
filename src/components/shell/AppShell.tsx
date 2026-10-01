@@ -6,6 +6,7 @@ import type { WorkspaceSnapshot } from "@/lib/domain/types";
 import { connectionCopy, useConnection } from "@/hooks/use-connection";
 import { LogoMark } from "@/components/ui/sticker";
 import { AccountMenu } from "./AccountMenu";
+import { DemoBar } from "./DemoBar";
 import { journeyFromSnapshot } from "@/lib/domain/journey-progress";
 import { JourneyMap } from "./JourneyMap";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ export function AppShell({
   return (
     <div className="min-h-dvh text-ink">
       <header className="sticky top-0 z-30 bg-bg/90 backdrop-blur-md">
+        <DemoBar role={data?.isClassRep ? "course rep" : "student"} />
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
           <Link to="/studio" className="flex min-w-0 items-center gap-2.5" aria-label={`${APP_NAME}, today`}>
             <LogoMark />
