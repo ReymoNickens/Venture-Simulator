@@ -13,6 +13,7 @@ import { FormMessages } from "@/components/ui/feedback";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Stamp } from "@/components/ui/stamp";
 import { LogoMark } from "@/components/ui/sticker";
+import { LecturersSection } from "@/components/owner/LecturersSection";
 
 export const Route = createFileRoute("/owner")({ component: OwnerPage });
 
@@ -225,6 +226,8 @@ function Dashboard({
           </form>
         </Card>
       </section>
+
+      <LecturersSection ownerCode={ownerCode} />
 
       <section>
         <h2 className="font-display text-xl font-bold">Classes</h2>

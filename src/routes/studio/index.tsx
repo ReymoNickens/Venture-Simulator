@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Check, ChevronRight, Copy, Users } from "lucide-react";
+import { ArrowRight, Check, ChevronRight, Copy, MessageSquareText, Users } from "lucide-react";
 import { useState } from "react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { journeyFromSnapshot } from "@/lib/domain/journey-progress";
@@ -148,6 +148,33 @@ function StudioHome() {
           {next.cta} <ArrowRight className="size-4" aria-hidden />
         </Link>
       </section>
+
+      {data.feedback.length ? (
+        <section aria-labelledby="feedback-title" className="rounded-[20px] border-2 border-indigo/30 bg-indigo-soft p-4">
+          <h2 id="feedback-title" className="flex items-center gap-2 text-xs font-semibold text-indigo">
+            <MessageSquareText className="size-4" aria-hidden /> From your lecturer
+          </h2>
+          <p className="mt-1.5 text-[15px] leading-6">{data.feedback[0].body}</p>
+          <p className="mt-1 text-xs text-muted">
+            {data.feedback[0].author} · {new Date(data.feedback[0].at).toLocaleDateString()}
+          </p>
+          {data.feedback.length > 1 ? (
+            <details className="mt-2">
+              <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-indigo">Earlier feedback</summary>
+              <ul className="space-y-2">
+                {data.feedback.slice(1).map((f) => (
+                  <li key={f.id} className="rounded-[14px] bg-bg-elevated px-3 py-2 text-sm leading-6">
+                    {f.body}
+                    <span className="block text-xs text-faint">
+                      {f.author} · {new Date(f.at).toLocaleDateString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </section>
+      ) : null}
 
       {data.isClassRep ? (
         <Link

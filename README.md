@@ -65,6 +65,23 @@ course rep maintains it from a phone, without any database work:
    number. Index number doubles as Better Auth's `username`, matched
    case-insensitively.
 
+4. **Lecturers** get an invite code from the owner page: tick the classes
+   they teach, copy the message, send it. The lecturer opens
+   `/lecturer-setup`, enters the code, their name and email, and a password;
+   after that they sign in at `/login` with their email and land on
+   `/lecturer`:
+   - **Needs you:** groups that ran out of cash, have gone quiet for a week,
+     have members who have done nothing, rely on opinion as evidence, or
+     have untested critical assumptions. Everyone else is listed as on track.
+   - **Group page:** who did what, the chosen problem and why, everyone's
+     picks, evidence, assumptions, simulation weeks and activity, plus
+     **feedback** (one-tap phrases or typed) that the group sees on Today.
+   - **Activity:** what students are doing, newest first.
+   - **Classes:** a marks sheet per class as an Excel file (activity counts
+     per student, a starting point for marking).
+   Lecturers only ever see the classes the owner ticked (enforced by the
+   database's row-level security), and the owner can change them later.
+
 A "class" is one course offering for one programme and level; groups form
 within a class. The older script `node scripts/roster-import.mjs roster.csv
 [courseOfferingId]` (CSV: `email,index_number,full_name,programme`) still
