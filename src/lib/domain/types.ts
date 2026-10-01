@@ -78,6 +78,9 @@ export interface CourseOffering {
   maxPhotoBytes: number;
   courseCode: string;
   courseName: string;
+  /** Set for classes created by a course rep (migration 0010). */
+  programme?: string | null;
+  level?: string | null;
 }
 
 export interface Group {
@@ -265,6 +268,8 @@ export interface WorkspaceSnapshot {
   aiAvailable: boolean;
   /** The group's simulated venture, once launched (Phase 2, Slice B). */
   simulation: SimulationSummary | null;
+  /** True when this student is the course rep who keeps their class list. */
+  isClassRep: boolean;
 }
 
 export interface SimulationSummary {

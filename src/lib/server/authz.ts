@@ -63,10 +63,12 @@ export async function loadOfferingForStudent(studentId: string): Promise<CourseO
     max_photo_bytes: number;
     course_code: string;
     course_name: string;
+    programme: string | null;
+    level: string | null;
   }>`
     select o.id, o.course_id, o.semester, o.academic_year, o.default_group_size,
            o.selection_requires_all_active, o.max_photo_bytes,
-           c.course_code, c.course_name
+           c.course_code, c.course_name, o.programme, o.level
     from course_enrolments e
     join course_offerings o on o.id = e.course_offering_id
     join courses c on c.id = o.course_id
@@ -87,6 +89,8 @@ export async function loadOfferingForStudent(studentId: string): Promise<CourseO
     maxPhotoBytes: Number(row.max_photo_bytes),
     courseCode: row.course_code,
     courseName: row.course_name,
+    programme: row.programme,
+    level: row.level,
   };
 }
 
