@@ -270,6 +270,17 @@ export interface WorkspaceSnapshot {
   simulation: SimulationSummary | null;
   /** True when this student is the course rep who keeps their class list. */
   isClassRep: boolean;
+  /** True when this account is a lecturer (no student record). */
+  isLecturer: boolean;
+  /** Latest feedback from the group's lecturers, newest first. */
+  feedback: GroupFeedback[];
+}
+
+export interface GroupFeedback {
+  id: string;
+  author: string;
+  body: string;
+  at: string;
 }
 
 export interface SimulationSummary {

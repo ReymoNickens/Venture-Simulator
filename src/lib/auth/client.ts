@@ -130,6 +130,21 @@ export async function activateAccount(input: {
 }
 
 /**
+ * A lecturer's first sign-in, after redeeming their invite code created a
+ * pending staff record for this email (no index number: the sign-up hook
+ * takes the lecturer path when username is absent).
+ */
+export async function createLecturerAccount(input: { email: string; password: string; fullName: string }): Promise<void> {
+  const { data, error } = await authClient.signUp.email({
+    email: input.email.trim(),
+    password: input.password,
+    name: input.fullName.trim(),
+  });
+  if (error) throw new Error(error.message ?? "Could not create your account.");
+  setBearerToken(tokenFromResponse(data));
+}
+
+/**
  * Sign out of THIS app's local session, clear the preview token, then redirect.
  *
  * Use this, never `authClient.signOut()` — see the note on `authClient`.
