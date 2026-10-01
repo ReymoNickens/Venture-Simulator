@@ -118,6 +118,12 @@ function Login() {
         >
           Course rep with a setup code? Set up your class
         </Link>
+        <Link
+          to="/lecturer-setup"
+          className="inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-2"
+        >
+          Lecturer with an invite code? Create your account
+        </Link>
         <Link to="/" className="inline-flex min-h-11 items-center text-sm text-muted">
           Back
         </Link>

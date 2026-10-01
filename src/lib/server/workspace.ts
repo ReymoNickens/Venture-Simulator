@@ -54,8 +54,14 @@ export const getWorkspace = createServerFn({ method: "GET" })
       aiAvailable: Boolean(process.env.ANTHROPIC_API_KEY),
       simulation: null,
       isClassRep: false,
+      isLecturer: false,
+      feedback: [],
     };
-    if (!student) return empty;
+    if (!student) {
+      const sql = await getSql();
+      const staff = await sql`select 1 from lecturers where auth_user_id = ${context.userId} limit 1`;
+      return { ...empty, isLecturer: staff.length > 0 };
+    }
     {
       const sql = await getSql();
       const reps = await sql`select 1 from course_offerings where rep_student_id = ${student.id} limit 1`;
@@ -462,6 +468,13 @@ export const getWorkspace = createServerFn({ method: "GET" })
       aiAvailable: Boolean(process.env.ANTHROPIC_API_KEY),
       simulation,
       isClassRep: empty.isClassRep,
+      isLecturer: false,
+      feedback: (
+        await sql<{ id: string; author_name: string; body: string; created_at: unknown }>`
+          select id, author_name, body, created_at from group_feedback
+          where group_id = ${group.id} order by created_at desc limit 5
+        `
+      ).map((f) => ({ id: f.id, author: f.author_name, body: f.body, at: new Date(String(f.created_at)).toISOString() })),
     };
   });
 

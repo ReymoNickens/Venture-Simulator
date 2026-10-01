@@ -25,12 +25,14 @@ export const CODE_DAYS = 30;
 // No 0/O, 1/I/L: codes get read out over the phone and typed from WhatsApp.
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 
-export function generateRepCode(): string {
+export function generateCode(prefix: string): string {
   const bytes = new Uint8Array(8);
   crypto.getRandomValues(bytes);
   const chars = Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
-  return `REP-${chars.slice(0, 4)}-${chars.slice(4)}`;
+  return `${prefix}-${chars.slice(0, 4)}-${chars.slice(4)}`;
 }
+
+export const generateRepCode = () => generateCode("REP");
 
 /** Case, spaces and dashes don't matter when a rep types the code. */
 export function normaliseCode(code: string): string {

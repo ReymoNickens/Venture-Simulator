@@ -31,6 +31,7 @@
  */
 import { betterAuth } from "better-auth";
 import { bearer, username } from "better-auth/plugins";
+import { claimStaff, pendingStaffByEmail } from "@/lib/lecturers/accounts";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { APIError } from "better-auth/api";
@@ -158,12 +159,21 @@ export const auth = betterAuth({
         before: async (user: CreatingUser) => {
           const email = user.email?.trim().toLowerCase();
           const username = user.username?.trim().toUpperCase();
-          if (!email || !username) {
-            throw new APIError("BAD_REQUEST", {
-              message: "Email and index number are required.",
-            });
+          if (!email) {
+            throw new APIError("BAD_REQUEST", { message: "Email is required." });
           }
           const sql = await getSql();
+          // Lecturers sign up with email only, after redeeming an owner's
+          // invite code created their staff record (src/lib/lecturers).
+          if (!username) {
+            const staff = await pendingStaffByEmail(sql, email);
+            if (!staff) {
+              throw new APIError("FORBIDDEN", {
+                message: "Students need their index number to activate. Lecturers need an invite code from the platform owner.",
+              });
+            }
+            return { data: { ...user, name: staff.fullName } };
+          }
           const rows = await sql<RosterMatch>`
             select id, full_name from students
             where auth_user_id is null
@@ -181,6 +191,7 @@ export const auth = betterAuth({
         },
         after: async (user: { id: string; email: string }) => {
           const sql = await getSql();
+          if (await claimStaff(sql, user.id, user.email)) return;
           await sql`
             update students set auth_user_id = ${user.id}, updated_at = now()
             where auth_user_id is null and lower(email) = ${user.email.toLowerCase()}

@@ -10,11 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LecturerRouteImport } from './routes/lecturer'
+import { Route as LecturerSetupRouteImport } from './routes/lecturer-setup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as OwnerRouteImport } from './routes/owner'
 import { Route as RepRouteImport } from './routes/rep'
 import { Route as StudioRouteImport } from './routes/studio'
+import { Route as LecturerIndexRouteImport } from './routes/lecturer/index'
+import { Route as LecturerActivityRouteImport } from './routes/lecturer/activity'
+import { Route as LecturerClassesRouteImport } from './routes/lecturer/classes'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
 import { Route as StudioClassRouteImport } from './routes/studio/class'
 import { Route as StudioGroupRouteImport } from './routes/studio/group'
@@ -24,10 +29,21 @@ import { Route as StudioSelectRouteImport } from './routes/studio/select'
 import { Route as StudioSimulationRouteImport } from './routes/studio/simulation'
 import { Route as StudioVentureRouteImport } from './routes/studio/venture'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as LecturerGroupsGroupIdRouteImport } from './routes/lecturer/groups.$groupId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LecturerRoute = LecturerRouteImport.update({
+  id: '/lecturer',
+  path: '/lecturer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LecturerSetupRoute = LecturerSetupRouteImport.update({
+  id: '/lecturer-setup',
+  path: '/lecturer-setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -54,6 +70,21 @@ const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
   getParentRoute: () => rootRouteImport,
+} as any)
+const LecturerIndexRoute = LecturerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LecturerRoute,
+} as any)
+const LecturerActivityRoute = LecturerActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => LecturerRoute,
+} as any)
+const LecturerClassesRoute = LecturerClassesRouteImport.update({
+  id: '/classes',
+  path: '/classes',
+  getParentRoute: () => LecturerRoute,
 } as any)
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
@@ -100,14 +131,23 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LecturerGroupsGroupIdRoute = LecturerGroupsGroupIdRouteImport.update({
+  id: '/groups/$groupId',
+  path: '/groups/$groupId',
+  getParentRoute: () => LecturerRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/lecturer': typeof LecturerRouteWithChildren
+  '/lecturer-setup': typeof LecturerSetupRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/owner': typeof OwnerRoute
   '/rep': typeof RepRoute
   '/studio': typeof StudioRouteWithChildren
+  '/lecturer/activity': typeof LecturerActivityRoute
+  '/lecturer/classes': typeof LecturerClassesRoute
   '/studio/class': typeof StudioClassRoute
   '/studio/group': typeof StudioGroupRoute
   '/studio/journey': typeof StudioJourneyRoute
@@ -115,15 +155,20 @@ export interface FileRoutesByFullPath {
   '/studio/select': typeof StudioSelectRoute
   '/studio/simulation': typeof StudioSimulationRoute
   '/studio/venture': typeof StudioVentureRoute
+  '/lecturer/': typeof LecturerIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/lecturer/groups/$groupId': typeof LecturerGroupsGroupIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/lecturer-setup': typeof LecturerSetupRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/owner': typeof OwnerRoute
   '/rep': typeof RepRoute
+  '/lecturer/activity': typeof LecturerActivityRoute
+  '/lecturer/classes': typeof LecturerClassesRoute
   '/studio/class': typeof StudioClassRoute
   '/studio/group': typeof StudioGroupRoute
   '/studio/journey': typeof StudioJourneyRoute
@@ -131,17 +176,23 @@ export interface FileRoutesByTo {
   '/studio/select': typeof StudioSelectRoute
   '/studio/simulation': typeof StudioSimulationRoute
   '/studio/venture': typeof StudioVentureRoute
+  '/lecturer': typeof LecturerIndexRoute
   '/studio': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/lecturer/groups/$groupId': typeof LecturerGroupsGroupIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/lecturer': typeof LecturerRouteWithChildren
+  '/lecturer-setup': typeof LecturerSetupRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/owner': typeof OwnerRoute
   '/rep': typeof RepRoute
   '/studio': typeof StudioRouteWithChildren
+  '/lecturer/activity': typeof LecturerActivityRoute
+  '/lecturer/classes': typeof LecturerClassesRoute
   '/studio/class': typeof StudioClassRoute
   '/studio/group': typeof StudioGroupRoute
   '/studio/journey': typeof StudioJourneyRoute
@@ -149,18 +200,24 @@ export interface FileRoutesById {
   '/studio/select': typeof StudioSelectRoute
   '/studio/simulation': typeof StudioSimulationRoute
   '/studio/venture': typeof StudioVentureRoute
+  '/lecturer/': typeof LecturerIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/lecturer/groups/$groupId': typeof LecturerGroupsGroupIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/lecturer'
+    | '/lecturer-setup'
     | '/login'
     | '/onboarding'
     | '/owner'
     | '/rep'
     | '/studio'
+    | '/lecturer/activity'
+    | '/lecturer/classes'
     | '/studio/class'
     | '/studio/group'
     | '/studio/journey'
@@ -168,15 +225,20 @@ export interface FileRouteTypes {
     | '/studio/select'
     | '/studio/simulation'
     | '/studio/venture'
+    | '/lecturer/'
     | '/studio/'
     | '/api/auth/$'
+    | '/lecturer/groups/$groupId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/lecturer-setup'
     | '/login'
     | '/onboarding'
     | '/owner'
     | '/rep'
+    | '/lecturer/activity'
+    | '/lecturer/classes'
     | '/studio/class'
     | '/studio/group'
     | '/studio/journey'
@@ -184,16 +246,22 @@ export interface FileRouteTypes {
     | '/studio/select'
     | '/studio/simulation'
     | '/studio/venture'
+    | '/lecturer'
     | '/studio'
     | '/api/auth/$'
+    | '/lecturer/groups/$groupId'
   id:
     | '__root__'
     | '/'
+    | '/lecturer'
+    | '/lecturer-setup'
     | '/login'
     | '/onboarding'
     | '/owner'
     | '/rep'
     | '/studio'
+    | '/lecturer/activity'
+    | '/lecturer/classes'
     | '/studio/class'
     | '/studio/group'
     | '/studio/journey'
@@ -201,12 +269,16 @@ export interface FileRouteTypes {
     | '/studio/select'
     | '/studio/simulation'
     | '/studio/venture'
+    | '/lecturer/'
     | '/studio/'
     | '/api/auth/$'
+    | '/lecturer/groups/$groupId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LecturerRoute: typeof LecturerRouteWithChildren
+  LecturerSetupRoute: typeof LecturerSetupRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   OwnerRoute: typeof OwnerRoute
@@ -222,6 +294,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lecturer': {
+      id: '/lecturer'
+      path: '/lecturer'
+      fullPath: '/lecturer'
+      preLoaderRoute: typeof LecturerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lecturer-setup': {
+      id: '/lecturer-setup'
+      path: '/lecturer-setup'
+      fullPath: '/lecturer-setup'
+      preLoaderRoute: typeof LecturerSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -258,6 +344,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/studio'
       preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/lecturer/': {
+      id: '/lecturer/'
+      path: '/'
+      fullPath: '/lecturer/'
+      preLoaderRoute: typeof LecturerIndexRouteImport
+      parentRoute: typeof LecturerRoute
+    }
+    '/lecturer/activity': {
+      id: '/lecturer/activity'
+      path: '/activity'
+      fullPath: '/lecturer/activity'
+      preLoaderRoute: typeof LecturerActivityRouteImport
+      parentRoute: typeof LecturerRoute
+    }
+    '/lecturer/classes': {
+      id: '/lecturer/classes'
+      path: '/classes'
+      fullPath: '/lecturer/classes'
+      preLoaderRoute: typeof LecturerClassesRouteImport
+      parentRoute: typeof LecturerRoute
     }
     '/studio/': {
       id: '/studio/'
@@ -322,8 +429,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lecturer/groups/$groupId': {
+      id: '/lecturer/groups/$groupId'
+      path: '/groups/$groupId'
+      fullPath: '/lecturer/groups/$groupId'
+      preLoaderRoute: typeof LecturerGroupsGroupIdRouteImport
+      parentRoute: typeof LecturerRoute
+    }
   }
 }
+
+interface LecturerRouteChildren {
+  LecturerActivityRoute: typeof LecturerActivityRoute
+  LecturerClassesRoute: typeof LecturerClassesRoute
+  LecturerIndexRoute: typeof LecturerIndexRoute
+  LecturerGroupsGroupIdRoute: typeof LecturerGroupsGroupIdRoute
+}
+
+const LecturerRouteChildren: LecturerRouteChildren = {
+  LecturerActivityRoute: LecturerActivityRoute,
+  LecturerClassesRoute: LecturerClassesRoute,
+  LecturerIndexRoute: LecturerIndexRoute,
+  LecturerGroupsGroupIdRoute: LecturerGroupsGroupIdRoute,
+}
+
+const LecturerRouteWithChildren = LecturerRoute._addFileChildren(
+  LecturerRouteChildren,
+)
 
 interface StudioRouteChildren {
   StudioClassRoute: typeof StudioClassRoute
@@ -352,6 +484,8 @@ const StudioRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LecturerRoute: LecturerRouteWithChildren,
+  LecturerSetupRoute: LecturerSetupRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   OwnerRoute: OwnerRoute,

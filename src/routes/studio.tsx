@@ -17,7 +17,7 @@ function StudioLayout() {
   useEffect(() => {
     if (isPending || loading) return;
     if (user && data && !data.student) {
-      void navigate({ to: "/onboarding" });
+      void navigate({ to: data.isLecturer ? "/lecturer" : "/onboarding" });
     }
   }, [isPending, loading, user, data, navigate]);
 
