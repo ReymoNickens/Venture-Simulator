@@ -1,99 +1,228 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, Check, ChevronRight, Copy, Users } from "lucide-react";
+import { useState } from "react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
-import { Button } from "@/components/ui/button";
-import { Badge, Card } from "@/components/ui/badge";
+import { journeyFromSnapshot } from "@/lib/domain/journey-progress";
+import type { JourneyId } from "@/lib/domain/state-machine";
+import type { WorkspaceSnapshot } from "@/lib/domain/types";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { Card } from "@/components/ui/badge";
+import { Loading } from "@/components/ui/feedback";
+import { Sparkle, StepSticker } from "@/components/ui/sticker";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/studio/")({ component: StudioHome });
 
+type StudioHref =
+  | "/studio/group"
+  | "/studio/opportunity"
+  | "/studio/select"
+  | "/studio/venture"
+  | "/studio/simulation";
+
+type NextStep = {
+  step: JourneyId;
+  title: string;
+  body: string;
+  href: StudioHref;
+  cta: string;
+  waiting?: boolean;
+};
+
+function nextStep(data: WorkspaceSnapshot): NextStep {
+  if (!data.group) {
+    return {
+      step: "group",
+      title: "Find your group",
+      body: "Everything happens in a group of up to ten. Join with the code a classmate shares, start a new group, or try a practice group on your own.",
+      href: "/studio/group",
+      cta: "Find your group",
+    };
+  }
+  if (!data.myOpportunity || data.myOpportunity.status === "draft") {
+    return {
+      step: data.myOpportunity ? "submit" : "opportunity",
+      title: data.myOpportunity ? "Finish your problem" : "Spot a real problem",
+      body: "Go out alone and find one problem you can see or count: a queue, a wasted hour, money lost. Your group only sees it once everyone has submitted.",
+      href: "/studio/opportunity",
+      cta: data.myOpportunity ? "Keep writing" : "Start",
+    };
+  }
+  if (!data.canOpenSelection) {
+    const { submitted, required } = data.submissionProgress;
+    return {
+      step: "submit",
+      title: "Waiting for your group",
+      body: `${submitted} of ${required} members have submitted. Choosing opens when everyone has, so nobody copies anybody.`,
+      href: "/studio/opportunity",
+      cta: "Review what you sent",
+      waiting: true,
+    };
+  }
+  if (!data.venture) {
+    return {
+      step: "select",
+      title: "Pick one problem together",
+      body: "Read everyone’s problem. Say which one you would pick and why, before the group decides.",
+      href: "/studio/select",
+      cta: "Compare problems",
+    };
+  }
+  const sim = data.simulation;
+  if (!sim) {
+    return {
+      step: "simulate",
+      title: "Launch your venture",
+      body: "Six weeks, real-feeling money. Every week you set a price, order stock and see what happened. Keep logging evidence alongside.",
+      href: "/studio/simulation",
+      cta: "Open the venture",
+    };
+  }
+  if (sim.status === "operating" && sim.completedPeriod < sim.periodCount) {
+    return {
+      step: "simulate",
+      title: `Week ${sim.completedPeriod + 1} of ${sim.periodCount}`,
+      body: "Look at what changed in the market, then decide price, stock and marketing for this week.",
+      href: "/studio/simulation",
+      cta: `Decide week ${sim.completedPeriod + 1}`,
+    };
+  }
+  return {
+    step: data.evidence.length ? "assumptions" : "evidence",
+    title: data.evidence.length ? "Test what you still assume" : "Log what you found",
+    body: "Record what you saw and heard. Say honestly whether it is a fact, an opinion or a guess, and link it to the assumptions that could sink the idea.",
+    href: "/studio/venture",
+    cta: "Open your notebook",
+  };
+}
+
 function StudioHome() {
   const { data, loading } = useStudioWorkspace();
-  if (loading || !data) {
-    return <div className="h-40 animate-pulse rounded-[28px] bg-bg-subtle" />;
-  }
+  if (loading || !data) return <Loading />;
 
-  const next = !data.group
-    ? {
-        title: "Join or create a group",
-        body: "Work happens in groups. Capacity is configurable (default 10). You will need a join code, or you can open a demonstration cohort to walk the whole journey alone.",
-        href: "/studio/group",
-        cta: "Open groups",
-      }
-    : !data.myOpportunity || data.myOpportunity.status === "draft"
-      ? {
-          title: "Find and submit an opportunity",
-          body: "Do not start with a business. Start with a problem you have actually seen. Your submission stays private until selection opens.",
-          href: "/studio/opportunity",
-          cta: "Write opportunity",
-        }
-      : !data.canOpenSelection
-        ? {
-            title: "Waiting for the group",
-            body: `${data.submissionProgress.submitted} of ${data.submissionProgress.required} active members have submitted. Selection does not open early, and missing students are not treated as submitted.`,
-            href: "/studio/opportunity",
-            cta: "Review your submission",
-          }
-        : !data.venture
-          ? {
-              title: "Select a venture",
-              body: "Compare the submissions, record your own preference first, then write why the group chose this over the alternatives.",
-              href: "/studio/select",
-              cta: "Open selection",
-            }
-          : {
-              title: "Collect evidence and test assumptions",
-              body: "Log what you observed. Classify it honestly. Link evidence to the assumptions that could collapse the venture.",
-              href: "/studio/venture",
-              cta: "Open the venture record",
-            };
+  const next = nextStep(data);
+  const progress = journeyFromSnapshot(data);
+  const firstName = data.student?.fullName.split(" ")[0];
+  const active = data.members.filter((m) => m.membershipStatus === "active");
 
   return (
-    <div className="space-y-5">
+    <div className="flow-enter space-y-5 pt-2">
       <div>
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+        <p className="text-xs font-semibold text-muted">
           {data.offering
-            ? `${data.offering.courseCode} · ${data.offering.semester} ${data.offering.academicYear}`
-            : "No offering"}
+            ? [data.offering.courseCode, data.offering.programme, data.offering.level].filter(Boolean).join(" · ")
+            : "Studio"}
         </p>
-        <h1 className="font-display text-3xl">
-          {data.student ? `Hello, ${data.student.fullName.split(" ")[0]}` : "Studio"}
+        <h1 className="font-display text-[34px] leading-none font-extrabold">
+          {firstName ? `Hi, ${firstName}.` : "Studio"}
         </h1>
-        {data.group ? (
-          <p className="mt-1 text-sm text-muted">
-            {data.group.groupName} · Group {data.group.groupNumber} · Join code{" "}
-            <span className="font-mono text-ink">{data.group.joinCode}</span>
-          </p>
-        ) : null}
       </div>
-      <Card className="space-y-3">
-        <Badge tone="accent">{data.group?.status.replaceAll("_", " ") ?? "ungrouped"}</Badge>
-        <h2 className="font-display text-2xl">{next.title}</h2>
-        <p className="text-sm leading-6 text-muted">{next.body}</p>
-        <Link to={next.href as "/studio/group" | "/studio/opportunity" | "/studio/select" | "/studio/venture"}>
-          <Button>{next.cta}</Button>
+
+      <section
+        aria-labelledby="next-title"
+        className={cn(
+          "tape relative mt-3 rounded-[24px] border border-line bg-bg-elevated px-5 pt-7 pb-5",
+          !next.waiting && "shadow-[0_18px_40px_-28px_rgba(17,17,17,0.45)]",
+        )}
+      >
+        <Sparkle className="absolute top-4 right-5 size-4 text-clay" />
+        <div className="flex items-center gap-3">
+          <StepSticker step={next.step} size="lg" />
+          <div>
+            <p className="text-xs font-semibold text-muted">
+              {next.waiting ? "Nothing to do right now" : `Stop ${progress.stop} of ${progress.total} · Now`}
+            </p>
+            <h2 id="next-title" className="font-display text-2xl leading-tight font-extrabold">
+              {next.title}
+            </h2>
+          </div>
+        </div>
+        <p className="mt-3 text-[15px] leading-6 text-ink-soft">{next.body}</p>
+        <Link
+          to={next.href}
+          className={cn(
+            buttonVariants({ size: "lg", variant: next.waiting ? "secondary" : "primary" }),
+            "mt-5 w-full",
+          )}
+        >
+          {next.cta} <ArrowRight className="size-4" aria-hidden />
         </Link>
-      </Card>
+      </section>
+
+      {data.isClassRep ? (
+        <Link
+          to="/studio/class"
+          className="flex items-center gap-3.5 rounded-[20px] border border-line bg-bg-elevated p-4 hover:border-ink/40"
+        >
+          <span className="sticker flex size-11 shrink-0 items-center justify-center rounded-full bg-indigo text-white">
+            <Users className="size-5" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-lg leading-tight font-bold">Your class list</span>
+            <span className="block text-sm text-muted">You are the course rep. Add students and see who has activated.</span>
+          </span>
+          <ChevronRight className="size-5 shrink-0 text-faint" aria-hidden />
+        </Link>
+      ) : null}
+
       {data.group ? (
-        <Card>
-          <h3 className="font-display text-lg">Members</h3>
-          <ul className="mt-3 divide-y divide-line">
-            {data.members
-              .filter((m) => m.membershipStatus === "active")
-              .map((m) => (
-                <li key={m.id} className="flex items-center justify-between py-2 text-sm">
-                  <span>
+        <Card className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-muted">Group {data.group.groupNumber}</p>
+              <h3 className="truncate font-display text-lg font-bold">{data.group.groupName}</h3>
+            </div>
+            <JoinCode code={data.group.joinCode} />
+          </div>
+          <details className="group">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
+              <span>
+                {active.length} members · {active.filter((m) => m.hasSubmittedOpportunity).length} have
+                submitted
+              </span>
+              <span className="text-muted group-open:hidden">Show</span>
+              <span className="hidden text-muted group-open:inline">Hide</span>
+            </summary>
+            <ul className="mt-1 divide-y divide-line">
+              {active.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                  <span className="min-w-0 truncate">
                     {m.fullName}
-                    {m.isSynthetic ? (
-                      <span className="ml-2 text-xs text-faint">demo peer</span>
-                    ) : null}
+                    {m.isSynthetic ? <span className="ml-2 text-xs text-faint">practice peer</span> : null}
                   </span>
-                  <span className="text-xs text-muted">
-                    {m.hasSubmittedOpportunity ? "Submitted" : "Not submitted"}
-                  </span>
+                  {m.hasSubmittedOpportunity ? (
+                    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-mint">
+                      <Check className="size-3.5" aria-hidden /> Submitted
+                    </span>
+                  ) : (
+                    <span className="shrink-0 text-xs text-muted">Not yet</span>
+                  )}
                 </li>
               ))}
-          </ul>
+            </ul>
+          </details>
         </Card>
       ) : null}
     </div>
+  );
+}
+
+function JoinCode({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void navigator.clipboard?.writeText(code).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1600);
+        });
+      }}
+      className="flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-gold-soft px-3.5 font-mono text-sm font-medium text-gold-deep"
+      aria-label={`Join code ${code}. Copy to share with your group.`}
+    >
+      {code}
+      {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
+    </button>
   );
 }

@@ -7,17 +7,18 @@ export function Badge({
   className,
 }: {
   children: ReactNode;
-  tone?: "neutral" | "accent" | "warn" | "bad";
+  tone?: "neutral" | "accent" | "warn" | "bad" | "gold";
   className?: string;
 }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em]",
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
         tone === "neutral" && "bg-bg-subtle text-muted",
         tone === "accent" && "bg-accent-soft text-accent",
         tone === "warn" && "bg-warn-soft text-warn",
         tone === "bad" && "bg-bad-soft text-bad",
+        tone === "gold" && "bg-gold-soft text-gold-deep",
         className,
       )}
     >
@@ -26,15 +27,44 @@ export function Badge({
   );
 }
 
-export function Card({ className, children }: { className?: string; children: ReactNode }) {
+/**
+ * A sheet of paper on the desk: square-ish corners, a hard hairline edge and
+ * a short offset shadow — printed matter, not a floating glass panel.
+ */
+export function Card({
+  className,
+  children,
+  as: Tag = "div",
+}: {
+  className?: string;
+  children: ReactNode;
+  as?: "div" | "section" | "article" | "li";
+}) {
   return (
-    <div
+    <Tag
       className={cn(
-        "rounded-[28px] border border-line bg-bg-elevated p-5 shadow-[0_1px_0_rgba(28,25,20,0.04),0_18px_40px_-28px_rgba(28,25,20,0.35)]",
+        "rounded-[20px] border border-line bg-bg-elevated p-4 sm:p-5",
         className,
       )}
     >
       {children}
-    </div>
+    </Tag>
+  );
+}
+
+/** Small uppercase label that heads a section. */
+export function Eyebrow({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <p className={cn("text-xs font-semibold text-muted", className)}>
+      {children}
+    </p>
+  );
+}
+
+export function EmptyNote({ children }: { children: ReactNode }) {
+  return (
+    <p className="rounded-[16px] bg-bg-subtle px-4 py-5 text-center text-sm text-muted">
+      {children}
+    </p>
   );
 }

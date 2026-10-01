@@ -1,99 +1,214 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Plus, X } from "lucide-react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { AdvisorPanel } from "@/components/advisor/AdvisorPanel";
 import { AssumptionForm, LinkEvidenceForm } from "@/components/forms/AssumptionForm";
 import { EvidenceForm } from "@/components/forms/EvidenceForm";
-import { Badge, Card } from "@/components/ui/badge";
+import { Card, EmptyNote } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Loading } from "@/components/ui/feedback";
+import { ClassificationStamp, Stamp } from "@/components/ui/stamp";
+import { StepHeader } from "@/components/shell/StepHeader";
 import { DEFAULT_MAX_PHOTO_BYTES } from "@/lib/domain/config";
+import type { WorkspaceSnapshot } from "@/lib/domain/types";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/studio/venture")({ component: VenturePage });
 
+type Tab = "evidence" | "assumptions" | "advisor";
+
 function VenturePage() {
   const { data, loading, refresh } = useStudioWorkspace();
-  if (loading || !data) return <div className="h-40 animate-pulse rounded-[28px] bg-bg-subtle" />;
+  const [tab, setTab] = useState<Tab>("evidence");
+  if (loading || !data) return <Loading />;
   if (!data.venture) {
     return (
-      <Card className="space-y-2">
-        <h1 className="font-display text-2xl">No venture yet</h1>
-        <p className="text-sm text-muted">The group must select an opportunity first.</p>
-        <Link to="/studio/select" className="text-sm text-accent">
-          Go to selection
-        </Link>
-      </Card>
+      <div>
+        <StepHeader
+          step="evidence"
+          title="Your notebook"
+          lead="Evidence and assumptions are logged against the venture your group picks."
+        />
+        <EmptyNote>
+          Your group has not picked a venture yet.{" "}
+          <Link to="/studio/select" className="font-semibold text-accent underline underline-offset-2">
+            Go to picking
+          </Link>
+        </EmptyNote>
+      </div>
     );
   }
 
   const selected = data.visibleOpportunities.find((o) => o.id === data.venture?.opportunityId);
+  const tabs: { id: Tab; label: string; count?: number }[] = [
+    { id: "evidence", label: "Evidence", count: data.evidence.length },
+    { id: "assumptions", label: "Assumptions", count: data.assumptions.length },
+    { id: "advisor", label: "Advisor" },
+  ];
 
   return (
-    <div className="space-y-5">
-      <div>
-        <Badge tone="accent">{data.venture.status}</Badge>
-        <h1 className="mt-2 font-display text-3xl">{data.venture.name}</h1>
-        <p className="mt-2 text-sm leading-6 text-muted">{data.venture.selectionRationale}</p>
-        {selected ? (
-          <p className="mt-2 text-xs text-faint">From {selected.authorName}’s opportunity.</p>
-        ) : null}
+    <div>
+      <StepHeader
+        step={data.evidence.length ? "assumptions" : "evidence"}
+        title={data.venture.name}
+        lead={selected ? `From ${selected.authorName}’s problem: ${selected.problem}` : undefined}
+      />
+
+      <div role="tablist" aria-label="Notebook" className="mb-4 grid grid-cols-3 gap-1 rounded-full bg-bg-subtle p-1">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            id={`tab-${t.id}`}
+            aria-selected={tab === t.id}
+            aria-controls={`panel-${t.id}`}
+            onClick={() => setTab(t.id)}
+            className={cn(
+              "min-h-11 rounded-full text-sm font-semibold transition-colors",
+              tab === t.id ? "bg-bg-elevated text-ink shadow-sm" : "text-muted",
+            )}
+          >
+            {t.label}
+            {t.count !== undefined ? <span className="ml-1 text-faint tabular-nums">{t.count}</span> : null}
+          </button>
+        ))}
       </div>
 
-      <Card className="space-y-4">
-        <h2 className="font-display text-xl">Log evidence</h2>
-        <p className="text-sm text-muted">
-          Evidence is not a document dump. Classify it. The advisor may challenge the classification;
-          you confirm it.
+      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="flow-enter" key={tab}>
+        {tab === "evidence" ? <EvidenceTab data={data} refresh={refresh} /> : null}
+        {tab === "assumptions" ? <AssumptionsTab data={data} refresh={refresh} /> : null}
+        {tab === "advisor" ? <AdvisorPanel data={data} stage="evidence" onSent={() => void refresh()} /> : null}
+      </div>
+    </div>
+  );
+}
+
+function AddPanel({
+  open,
+  onToggle,
+  label,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  label: string;
+  children: React.ReactNode;
+}) {
+  if (!open) {
+    return (
+      <Button size="lg" className="w-full" onClick={onToggle}>
+        <Plus className="size-5" aria-hidden /> {label}
+      </Button>
+    );
+  }
+  return (
+    <Card className="flow-enter relative border-ink">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label="Close"
+        className="absolute top-2 right-2 flex size-11 items-center justify-center rounded-full text-muted hover:bg-bg-subtle"
+      >
+        <X className="size-5" aria-hidden />
+      </button>
+      <h2 className="mb-3 pr-10 font-display text-xl font-bold">{label}</h2>
+      {children}
+    </Card>
+  );
+}
+
+function EvidenceTab({ data, refresh }: { data: WorkspaceSnapshot; refresh: () => Promise<unknown> }) {
+  const [adding, setAdding] = useState(data.evidence.length === 0);
+  return (
+    <div className="space-y-4">
+      <AddPanel open={adding} onToggle={() => setAdding((v) => !v)} label="Log evidence">
+        <p className="mb-4 text-sm leading-6 text-muted">
+          One thing you saw, heard or counted. Say honestly what kind of thing it is; the advisor may push back.
         </p>
         <EvidenceForm
           maxPhotoBytes={data.offering?.maxPhotoBytes ?? DEFAULT_MAX_PHOTO_BYTES}
-          onSaved={() => void refresh()}
+          onSaved={() => {
+            setAdding(false);
+            void refresh();
+          }}
         />
-        <ul className="divide-y divide-line">
+      </AddPanel>
+
+      {data.evidence.length ? (
+        <ul className="space-y-3 pt-2">
           {data.evidence.map((ev) => (
-            <li key={ev.id} className="py-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">{ev.title}</p>
-                <Badge>{ev.classification}</Badge>
+            <li key={ev.id} className="note p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-display font-bold">{ev.title}</p>
+                <ClassificationStamp value={ev.classification} />
               </div>
-              <p className="mt-1 text-sm text-muted">{ev.content}</p>
-              <p className="mt-1 text-xs text-faint">
-                {ev.sourceType} · {ev.authorName}
-                {ev.syncState === "pending" ? " · saved locally" : ""}
+              <p className="mt-1 text-sm leading-6 text-ink-soft">{ev.content}</p>
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-faint">
+                <span className="capitalize">{ev.sourceType}</span>· {ev.authorName}
+                {ev.syncState === "pending" ? <Stamp tone="gold" size="xs">on this phone, not sent yet</Stamp> : null}
               </p>
               {ev.photoData ? (
-                <img
-                  src={ev.photoData}
-                  alt=""
-                  className="mt-2 max-h-40 rounded-[12px] border border-line"
-                />
+                <img src={ev.photoData} alt="" className="mt-3 max-h-44 rounded-[12px] border border-line" />
               ) : null}
             </li>
           ))}
         </ul>
-      </Card>
+      ) : null}
+    </div>
+  );
+}
 
-      <Card className="space-y-4">
-        <h2 className="font-display text-xl">Assumption ledger</h2>
-        <p className="text-sm text-muted">
-          Name the assumption that would collapse the venture if it were wrong. Critical + low confidence
-          is the dangerous quadrant.
+const IMPORTANCE_TONE = { critical: "clay", high: "gold", medium: "muted", low: "muted" } as const;
+
+function AssumptionsTab({ data, refresh }: { data: WorkspaceSnapshot; refresh: () => Promise<unknown> }) {
+  const [adding, setAdding] = useState(data.assumptions.length === 0);
+  return (
+    <div className="space-y-4">
+      <AddPanel open={adding} onToggle={() => setAdding((v) => !v)} label="Add an assumption">
+        <p className="mb-4 text-sm leading-6 text-muted">
+          Name the belief that would sink the venture if it were wrong. Critical and unsure is the dangerous corner.
         </p>
-        <AssumptionForm onSaved={() => void refresh()} />
-        <ul className="divide-y divide-line">
+        <AssumptionForm
+          onSaved={() => {
+            setAdding(false);
+            void refresh();
+          }}
+        />
+      </AddPanel>
+
+      {data.assumptions.length ? (
+        <ul className="space-y-3 pt-2">
           {data.assumptions.map((a) => {
             const links = data.links.filter((l) => l.assumptionId === a.id);
             return (
-              <li key={a.id} className="py-3">
-                <p className="text-sm">{a.statement}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.12em] text-faint">
-                  {a.importance} importance · {a.confidence} confidence
-                  {a.syncState === "pending" ? " · saved locally" : ""}
+              <li key={a.id} className="rounded-[20px] border border-line bg-bg-elevated p-4">
+                <p className="text-[15px] leading-6">{a.statement}</p>
+                <p className="mt-2 flex flex-wrap gap-1.5">
+                  <Stamp tone={IMPORTANCE_TONE[a.importance]} size="xs">
+                    {a.importance}
+                  </Stamp>
+                  <Stamp tone="muted" size="xs">
+                    {a.confidence} confidence
+                  </Stamp>
+                  {a.syncState === "pending" ? <Stamp tone="gold" size="xs">not sent yet</Stamp> : null}
                 </p>
                 {links.length ? (
-                  <ul className="mt-2 space-y-1 text-xs text-muted">
+                  <ul className="mt-3 space-y-1 border-t border-line pt-2 text-sm">
                     {links.map((l) => {
                       const ev = data.evidence.find((e) => e.id === l.evidenceItemId);
                       return (
-                        <li key={l.id}>
-                          {l.relationshipType} — {ev?.title ?? l.evidenceItemId}
+                        <li key={l.id} className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "text-xs font-semibold",
+                              l.relationshipType === "supports" ? "text-mint" : "text-clay",
+                            )}
+                          >
+                            {l.relationshipType === "supports" ? "Backed by" : "Challenged by"}
+                          </span>
+                          <span className="truncate text-ink-soft">{ev?.title ?? "evidence"}</span>
                         </li>
                       );
                     })}
@@ -103,18 +218,12 @@ function VenturePage() {
             );
           })}
         </ul>
-      </Card>
+      ) : null}
 
       <Card className="space-y-3">
-        <h2 className="font-display text-xl">Link evidence to assumptions</h2>
-        <LinkEvidenceForm
-          assumptions={data.assumptions}
-          evidence={data.evidence}
-          onSaved={() => void refresh()}
-        />
+        <h2 className="font-display text-lg font-bold">Link evidence to an assumption</h2>
+        <LinkEvidenceForm assumptions={data.assumptions} evidence={data.evidence} onSaved={() => void refresh()} />
       </Card>
-
-      <AdvisorPanel data={data} stage="evidence" onSent={() => void refresh()} />
     </div>
   );
 }

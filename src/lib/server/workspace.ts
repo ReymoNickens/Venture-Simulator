@@ -53,8 +53,14 @@ export const getWorkspace = createServerFn({ method: "GET" })
       canRecordGroupDecision: false,
       aiAvailable: Boolean(process.env.ANTHROPIC_API_KEY),
       simulation: null,
+      isClassRep: false,
     };
     if (!student) return empty;
+    {
+      const sql = await getSql();
+      const reps = await sql`select 1 from course_offerings where rep_student_id = ${student.id} limit 1`;
+      empty.isClassRep = reps.length > 0;
+    }
 
     const offering = await loadOfferingForStudent(student.id);
     const group = await loadGroupForStudent(student.id);
@@ -455,6 +461,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
       canRecordGroupDecision,
       aiAvailable: Boolean(process.env.ANTHROPIC_API_KEY),
       simulation,
+      isClassRep: empty.isClassRep,
     };
   });
 

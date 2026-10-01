@@ -3,6 +3,7 @@ import { sendAdvisorMessage } from "@/lib/server/advisor";
 import type { AdvisorSession, AdvisorStage, WorkspaceSnapshot } from "@/lib/domain/types";
 import { OFFLINE_AI } from "@/lib/domain/copy";
 import { Button } from "@/components/ui/button";
+import { FormMessages } from "@/components/ui/feedback";
 import { Textarea } from "@/components/ui/input";
 import { Card } from "@/components/ui/badge";
 import { useConnection } from "@/hooks/use-connection";
@@ -50,8 +51,10 @@ export function AdvisorPanel({
   return (
     <Card className="space-y-4">
       <div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">Advisor</p>
-        <h2 className="font-display text-xl">Challenge, not cheerleading</h2>
+        <p className="flex items-center gap-2 text-xs font-semibold text-indigo">
+          <span className="size-2 rounded-full bg-indigo" /> Advisor
+        </p>
+        <h2 className="font-display text-xl font-bold">Challenge, not cheerleading</h2>
         <p className="mt-1 text-sm text-muted">
           The advisor will not pick an opportunity for you, invent statistics, or write your answers.
         </p>
@@ -62,16 +65,16 @@ export function AdvisorPanel({
             key={m.id}
             className={
               m.role === "advisor"
-                ? "rounded-[16px] bg-accent-soft px-3 py-2.5 text-sm leading-6 text-ink"
-                : "rounded-[16px] border border-line px-3 py-2.5 text-sm leading-6"
+                ? "mr-6 rounded-[18px] rounded-tl-[6px] bg-indigo-soft px-3.5 py-2.5 text-sm leading-6 text-ink"
+                : "ml-6 rounded-[18px] rounded-tr-[6px] bg-ink px-3.5 py-2.5 text-sm leading-6 text-white"
             }
           >
-            <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted">
+            <p className={m.role === "advisor" ? "mb-1 text-xs font-semibold text-indigo" : "mb-1 text-xs font-semibold text-white/60"}>
               {m.role === "advisor" ? "Advisor" : "You"}
             </p>
             <p>{m.content}</p>
             {m.role === "advisor" && m.metadata?.suggestedNextAction ? (
-              <p className="mt-2 text-xs text-accent">Next: {m.metadata.suggestedNextAction}</p>
+              <p className="mt-2 text-xs font-semibold text-indigo">Try next: {m.metadata.suggestedNextAction}</p>
             ) : null}
           </div>
         ))}
@@ -82,7 +85,7 @@ export function AdvisorPanel({
         ) : null}
       </div>
       {offline ? (
-        <p className="rounded-[12px] bg-warn-soft px-3 py-2 text-sm text-warn">{OFFLINE_AI}</p>
+        <p className="rounded-[14px] bg-gold-soft px-3 py-2 text-sm text-gold-deep">{OFFLINE_AI}</p>
       ) : (
         <form
           className="space-y-2"
@@ -97,8 +100,8 @@ export function AdvisorPanel({
             placeholder="What are you unsure about?"
             disabled={pending}
           />
-          {error ? <p className="text-sm text-bad">{error}</p> : null}
-          <Button type="submit" disabled={pending || !text.trim()}>
+          <FormMessages error={error} />
+          <Button type="submit" className="w-full" disabled={pending || !text.trim()}>
             {pending ? "Asking…" : "Ask the advisor"}
           </Button>
         </form>

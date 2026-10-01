@@ -1,8 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Card } from "@/components/ui/badge";
+import { ArrowRight, Info } from "lucide-react";
+import { Card } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/input";
+import { buttonVariants } from "@/components/ui/button-variants";
+import { FormMessages, Loading } from "@/components/ui/feedback";
+import { Choice, Field, Input } from "@/components/ui/input";
+import { Stamp } from "@/components/ui/stamp";
+import { StepHeader } from "@/components/shell/StepHeader";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { outboxAll } from "@/lib/offline/idb";
 import { saveSimDecisions } from "@/lib/offline/actions";
@@ -22,11 +27,8 @@ export const Route = createFileRoute("/studio/simulation")({ component: Simulati
 
 type Step = "market" | "decide" | "results";
 
-const SELECT =
-  "h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
-
 function SimulationPage() {
-  const { refresh: refreshWorkspace } = useStudioWorkspace();
+  const { data: workspace, refresh: refreshWorkspace } = useStudioWorkspace();
   const [page, setPage] = useState<SimulationPageData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingPeriod, setPendingPeriod] = useState<number | null>(null);
@@ -61,31 +63,40 @@ function SimulationPage() {
     return subscribeConnection(() => void load());
   }, [load]);
 
+  const ventureName = workspace?.venture?.name ?? null;
+
   if (!page) {
     return error ? (
-      <Card>
-        <p className="text-sm text-muted">{error}</p>
-      </Card>
+      <div>
+        <StepHeader step="simulate" title="Run the venture" />
+        <FormMessages error={error} />
+      </div>
     ) : (
-      <div className="h-40 animate-pulse rounded-[28px] bg-bg-subtle" />
+      <Loading />
     );
   }
 
   if (!page.view) {
-    return <StartCard page={page} onStarted={() => void Promise.all([load(), refreshWorkspace()])} />;
+    return (
+      <StartCard
+        page={page}
+        ventureName={ventureName}
+        onStarted={() => void Promise.all([load(), refreshWorkspace()])}
+      />
+    );
   }
 
   const view = page.view;
   return (
-    <div className="space-y-5">
-      <StatusHeader view={view} pendingPeriod={pendingPeriod} />
-      {error ? <p className="text-sm text-bad">{error}</p> : null}
-      <nav aria-label="Period steps" className="flex gap-2">
+    <div className="space-y-5 pt-2">
+      <StatusHeader view={view} pendingPeriod={pendingPeriod} ventureName={ventureName} />
+      <FormMessages error={error} />
+      <nav aria-label="This week" className="sticky top-16 z-20 grid grid-cols-3 gap-1 rounded-full bg-bg-subtle/95 p-1 backdrop-blur-md">
         {(
           [
-            ["market", "1. Market"],
-            ["decide", "2. Decide & submit"],
-            ["results", "3. Results"],
+            ["market", "1 · Market"],
+            ["decide", "2 · Decide"],
+            ["results", "3 · Results"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -94,8 +105,8 @@ function SimulationPage() {
             onClick={() => setStep(id)}
             aria-current={step === id ? "step" : undefined}
             className={cn(
-              "rounded-full border px-3 py-1.5 text-xs",
-              step === id ? "border-ink/20 bg-bg-elevated text-ink" : "border-transparent text-faint",
+              "min-h-11 rounded-full text-sm font-semibold transition-colors",
+              step === id ? "bg-ink text-white" : "text-muted",
             )}
           >
             {label}
@@ -119,79 +130,174 @@ function SimulationPage() {
   );
 }
 
-function StartCard({ page, onStarted }: { page: SimulationPageData; onStarted: () => void }) {
+function StartCard({
+  page,
+  ventureName,
+  onStarted,
+}: {
+  page: SimulationPageData;
+  ventureName: string | null;
+  onStarted: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <Card className="space-y-3">
-      <h1 className="font-display text-2xl">Run your venture</h1>
-      <p className="text-sm leading-6 text-muted">
-        Your group launches the venture into a simulated market for a number of weeks. Each week you set prices, order stock
-        and spend on marketing; the market responds. Results are computed on the server, and decisions are final once
-        submitted.
-      </p>
-      {page.blockedReason ? <p className="text-sm text-warn">{page.blockedReason}</p> : null}
-      {error ? <p className="text-sm text-bad">{error}</p> : null}
-      {page.canStart ? (
-        <Button
-          disabled={busy}
-          onClick={() => {
-            setBusy(true);
-            setError(null);
-            startGroupSimulation()
-              .then(onStarted)
-              .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not start."))
-              .finally(() => setBusy(false));
-          }}
-        >
-          {busy ? "Starting…" : "Launch the venture"}
-        </Button>
-      ) : (
-        <Link to="/studio/select" className="text-sm text-accent">
-          Go to venture selection
-        </Link>
-      )}
-    </Card>
+    <div>
+      <StepHeader
+        step="simulate"
+        title="Run the venture"
+        lead="Your group runs a small business in a simulated market, one week at a time. Each week you set a price, order stock and spend on marketing. The market answers, and the cash is real to the simulation."
+      />
+      <PracticeBridge ventureName={ventureName} />
+      <Card className="mt-4 space-y-3">
+        <ul className="space-y-2 text-sm leading-6 text-ink-soft">
+          <li>
+            <strong className="text-ink">Decisions lock.</strong> Once someone in the group submits a week, it cannot be
+            changed.
+          </li>
+          <li>
+            <strong className="text-ink">The server does the maths.</strong> Every number comes with an explanation you can
+            open.
+          </li>
+          <li>
+            <strong className="text-ink">Running out of cash is allowed.</strong> Working out why is the lesson.
+          </li>
+        </ul>
+        {page.blockedReason ? (
+          <p className="rounded-[14px] bg-gold-soft px-3 py-2 text-sm text-gold-deep">{page.blockedReason}</p>
+        ) : null}
+        <FormMessages error={error} />
+        {page.canStart ? (
+          <Button
+            size="lg"
+            className="w-full"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              setError(null);
+              startGroupSimulation()
+                .then(onStarted)
+                .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not start."))
+                .finally(() => setBusy(false));
+            }}
+          >
+            {busy ? "Starting…" : "Launch the venture"}
+          </Button>
+        ) : (
+          <Link to="/studio/select" className={cn(buttonVariants({ variant: "secondary", size: "lg" }), "w-full")}>
+            Pick a venture first <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        )}
+      </Card>
+    </div>
   );
 }
 
-function StatusHeader({ view, pendingPeriod }: { view: SimulationView; pendingPeriod: number | null }) {
+/**
+ * Students arrive here having chosen their own problem (a shuttle queue,
+ * print shops...) and meet a food stall. Say so plainly, and say why, so
+ * the switch does not read as their work being thrown away.
+ */
+function PracticeBridge({ ventureName, compact = false }: { ventureName: string | null; compact?: boolean }) {
+  if (compact) {
+    return (
+      <p className="flex items-start gap-2 text-xs leading-5 text-muted">
+        <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+        A practice market for the money side of {ventureName ?? "your venture"}. Keep testing the real idea in your
+        notebook.
+      </p>
+    );
+  }
+  return (
+    <div className="note p-4">
+      <p className="text-xs font-semibold text-muted">Why a food stall?</p>
+      <p className="mt-1 text-[15px] leading-6">
+        {ventureName ? (
+          <>
+            You will not simulate <strong>{ventureName}</strong> itself. Everyone practises on the same campus food stall,
+            so groups can be compared fairly and nobody is judged on how well a made-up market fits their idea.
+          </>
+        ) : (
+          <>
+            Everyone practises on the same campus food stall, so groups can be compared fairly and nobody is judged on how
+            well a made-up market fits their idea.
+          </>
+        )}
+      </p>
+      <p className="mt-2 text-sm leading-6 text-ink-soft">
+        The levers are the ones every venture needs: price against cost, stock against demand, and cash against time. Keep
+        logging evidence for your own idea in the notebook alongside.
+      </p>
+    </div>
+  );
+}
+
+function StatusHeader({
+  view,
+  pendingPeriod,
+  ventureName,
+}: {
+  view: SimulationView;
+  pendingPeriod: number | null;
+  ventureName: string | null;
+}) {
   const label = view.market.periodLabel;
   const finished = view.completedPeriod >= view.periodCount || view.status === "exited";
   let todo: string;
-  if (pendingPeriod !== null) todo = `Your ${label} ${pendingPeriod} decisions are saved on this device. Results are pending until you reconnect.`;
-  else if (finished) todo = "The simulation is complete. Review your results.";
-  else if (view.nextPeriod) todo = `Study the market, then decide and submit for ${label} ${view.nextPeriod}.`;
+  if (pendingPeriod !== null) todo = `Your ${label} ${pendingPeriod} decisions are saved on this phone. Results come once you are back online.`;
+  else if (finished) todo = "All weeks are done. Look back over your results.";
+  else if (view.nextPeriod) todo = `Look at the market, then decide ${label} ${view.nextPeriod}.`;
   else if (view.cohortStatus !== "running") todo = "Your lecturer has paused the simulation.";
   else todo = `${label[0].toUpperCase()}${label.slice(1)} ${view.completedPeriod + 1} is not open yet.`;
+  const current = Math.min(view.completedPeriod + (finished ? 0 : 1), view.periodCount);
   return (
-    <Card className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge tone={view.status === "cash_out" ? "bad" : "accent"}>{view.status.replace("_", " ")}</Badge>
-        <span className="text-xs text-faint">
-          {view.market.scenarioName} · {label} {Math.min(view.completedPeriod + (finished ? 0 : 1), view.periodCount)} of {view.periodCount}
-        </span>
-      </div>
-      <p className="text-sm font-medium">{todo}</p>
-      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-        <div>
-          <dt className="text-xs text-faint">Cash now</dt>
-          <dd className={cn("font-mono tabular-nums", view.cash < 0 && "text-bad")}>{formatGhs(view.cash)}</dd>
+    <div className="space-y-3">
+      <div className="rounded-[24px] bg-ink p-5 text-white shadow-[0_18px_40px_-24px_rgba(17,17,17,0.7)]">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold text-white/60">
+            {view.market.scenarioName} · {label} {current} of {view.periodCount}
+          </p>
+          {view.status === "cash_out" ? (
+            <Stamp tone="clay" size="xs">out of cash</Stamp>
+          ) : view.status === "exited" ? (
+            <Stamp tone="muted" size="xs">closed</Stamp>
+          ) : (
+            <Stamp tone="gold" size="xs">trading</Stamp>
+          )}
         </div>
-        {view.market.products.map((p) => (
-          <div key={p.id}>
-            <dt className="text-xs text-faint">{p.name} in stock</dt>
-            <dd className="font-mono tabular-nums">{view.stock[p.id] ?? 0}</dd>
-          </div>
-        ))}
-      </dl>
+        <p className="mt-3 text-xs text-white/60">Cash now</p>
+        <p className={cn("font-display text-[32px] leading-none font-extrabold whitespace-nowrap tabular-nums sm:text-[40px]", view.cash < 0 && "text-clay")}>
+          {formatGhs(view.cash)}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+          {view.market.products.map((p) => (
+            <span key={p.id} className="text-white/80">
+              {p.name}: <strong className="font-mono text-white tabular-nums">{view.stock[p.id] ?? 0}</strong> in stock
+            </span>
+          ))}
+        </div>
+        <ol className="mt-4 flex gap-1.5" aria-label={`${label}s`}>
+          {Array.from({ length: view.periodCount }, (_, i) => (
+            <li
+              key={i}
+              aria-label={`${label} ${i + 1}${i < view.completedPeriod ? " done" : i + 1 === current && !finished ? " now" : ""}`}
+              className={cn(
+                "h-1.5 flex-1 rounded-full",
+                i < view.completedPeriod ? "bg-gold" : i + 1 === current && !finished ? "bg-white" : "bg-white/20",
+              )}
+            />
+          ))}
+        </ol>
+      </div>
+      <p className="text-[15px] font-semibold">{todo}</p>
+      <PracticeBridge ventureName={ventureName} compact />
       {view.status === "cash_out" ? (
-        <p className="rounded-[12px] bg-bad-soft px-3 py-2 text-xs leading-5 text-bad">
-          The venture could not pay what it owed. This is not the end of the course: look at the signals in your results and
-          work out what caused it. (Post-mortem, restart and pivot arrive in a later release.)
+        <p className="rounded-[14px] bg-clay-soft px-3 py-2 text-sm leading-6 text-clay">
+          The venture could not pay what it owed. This is not the end of the course: look at the warning signs in your
+          results and work out what caused it. (Post-mortem, restart and pivot arrive in a later release.)
         </p>
       ) : null}
-    </Card>
+    </div>
   );
 }
 
@@ -201,13 +307,13 @@ function MarketStep({ view, onNext }: { view: SimulationView; onNext: () => void
   return (
     <div className="space-y-4">
       <Card className="space-y-2">
-        <h2 className="font-display text-xl">The market</h2>
-        <p className="text-sm leading-6 text-muted">{m.description}</p>
-        <p className="text-xs text-faint">Customers: {m.segments.map((s) => s.name).join(", ")}.</p>
+        <h2 className="font-display text-xl font-bold">The market</h2>
+        <p className="text-[15px] leading-6 text-ink-soft">{m.description}</p>
+        <p className="text-sm text-muted">Customers: {m.segments.map((s) => s.name).join(", ")}.</p>
       </Card>
       {awaiting.length ? (
-        <Card className="space-y-2 border-warn/40">
-          <h2 className="font-display text-xl">Needs a response</h2>
+        <Card className="space-y-2 border-clay bg-clay-soft/40">
+          <h2 className="font-display text-xl font-bold">Something happened: respond this week</h2>
           {awaiting.map((e) => (
             <p key={e.instanceId} className="text-sm">
               <strong>{e.name}.</strong> {e.description} Choose your response in the Decide step.
@@ -216,46 +322,41 @@ function MarketStep({ view, onNext }: { view: SimulationView; onNext: () => void
         </Card>
       ) : null}
       <Card className="space-y-3">
-        <h2 className="font-display text-xl">Suppliers</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs text-faint">
-              <tr>
-                <th className="py-1 pr-3 font-normal">Supplier</th>
+        <h2 className="font-display text-xl font-bold">Suppliers</h2>
+        <ul className="divide-y divide-line">
+          {m.suppliers.map((s) => (
+            <li key={s.id} className="py-3 first:pt-0 last:pb-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold">{s.name}</span>
+                <Stamp tone={s.informal ? "gold" : "indigo"} size="xs">
+                  {s.informal ? "informal" : "registered"}
+                </Stamp>
+              </div>
+              <dl className="mt-2 grid grid-cols-3 gap-2">
                 {m.qualityTiers.map((t) => (
-                  <th key={t.id} className="py-1 pr-3 font-normal">
-                    {t.label} / unit
-                  </th>
-                ))}
-                <th className="py-1 pr-3 font-normal">Delivery</th>
-                <th className="py-1 font-normal">Max order</th>
-              </tr>
-            </thead>
-            <tbody>
-              {m.suppliers.map((s) => (
-                <tr key={s.id} className="border-t border-line">
-                  <td className="py-2 pr-3">
-                    {s.name} <span className="text-xs text-faint">({s.informal ? "informal" : "registered"})</span>
-                  </td>
-                  {m.qualityTiers.map((t) => (
-                    <td key={t.id} className="py-2 pr-3 font-mono tabular-nums">
+                  <div key={t.id} className="rounded-[12px] bg-bg-subtle px-2.5 py-2">
+                    <dt className="text-[11px] font-semibold text-muted">{t.label}</dt>
+                    <dd className="font-mono text-sm tabular-nums">
                       {formatGhs(s.unitPrice[m.products[0].id]?.[t.id] ?? 0)}
-                    </td>
-                  ))}
-                  <td className="py-2 pr-3">{s.leadTimePeriods === 0 ? "same week" : `after ${s.leadTimePeriods} ${m.periodLabel}`}</td>
-                  <td className="py-2 font-mono tabular-nums">{s.capacityUnits}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-xs text-muted">
-          Stock is paid for when it arrives. Unsold food spoils, and a supplier may not always deliver everything you order.
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-2 text-xs text-muted">
+                Delivers {s.leadTimePeriods === 0 ? "the same week" : `after ${s.leadTimePeriods} ${m.periodLabel}`} · up to{" "}
+                <span className="font-mono tabular-nums">{s.capacityUnits}</span> units
+              </p>
+            </li>
+          ))}
+        </ul>
+        <p className="text-xs leading-5 text-muted">
+          Prices are per unit. Stock is paid for when it arrives. Unsold food spoils, and a supplier may not always deliver
+          everything you order.
         </p>
       </Card>
       <div className="grid gap-4 sm:grid-cols-2">
         <Card className="space-y-2">
-          <h2 className="font-display text-xl">Competitors</h2>
+          <h2 className="font-display text-xl font-bold">Competitors</h2>
           <ul className="space-y-1 text-sm">
             {m.competitors.map((c) => (
               <li key={c.id} className="flex justify-between gap-2">
@@ -267,7 +368,7 @@ function MarketStep({ view, onNext }: { view: SimulationView; onNext: () => void
           <p className="text-xs text-faint">Prices you would see if you walked past this {m.periodLabel}.</p>
         </Card>
         <Card className="space-y-2">
-          <h2 className="font-display text-xl">Your costs each {m.periodLabel}</h2>
+          <h2 className="font-display text-xl font-bold">Your costs each {m.periodLabel}</h2>
           <ul className="space-y-1 text-sm">
             {m.fixedCosts.map((f) => (
               <li key={f.label} className="flex justify-between gap-2">
@@ -279,7 +380,11 @@ function MarketStep({ view, onNext }: { view: SimulationView; onNext: () => void
           <p className="text-xs text-faint">You can prepare at most {m.capacityUnitsPerPeriod} units a {m.periodLabel}.</p>
         </Card>
       </div>
-      {view.nextPeriod ? <Button onClick={onNext}>Go to decisions</Button> : null}
+      {view.nextPeriod ? (
+        <Button size="lg" className="w-full" onClick={onNext}>
+          Decide {m.periodLabel} {view.nextPeriod} <ArrowRight className="size-4" aria-hidden />
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -306,16 +411,17 @@ function DecideStep({
 
   if (pendingPeriod !== null) {
     return (
-      <Card>
-        <p className="text-sm">Your decisions for {m.periodLabel} {pendingPeriod} are waiting to be sent. Results appear once you reconnect.</p>
-      </Card>
+      <p className="rounded-[14px] bg-gold-soft px-4 py-3 text-sm leading-6 text-gold-deep">
+        Your decisions for {m.periodLabel} {pendingPeriod} are saved on this phone and will send when you are back online.
+        Results appear after that.
+      </p>
     );
   }
   if (!period) {
     return (
-      <Card>
-        <p className="text-sm text-muted">There is no {m.periodLabel} open for decisions right now.</p>
-      </Card>
+      <p className="rounded-[16px] bg-bg-subtle px-4 py-5 text-center text-sm text-muted">
+        There is no {m.periodLabel} open for decisions right now.
+      </p>
     );
   }
 
@@ -350,53 +456,57 @@ function DecideStep({
         const f = form.products[p.id];
         return (
           <Card key={p.id} className="space-y-3">
-            <h2 className="font-display text-xl">{p.name}</h2>
+            <h2 className="font-display text-xl font-bold">{p.name}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label={`Price per ${p.unit} (GHS)`}>
                 <Input inputMode="decimal" value={f.price} onChange={(e) => setProduct(p.id, "price", e.target.value)} />
-              </Field>
-              <Field label="Quality">
-                <select className={SELECT} value={f.qualityTier} onChange={(e) => setProduct(p.id, "qualityTier", e.target.value)}>
-                  {m.qualityTiers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Supplier">
-                <select className={SELECT} value={f.supplierId} onChange={(e) => setProduct(p.id, "supplierId", e.target.value)}>
-                  {m.suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
               </Field>
               <Field label={`Units to order (you have ${view.stock[p.id] ?? 0})`}>
                 <Input inputMode="numeric" value={f.units} onChange={(e) => setProduct(p.id, "units", e.target.value)} />
               </Field>
             </div>
+            <Choice
+              label="Quality"
+              value={f.qualityTier}
+              options={m.qualityTiers.map((t) => ({ value: t.id, label: t.label }))}
+              onChange={(v) => setProduct(p.id, "qualityTier", v)}
+            />
+            <Choice
+              label="Supplier"
+              value={f.supplierId}
+              options={m.suppliers.map((sp) => ({
+                value: sp.id,
+                label: `${sp.name} · ${formatGhs(sp.unitPrice[p.id]?.[f.qualityTier] ?? 0)}`,
+              }))}
+              onChange={(v) => setProduct(p.id, "supplierId", v)}
+            />
           </Card>
         );
       })}
       <Card className="space-y-3">
-        <h2 className="font-display text-xl">Marketing</h2>
-        <Field label="Marketing spend this period (GHS)" hint="Flyers, WhatsApp status, samples. It raises awareness; it does not guarantee sales.">
+        <h2 className="font-display text-xl font-bold">Marketing</h2>
+        <Field label={`Marketing spend this ${m.periodLabel} (GHS)`} hint="Flyers, WhatsApp status, samples. It raises awareness; it does not guarantee sales.">
           <Input inputMode="decimal" value={form.marketing} onChange={(e) => setForm((f) => ({ ...f, marketing: e.target.value }))} />
         </Field>
       </Card>
       {awaiting.map((e) => (
         <Card key={e.instanceId} className="space-y-2">
-          <h2 className="font-display text-xl">{e.name}</h2>
-          <p className="text-sm text-muted">{e.description}</p>
+          <h2 className="font-display text-xl font-bold">{e.name}</h2>
+          <p className="text-sm leading-6 text-ink-soft">{e.description}</p>
           <fieldset className="space-y-2">
             <legend className="text-xs text-faint">
               Choose a response. If you choose nothing, the default applies. You cannot change it later.
             </legend>
             {e.availableResponses.map((r) => (
-              <label key={r.id} className="flex items-start gap-2 text-sm">
+              <label
+                key={r.id}
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-[14px] border p-3 text-sm leading-6",
+                  form.eventResponses[e.instanceId] === r.id ? "border-ink bg-bg-subtle" : "border-line",
+                )}
+              >
                 <input
+                  className="mt-1.5 size-4 accent-[var(--color-ink)]"
                   type="radio"
                   name={e.instanceId}
                   checked={form.eventResponses[e.instanceId] === r.id}
@@ -411,20 +521,16 @@ function DecideStep({
         </Card>
       ))}
       {!built.ok ? (
-        <ul className="space-y-1 text-sm text-bad">
+        <ul className="space-y-1 rounded-[14px] bg-clay-soft px-3 py-2 text-sm text-clay" aria-live="polite">
           {built.errors.map((x) => (
             <li key={x}>{x}</li>
           ))}
         </ul>
       ) : null}
-      {errors.map((x) => (
-        <p key={x} className="text-sm text-bad">
-          {x}
-        </p>
-      ))}
+      <FormMessages error={errors[0] ?? null} />
       {reviewing && built.ok ? (
-        <Card className="space-y-3 border-accent/40">
-          <h2 className="font-display text-xl">Submit {m.periodLabel} {period}?</h2>
+        <Card className="flow-enter space-y-3 border-ink">
+          <h2 className="font-display text-xl font-bold">Submit {m.periodLabel} {period}?</h2>
           <p className="text-sm">
             Stock ordered costs about <strong>{formatGhs(orderCost)}</strong> plus <strong>{formatGhs(built.decisions.marketingBudget)}</strong> of
             marketing, against <strong>{formatGhs(view.cash)}</strong> cash. Rent and wages are due as well.
@@ -433,18 +539,18 @@ function DecideStep({
             Submitting locks these decisions for your whole group. Until your group elects a leader (coming soon), any member
             can submit.
           </p>
-          <div className="flex gap-2">
-            <Button disabled={busy} onClick={() => void submit()}>
+          <div className="flex flex-col gap-2">
+            <Button size="lg" className="w-full" disabled={busy} onClick={() => void submit()}>
               {busy ? "Submitting…" : `Submit and lock ${m.periodLabel} ${period}`}
             </Button>
-            <Button variant="secondary" onClick={() => setReviewing(false)}>
+            <Button variant="secondary" className="w-full" onClick={() => setReviewing(false)}>
               Keep editing
             </Button>
           </div>
         </Card>
       ) : (
-        <Button disabled={!built.ok} onClick={() => setReviewing(true)}>
-          Review decisions
+        <Button size="lg" className="w-full" disabled={!built.ok} onClick={() => setReviewing(true)}>
+          Review before submitting
         </Button>
       )}
     </div>
@@ -481,12 +587,12 @@ function ResultsStep({ view }: { view: SimulationView }) {
 
   if (!view.periods.length) {
     return (
-      <Card>
-        <p className="text-sm text-muted">No results yet. Submit your first {label}'s decisions to see what happens.</p>
-      </Card>
+      <p className="rounded-[16px] bg-bg-subtle px-4 py-5 text-center text-sm text-muted">
+        No results yet. Submit your first {label}’s decisions to see what happens.
+      </p>
     );
   }
-  if (!detail) return <div className="h-40 animate-pulse rounded-[28px] bg-bg-subtle" />;
+  if (!detail) return <Loading />;
   const o = detail.outcomes;
   const kpis: [string, string, boolean?][] = [
     ["Revenue", formatGhs(o.revenue)],
@@ -498,7 +604,7 @@ function ResultsStep({ view }: { view: SimulationView }) {
   ];
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label={`Choose a ${label}`}>
+      <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label={`Choose a ${label}`}>
         {view.periods.map((p) => (
           <button
             key={p.period}
@@ -507,8 +613,8 @@ function ResultsStep({ view }: { view: SimulationView }) {
             aria-selected={selected === p.period}
             onClick={() => setSelected(p.period)}
             className={cn(
-              "rounded-full border px-3 py-1 text-xs",
-              selected === p.period ? "border-ink/20 bg-bg-elevated" : "border-transparent text-faint",
+              "min-h-10 shrink-0 rounded-full border px-4 text-sm font-semibold capitalize",
+              selected === p.period ? "border-ink bg-ink text-white" : "border-line-strong bg-bg-elevated text-ink-soft",
             )}
           >
             {label} {p.period}
@@ -516,25 +622,25 @@ function ResultsStep({ view }: { view: SimulationView }) {
         ))}
       </div>
       <Card className="space-y-3">
-        <h2 className="font-display text-xl">
+        <h2 className="font-display text-xl font-bold">
           What happened in {label} {detail.period}
         </h2>
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {kpis.map(([k, v, bad]) => (
-            <div key={k}>
-              <dt className="text-xs text-faint">{k}</dt>
-              <dd className={cn("font-mono tabular-nums", bad && "text-bad")}>{v}</dd>
+            <div key={k} className={cn("rounded-[14px] px-3 py-2.5", bad ? "bg-clay-soft" : "bg-bg-subtle")}>
+              <dt className="text-xs font-semibold text-muted">{k}</dt>
+              <dd className={cn("font-mono text-[15px] font-medium tabular-nums", bad && "text-clay")}>{v}</dd>
             </div>
           ))}
         </dl>
-        <p className="text-xs text-muted">
+        <p className="text-xs leading-5 text-muted">
           Cash and profit are not the same: stock is paid for when bought but counted as a cost when sold or spoiled.
           {o.breakEvenUnits !== null ? ` Break-even this ${label}: about ${o.breakEvenUnits} units.` : " At this price, no volume breaks even."}
         </p>
       </Card>
       {detail.events.length ? (
         <Card className="space-y-2">
-          <h2 className="font-display text-xl">Events</h2>
+          <h2 className="font-display text-xl font-bold">What happened around you</h2>
           {detail.events.map((e) => (
             <p key={e.instanceId} className="text-sm">
               <strong>{e.name}</strong> ({e.status}){e.response ? ` — response: ${e.response}${e.responseWasDefault ? " (default, none chosen)" : ""}` : ""}. {e.description}
@@ -544,17 +650,22 @@ function ResultsStep({ view }: { view: SimulationView }) {
       ) : null}
       {detail.learningSignals.length ? (
         <Card className="space-y-3">
-          <h2 className="font-display text-xl">Things worth thinking about</h2>
+          <h2 className="font-display text-xl font-bold">Warning signs to talk about</h2>
           {detail.learningSignals.map((s) => (
-            <div key={s.code} className="space-y-1">
-              <p className="text-sm">{s.message}</p>
-              <p className="text-sm italic text-muted">{s.prompt}</p>
+            <div key={s.code} className="border-l-4 border-gold pl-3">
+              <p className="text-sm font-semibold leading-6">{s.message}</p>
+              <p className="text-sm leading-6 text-ink-soft">{s.prompt}</p>
             </div>
           ))}
         </Card>
       ) : null}
       <Card className="space-y-2">
-        <button type="button" className="text-sm font-medium text-accent" onClick={() => setShowTrail((v) => !v)} aria-expanded={showTrail}>
+        <button
+          type="button"
+          className="min-h-11 w-full text-left text-sm font-semibold text-accent"
+          onClick={() => setShowTrail((v) => !v)}
+          aria-expanded={showTrail}
+        >
           {showTrail ? "Hide" : "Show"} how every number was worked out
         </button>
         {showTrail ? (
@@ -569,31 +680,33 @@ function ResultsStep({ view }: { view: SimulationView }) {
         ) : null}
       </Card>
       <Card className="space-y-2">
-        <h2 className="font-display text-xl">All {label}s so far</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs text-faint">
-              <tr>
-                <th className="py-1 pr-3 font-normal">{label}</th>
-                <th className="py-1 pr-3 font-normal">Revenue</th>
-                <th className="py-1 pr-3 font-normal">Profit</th>
-                <th className="py-1 pr-3 font-normal">Cash at end</th>
-                <th className="py-1 font-normal">Submitted by</th>
-              </tr>
-            </thead>
-            <tbody>
-              {view.periods.map((p) => (
-                <tr key={p.period} className="border-t border-line">
-                  <td className="py-2 pr-3">{p.period}</td>
-                  <td className="py-2 pr-3 font-mono tabular-nums">{formatGhs(p.outcomes.revenue)}</td>
-                  <td className="py-2 pr-3 font-mono tabular-nums">{formatGhs(p.outcomes.profit)}</td>
-                  <td className="py-2 pr-3 font-mono tabular-nums">{formatGhs(p.outcomes.closingCash)}</td>
-                  <td className="py-2 text-muted">{p.submittedBy ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h2 className="font-display text-xl font-bold">
+          All {label}s so far
+        </h2>
+        <ul className="divide-y divide-line">
+          {view.periods.map((p) => (
+            <li key={p.period} className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3 py-2.5">
+              <span className="flex size-9 items-center justify-center rounded-full bg-bg-subtle font-mono text-sm font-medium">
+                {p.period}
+              </span>
+              <span className="min-w-0 text-xs leading-5 text-muted">
+                Revenue <span className="font-mono text-ink tabular-nums">{formatGhs(p.outcomes.revenue)}</span>
+                <br />
+                Profit{" "}
+                <span className={cn("font-mono tabular-nums", p.outcomes.profit < 0 ? "text-clay" : "text-ink")}>
+                  {formatGhs(p.outcomes.profit)}
+                </span>
+                {p.submittedBy ? <span className="block truncate">by {p.submittedBy}</span> : null}
+              </span>
+              <span className="text-right">
+                <span className="block text-[11px] font-semibold text-muted">Cash at end</span>
+                <span className={cn("font-mono text-sm font-medium tabular-nums", p.outcomes.closingCash < 0 && "text-clay")}>
+                  {formatGhs(p.outcomes.closingCash)}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
       </Card>
     </div>
   );

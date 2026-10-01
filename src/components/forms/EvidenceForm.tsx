@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
+import { Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea } from "@/components/ui/input";
+import { Choice, Field, Input, Textarea } from "@/components/ui/input";
+import { FormMessages } from "@/components/ui/feedback";
 import { Why } from "@/components/ui/why";
 import { CLASSIFICATIONS, SOURCE_TYPES, ASSUMPTION_LANGUAGE } from "@/lib/domain/config";
 import { WHY } from "@/lib/domain/copy";
@@ -53,8 +55,8 @@ export function EvidenceForm({
       });
       setNotice(
         "queued" in result && result.queued
-          ? "Saved locally — will sync when connected."
-          : "Evidence logged. You remain responsible for the classification.",
+          ? "Saved on this phone. It will send when you are back online."
+          : "Logged. You stay responsible for how it is classified.",
       );
       setTitle("");
       setContent("");
@@ -71,74 +73,73 @@ export function EvidenceForm({
 
   return (
     <form className="space-y-4" onSubmit={(e) => void submit(e)}>
-      <Field label="Title">
-        <Input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short label" />
+      <Field label="Give it a short name">
+        <Input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Tuesday shuttle count" />
       </Field>
-      <Field label="What did you collect?">
+      <Field label="What did you see, hear or count?">
         <Textarea required value={content} onChange={(e) => setContent(e.target.value)} />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Source">
-          <select
-            className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-            value={sourceType}
-            onChange={(e) => setSourceType(e.target.value)}
-          >
-            {SOURCE_TYPES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Your classification">
-          <select
-            className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-            value={classification}
-            onChange={(e) => setClassification(e.target.value)}
-          >
-            {CLASSIFICATIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <Why text={WHY.classification} />
-        </Field>
+      <Choice
+        label="Where did it come from?"
+        value={sourceType}
+        options={SOURCE_TYPES}
+        onChange={setSourceType}
+      />
+      <div>
+        <Choice
+          label="What kind of thing is it?"
+          value={classification}
+          options={CLASSIFICATIONS}
+          onChange={setClassification}
+        />
+        <Why text={WHY.classification} />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="When (optional)">
+        <Field label="When" optional>
+          <Input type="date" value={observedAt} onChange={(e) => setObservedAt(e.target.value)} />
+        </Field>
+        <Field label="Where" optional>
           <Input
-            type="text"
-            inputMode="numeric"
-            placeholder="YYYY-MM-DD"
-            value={observedAt}
-            onChange={(e) => setObservedAt(e.target.value)}
+            value={locationContext}
+            onChange={(e) => setLocationContext(e.target.value)}
+            placeholder="e.g. Science shuttle stop"
           />
         </Field>
-        <Field label="Where (optional)">
-          <Input value={locationContext} onChange={(e) => setLocationContext(e.target.value)} />
-        </Field>
       </div>
-      <Field label="Photo (optional, compressed on this device)">
-        <Input
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/*"
-          capture="environment"
-          onChange={(e) => void onFile(e.target.files?.[0])}
-        />
-        {photo ? (
-          <img src={photo.dataUrl} alt="Evidence" className="mt-2 max-h-40 rounded-[12px] border border-line" />
-        ) : null}
-      </Field>
+      {photo ? (
+        <div className="relative w-fit">
+          <img src={photo.dataUrl} alt="Your evidence photo" className="max-h-44 rounded-[14px] border border-line" />
+          <button
+            type="button"
+            onClick={() => setPhoto(null)}
+            aria-label="Remove photo"
+            className="absolute -top-2 -right-2 flex size-8 items-center justify-center rounded-full bg-ink text-white"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </div>
+      ) : (
+        <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-[14px] border border-dashed border-line-strong bg-bg-elevated px-4 py-3 text-sm font-semibold text-ink-soft focus-within:ring-2 focus-within:ring-accent/40">
+          <Camera className="size-5 text-accent" aria-hidden />
+          <span>
+            Add a photo <span className="font-normal text-faint">· optional, shrunk on this phone</span>
+          </span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/*"
+            capture="environment"
+            className="sr-only"
+            onChange={(e) => void onFile(e.target.files?.[0])}
+          />
+        </label>
+      )}
       {looksAssumed ? (
-        <p className="rounded-[12px] bg-warn-soft px-3 py-2 text-sm text-warn">
+        <p className="rounded-[14px] bg-gold-soft px-3 py-2 text-sm leading-6 text-gold-deep">
           This reads like an assumption dressed as evidence. Consider classifying it as assumption, then ask what would test it.
         </p>
       ) : null}
-      {error ? <p className="text-sm text-bad">{error}</p> : null}
-      {notice ? <p className="text-sm text-accent">{notice}</p> : null}
-      <Button type="submit" disabled={pending}>
+      <FormMessages error={error} notice={notice} />
+      <Button type="submit" size="lg" className="w-full" disabled={pending}>
         {pending ? "Saving…" : "Log evidence"}
       </Button>
     </form>

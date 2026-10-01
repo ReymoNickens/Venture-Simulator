@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { Field, Textarea } from "@/components/ui/input";
+import { Choice, Field, Select, Textarea } from "@/components/ui/input";
+import { FormMessages } from "@/components/ui/feedback";
 import { Why } from "@/components/ui/why";
 import { CONFIDENCE_LEVELS, IMPORTANCE_LEVELS } from "@/lib/domain/config";
 import { WHY } from "@/lib/domain/copy";
@@ -31,50 +32,44 @@ export function AssumptionForm({ onSaved }: { onSaved: () => void }) {
 
   return (
     <form className="space-y-4" onSubmit={(e) => void submit(e)}>
-      <Field label="Assumption (write it so it could be tested)">
+      <Field label="What are you assuming? Write it so it could be tested.">
         <Textarea
           required
           value={statement}
           onChange={(e) => setStatement(e.target.value)}
-          placeholder="Example: Students will pay GH₵25 for a weekly water roster."
+          placeholder="e.g. At least 20 students a morning would pay GH₵2 to book a shuttle seat."
         />
         <Why text={WHY.importance} />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Importance">
-          <select
-            className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-            value={importance}
-            onChange={(e) => setImportance(e.target.value)}
-          >
-            {IMPORTANCE_LEVELS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Confidence">
-          <select
-            className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-            value={confidence}
-            onChange={(e) => setConfidence(e.target.value)}
-          >
-            {CONFIDENCE_LEVELS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-      {error ? <p className="text-sm text-bad">{error}</p> : null}
-      <Button type="submit" disabled={pending}>
+      <Choice
+        label="If it turned out wrong, how bad?"
+        value={importance}
+        options={IMPORTANCE_LEVELS}
+        onChange={setImportance}
+      />
+      <Choice
+        label="How sure are you right now?"
+        value={confidence}
+        options={CONFIDENCE_LEVELS}
+        onChange={setConfidence}
+        hint={
+          importance === "critical" && confidence === "low"
+            ? "Critical and unsure: this is the one to test first."
+            : undefined
+        }
+      />
+      <FormMessages error={error} />
+      <Button type="submit" size="lg" className="w-full" disabled={pending}>
         {pending ? "Saving…" : "Add assumption"}
       </Button>
     </form>
   );
 }
+
+const RELATIONSHIPS = [
+  { value: "supports", label: "Backs it up" },
+  { value: "challenges", label: "Cuts against it" },
+] as const satisfies readonly { value: RelationshipType; label: string }[];
 
 export function LinkEvidenceForm({
   assumptions,
@@ -85,8 +80,13 @@ export function LinkEvidenceForm({
   evidence: EvidenceItem[];
   onSaved: () => void;
 }) {
-  const [assumptionId, setAssumptionId] = useState(assumptions[0]?.id ?? "");
-  const [evidenceItemId, setEvidenceItemId] = useState(evidence[0]?.id ?? "");
+  // Empty until the student picks; fall back to the first item at use time,
+  // because items logged after this form mounted would otherwise leave the
+  // initial state pointing at nothing.
+  const [pickedAssumption, setAssumptionId] = useState("");
+  const [pickedEvidence, setEvidenceItemId] = useState("");
+  const assumptionId = pickedAssumption || assumptions[0]?.id || "";
+  const evidenceItemId = pickedEvidence || evidence[0]?.id || "";
   const [relationshipType, setRelationshipType] = useState<RelationshipType>("supports");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +108,7 @@ export function LinkEvidenceForm({
   if (!assumptions.length || !evidence.length) {
     return (
       <p className="text-sm text-muted">
-        Log at least one assumption and one evidence item before linking them.
+        Once you have at least one piece of evidence and one assumption, link them here.
       </p>
     );
   }
@@ -116,8 +116,7 @@ export function LinkEvidenceForm({
   return (
     <form className="space-y-3" onSubmit={(e) => void submit(e)}>
       <Field label="Assumption">
-        <select
-          className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
+        <Select
           value={assumptionId}
           onChange={(e) => setAssumptionId(e.target.value)}
         >
@@ -126,11 +125,10 @@ export function LinkEvidenceForm({
               {a.statement.slice(0, 80)}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
       <Field label="Evidence">
-        <select
-          className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
+        <Select
           value={evidenceItemId}
           onChange={(e) => setEvidenceItemId(e.target.value)}
         >
@@ -139,20 +137,16 @@ export function LinkEvidenceForm({
               {ev.title}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
-      <Field label="Relationship">
-        <select
-          className="h-11 w-full rounded-[10px] border border-line bg-bg-elevated px-3 text-sm"
-          value={relationshipType}
-          onChange={(e) => setRelationshipType(e.target.value as RelationshipType)}
-        >
-          <option value="supports">Supports</option>
-          <option value="challenges">Challenges</option>
-        </select>
-      </Field>
-      {error ? <p className="text-sm text-bad">{error}</p> : null}
-      <Button type="submit" disabled={pending}>
+      <Choice
+        label="Does it back the assumption up or cut against it?"
+        value={relationshipType}
+        options={RELATIONSHIPS}
+        onChange={setRelationshipType}
+      />
+      <FormMessages error={error} />
+      <Button type="submit" variant="secondary" className="w-full" disabled={pending}>
         {pending ? "Linking…" : "Link evidence"}
       </Button>
     </form>

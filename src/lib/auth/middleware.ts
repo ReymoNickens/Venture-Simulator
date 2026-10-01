@@ -49,3 +49,17 @@ export const authMiddleware = createMiddleware({ type: "function" })
     // (see src/lib/db.ts `runInScope`) — not the privileged migration role.
     return runInScope({ kind: "user", userId }, () => next({ context: { userId } }));
   });
+
+/**
+ * For the few server functions a signed-out person may call because they
+ * carry their own proof instead of a session: the owner's access code, or a
+ * course rep's one-time setup code. Same cross-site guard as above, and the
+ * handler runs in one transaction as app_runtime with the RLS bypass on, so
+ * it MUST check that proof before reading or writing anything.
+ */
+export const codeCheckedMiddleware = createMiddleware({ type: "function" }).server(async ({ next }) => {
+  const { assertSameSiteRequest } = await import("./isolation.server");
+  const { runInScope } = await import("@/lib/db");
+  assertSameSiteRequest();
+  return runInScope({ kind: "bypass" }, () => next());
+});
