@@ -8,6 +8,7 @@ import { getLecturerHome, type LecturerHome } from "@/lib/server/lecturers";
 import { LecturerProvider } from "@/hooks/lecturer-context";
 import { FormMessages, Loading } from "@/components/ui/feedback";
 import { LogoMark } from "@/components/ui/sticker";
+import { DemoBar } from "@/components/shell/DemoBar";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ function LecturerLayout() {
   return (
     <div className="min-h-dvh text-ink">
       <header className="sticky top-0 z-30 bg-bg/90 backdrop-blur-md">
+        <DemoBar role="lecturer" />
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5">
           <Link to="/lecturer" className="flex min-w-0 items-center gap-2.5">
             <LogoMark />

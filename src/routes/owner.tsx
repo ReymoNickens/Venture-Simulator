@@ -14,6 +14,7 @@ import { Field, Input, Select } from "@/components/ui/input";
 import { Stamp } from "@/components/ui/stamp";
 import { LogoMark } from "@/components/ui/sticker";
 import { LecturersSection } from "@/components/owner/LecturersSection";
+import { LookAround } from "@/components/owner/LookAround";
 
 export const Route = createFileRoute("/owner")({ component: OwnerPage });
 
@@ -118,7 +119,7 @@ function Unlock({
     <div className="mx-auto max-w-md pt-10">
       <h1 className="font-display text-4xl font-extrabold">Owner page</h1>
       <p className="mt-2 text-[15px] leading-6 text-muted">
-        Give course reps their setup codes and see which classes are ready. Enter the owner access code.
+        Look around the app as a student, rep or lecturer, give course reps their setup codes, and see which classes are ready. Enter the owner access code.
       </p>
       <Card className="mt-6">
         <form
@@ -177,8 +178,10 @@ function Dashboard({
 
   return (
     <div className="space-y-6">
+      <LookAround ownerCode={ownerCode} />
+
       <section>
-        <h1 className="font-display text-3xl font-extrabold">Set up a class</h1>
+        <h2 className="font-display text-2xl font-extrabold">Set up a class</h2>
         <p className="mt-1 text-[15px] leading-6 text-muted">
           Make a code for each course rep. They use it once to set up their class and upload the class list. Nobody
           else needs to touch anything technical.
