@@ -2,17 +2,22 @@
 --
 -- The owner makes a one-time lecturer code (stored as a hash) naming the
 -- classes. The lecturer redeems it with their name and email, which creates
--- an unclaimed `staff` row; signing up with that email claims it, and the
--- sign-up hook grants role_lecturer for each class in `staff_classes`.
--- Permission checks stay where they were (user_roles, 0007): staff_classes
+-- an unclaimed `lecturers` row; signing up with that email claims it, and the
+-- sign-up hook grants role_lecturer for each class in `lecturer_classes`.
+-- Permission checks stay where they were (user_roles, 0007): lecturer_classes
 -- is the owner's record of who teaches what, kept in step by the server.
 --
 -- Lecturers can leave feedback for a group (group_feedback), which the
 -- group's members see. Feedback is append-only.
 --
+-- Named lecturers/lecturer_classes, not staff: unmerged branches' preview
+-- builds ran against the shared database and left a `staff` table with a
+-- different shape (no email, auth_user_id not null), which this must not
+-- touch or depend on.
+--
 -- Safe to run twice: every statement is guarded.
 
-create table if not exists staff (
+create table if not exists lecturers (
   id text primary key,
   auth_user_id text unique,
   email text not null,
@@ -20,10 +25,10 @@ create table if not exists staff (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create unique index if not exists staff_email_idx on staff (lower(email));
+create unique index if not exists lecturers_email_idx on lecturers (lower(email));
 
-create table if not exists staff_classes (
-  staff_id text not null references staff(id) on delete cascade,
+create table if not exists lecturer_classes (
+  staff_id text not null references lecturers(id) on delete cascade,
   course_offering_id text not null references course_offerings(id),
   created_at timestamptz not null default now(),
   primary key (staff_id, course_offering_id)
@@ -38,7 +43,7 @@ create table if not exists lecturer_invites (
   expires_at timestamptz not null,
   revoked_at timestamptz,
   used_at timestamptz,
-  staff_id text references staff(id)
+  staff_id text references lecturers(id)
 );
 
 create table if not exists group_feedback (
@@ -51,28 +56,28 @@ create table if not exists group_feedback (
 );
 create index if not exists group_feedback_group_idx on group_feedback (group_id, created_at desc);
 
-alter table staff enable row level security;
-alter table staff_classes enable row level security;
+alter table lecturers enable row level security;
+alter table lecturer_classes enable row level security;
 alter table lecturer_invites enable row level security;
 alter table group_feedback enable row level security;
 
--- A lecturer reads their own staff row and class list; the server (bypass,
+-- A lecturer reads their own lecturers row and class list; the server (bypass,
 -- after checking the owner's code or the invite code) does every write.
-drop policy if exists staff_self_read on staff;
-create policy staff_self_read on staff for select
+drop policy if exists lecturers_self_read on lecturers;
+create policy lecturers_self_read on lecturers for select
   using (app_bypass_rls() or app_is_admin() or auth_user_id = app_current_auth_user_id());
-drop policy if exists staff_system_write on staff;
-create policy staff_system_write on staff for all
+drop policy if exists lecturers_system_write on lecturers;
+create policy lecturers_system_write on lecturers for all
   using (app_bypass_rls() or app_is_admin())
   with check (app_bypass_rls() or app_is_admin());
 
-drop policy if exists staff_classes_self_read on staff_classes;
-create policy staff_classes_self_read on staff_classes for select using (
+drop policy if exists lecturer_classes_self_read on lecturer_classes;
+create policy lecturer_classes_self_read on lecturer_classes for select using (
   app_bypass_rls() or app_is_admin()
-  or exists (select 1 from staff s where s.id = staff_id and s.auth_user_id = app_current_auth_user_id())
+  or exists (select 1 from lecturers s where s.id = staff_id and s.auth_user_id = app_current_auth_user_id())
 );
-drop policy if exists staff_classes_system_write on staff_classes;
-create policy staff_classes_system_write on staff_classes for all
+drop policy if exists lecturer_classes_system_write on lecturer_classes;
+create policy lecturer_classes_system_write on lecturer_classes for all
   using (app_bypass_rls() or app_is_admin())
   with check (app_bypass_rls() or app_is_admin());
 

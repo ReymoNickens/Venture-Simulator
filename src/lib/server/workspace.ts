@@ -59,7 +59,7 @@ export const getWorkspace = createServerFn({ method: "GET" })
     };
     if (!student) {
       const sql = await getSql();
-      const staff = await sql`select 1 from staff where auth_user_id = ${context.userId} limit 1`;
+      const staff = await sql`select 1 from lecturers where auth_user_id = ${context.userId} limit 1`;
       return { ...empty, isLecturer: staff.length > 0 };
     }
     {

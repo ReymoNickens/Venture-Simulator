@@ -103,6 +103,30 @@ describe("lecturer invites", () => {
     }));
 });
 
+describe("shared-database leftovers", () => {
+  it("migrates cleanly over an old, differently shaped staff table", async () => {
+    // Production already has PR #4's `staff` table (preview builds share its
+    // database). 0011 must not collide with it.
+    const { migratedDb } = await import("../server/test-db.ts");
+    const pg = await migratedDb();
+    try {
+      await pg.exec(`drop table if exists lecturer_invites, lecturer_classes, lecturers, group_feedback cascade;
+                     delete from _migrations where name = '0011_lecturers.sql';
+                     create table staff (id text primary key, auth_user_id text not null unique, full_name text not null, title text not null default '');`);
+      const { readFile } = await import("node:fs/promises");
+      const sqlText = await readFile(new URL("../../../migrations/0011_lecturers.sql", import.meta.url), "utf8");
+      await pg.exec(sqlText);
+      await pg.exec(sqlText); // and again: safe to run twice
+      const cols = await pg.query<{ column_name: string }>(
+        `select column_name from information_schema.columns where table_name = 'staff' order by ordinal_position`,
+      );
+      assert.deepEqual(cols.rows.map((r) => r.column_name), ["id", "auth_user_id", "full_name", "title"], "old table untouched");
+    } finally {
+      await pg.close();
+    }
+  });
+});
+
 describe("lecturer scope", () => {
   it("sees groups in their own classes only, and cannot read the codes table", () =>
     withDb(async (pg) => {

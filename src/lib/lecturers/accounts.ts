@@ -96,7 +96,7 @@ async function findInvite(db: Db, code: string, lock = false): Promise<InviteRow
 async function unclaimedStaff(db: Db, staffId: string | null): Promise<{ id: string; email: string } | null> {
   if (!staffId) return null;
   const rows = await db.query<{ id: string; email: string; auth_user_id: string | null }>(
-    `select id, email, auth_user_id from staff where id = $1`,
+    `select id, email, auth_user_id from lecturers where id = $1`,
     [staffId],
   );
   return rows[0] && !rows[0].auth_user_id ? { id: rows[0].id, email: rows[0].email } : null;
@@ -131,13 +131,13 @@ export async function redeemLecturerCode(
   if (row.used_at) {
     const pending = await unclaimedStaff(db, row.staff_id);
     if (!pending || pending.email !== email) throw new AppError("INVALID", "That code has already been used.");
-    await db.query(`update staff set full_name = $2, updated_at = now() where id = $1`, [pending.id, fullName]);
+    await db.query(`update lecturers set full_name = $2, updated_at = now() where id = $1`, [pending.id, fullName]);
     return { email };
   }
   if (new Date(String(row.expires_at)) < now) throw new AppError("INVALID", "That code has expired. Ask for a new one.");
 
   const taken = await db.query(
-    `select 1 from staff where lower(email) = $1
+    `select 1 from lecturers where lower(email) = $1
      union all select 1 from students where lower(email) = $1
      union all select 1 from "user" where lower(email) = $1`,
     [email],
@@ -146,10 +146,10 @@ export async function redeemLecturerCode(
     throw new AppError("INVALID", "That email already has an account. Use a different email for your lecturer account.");
   }
   const staffId = newId();
-  await db.query(`insert into staff (id, auth_user_id, email, full_name) values ($1, null, $2, $3)`, [staffId, email, fullName]);
+  await db.query(`insert into lecturers (id, auth_user_id, email, full_name) values ($1, null, $2, $3)`, [staffId, email, fullName]);
   for (const offeringId of row.offering_ids) {
     await db.query(
-      `insert into staff_classes (staff_id, course_offering_id) values ($1, $2) on conflict do nothing`,
+      `insert into lecturer_classes (staff_id, course_offering_id) values ($1, $2) on conflict do nothing`,
       [staffId, offeringId],
     );
   }
@@ -160,7 +160,7 @@ export async function redeemLecturerCode(
 /** Sign-up hook, before: is this email an invited lecturer who has not signed up yet? */
 export async function pendingStaffByEmail(db: Db, email: string): Promise<{ id: string; fullName: string } | null> {
   const rows = await db.query<{ id: string; full_name: string }>(
-    `select id, full_name from staff where lower(email) = $1 and auth_user_id is null limit 1`,
+    `select id, full_name from lecturers where lower(email) = $1 and auth_user_id is null limit 1`,
     [email.trim().toLowerCase()],
   );
   return rows[0] ? { id: rows[0].id, fullName: rows[0].full_name } : null;
@@ -169,7 +169,7 @@ export async function pendingStaffByEmail(db: Db, email: string): Promise<{ id: 
 /** Sign-up hook, after: bind the account to the staff record and grant its classes. */
 export async function claimStaff(db: Db, authUserId: string, email: string): Promise<boolean> {
   const rows = await db.query<{ id: string }>(
-    `update staff set auth_user_id = $1, updated_at = now()
+    `update lecturers set auth_user_id = $1, updated_at = now()
      where lower(email) = $2 and auth_user_id is null returning id`,
     [authUserId, email.trim().toLowerCase()],
   );
@@ -178,20 +178,20 @@ export async function claimStaff(db: Db, authUserId: string, email: string): Pro
   return true;
 }
 
-/** Make user_roles (what RLS checks) match staff_classes (what the owner set). */
+/** Make user_roles (what RLS checks) match lecturer_classes (what the owner set). */
 export async function syncLecturerRoles(db: Db, staffId: string): Promise<void> {
-  const staff = await db.query<{ auth_user_id: string | null }>(`select auth_user_id from staff where id = $1`, [staffId]);
+  const staff = await db.query<{ auth_user_id: string | null }>(`select auth_user_id from lecturers where id = $1`, [staffId]);
   const userId = staff[0]?.auth_user_id;
   if (!userId) return;
   await db.query(
     `delete from user_roles where user_id = $1 and role_id = 'role_lecturer'
-       and course_offering_id not in (select course_offering_id from staff_classes where staff_id = $2)`,
+       and course_offering_id not in (select course_offering_id from lecturer_classes where staff_id = $2)`,
     [userId, staffId],
   );
   await db.query(
     `insert into user_roles (id, user_id, role_id, course_offering_id)
      select gen_random_uuid()::text, $1, 'role_lecturer', sc.course_offering_id
-     from staff_classes sc where sc.staff_id = $2
+     from lecturer_classes sc where sc.staff_id = $2
      on conflict (user_id, role_id, course_offering_id) do nothing`,
     [userId, staffId],
   );
@@ -199,11 +199,11 @@ export async function syncLecturerRoles(db: Db, staffId: string): Promise<void> 
 
 export async function setStaffClasses(db: Db, staffId: string, offeringIds: string[]): Promise<void> {
   const ids = await checkOfferings(db, offeringIds);
-  const exists = await db.query(`select 1 from staff where id = $1`, [staffId]);
+  const exists = await db.query(`select 1 from lecturers where id = $1`, [staffId]);
   if (!exists.length) throw new AppError("NOT_FOUND", "Lecturer not found.");
-  await db.query(`delete from staff_classes where staff_id = $1 and course_offering_id <> all($2)`, [staffId, ids]);
+  await db.query(`delete from lecturer_classes where staff_id = $1 and course_offering_id <> all($2)`, [staffId, ids]);
   for (const id of ids) {
-    await db.query(`insert into staff_classes (staff_id, course_offering_id) values ($1, $2) on conflict do nothing`, [
+    await db.query(`insert into lecturer_classes (staff_id, course_offering_id) values ($1, $2) on conflict do nothing`, [
       staffId,
       id,
     ]);
@@ -233,8 +233,8 @@ export async function ownerLecturers(
 ): Promise<{ lecturers: OwnerLecturer[]; invites: OwnerLecturerInvite[] }> {
   const staff = await db.query<{ id: string; full_name: string; email: string; auth_user_id: string | null; offering_ids: string[] | null }>(
     `select s.id, s.full_name, s.email, s.auth_user_id,
-            array(select sc.course_offering_id from staff_classes sc where sc.staff_id = s.id order by sc.created_at) as offering_ids
-     from staff s order by s.created_at desc`,
+            array(select sc.course_offering_id from lecturer_classes sc where sc.staff_id = s.id order by sc.created_at) as offering_ids
+     from lecturers s order by s.created_at desc`,
   );
   const invites = await db.query<{
     id: string;

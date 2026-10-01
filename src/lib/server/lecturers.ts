@@ -100,7 +100,7 @@ export const joinAsLecturer = createServerFn({ method: "POST" })
 
 async function requireLecturer(userId: string): Promise<{ fullName: string }> {
   const sql = await getSql();
-  const rows = await sql<{ full_name: string }>`select full_name from staff where auth_user_id = ${userId} limit 1`;
+  const rows = await sql<{ full_name: string }>`select full_name from lecturers where auth_user_id = ${userId} limit 1`;
   if (!rows[0]) throw new AppError("FORBIDDEN", "This page is for lecturers.");
   return { fullName: rows[0].full_name };
 }
