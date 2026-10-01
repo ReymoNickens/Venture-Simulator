@@ -101,8 +101,24 @@ export async function signIn(identifier: string, password: string): Promise<void
   const { data, error } = trimmed.includes("@")
     ? await authClient.signIn.email({ email: trimmed, password })
     : await authClient.signIn.username({ username: trimmed, password });
-  if (error) throw new Error(error.message ?? "Sign-in failed");
+  if (error) throw new Error(signInErrorMessage(error));
   setBearerToken(tokenFromResponse(data));
+}
+
+/**
+ * Turn Better Auth's sign-in errors into a next step. The common case is a
+ * student who never activated: their account does not exist until they do.
+ */
+export function signInErrorMessage(error: { status?: number; code?: string; message?: string }): string {
+  const text = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase();
+  if (error.status === 401 || /invalid (email|username)|password/.test(text)) {
+    return "That email or index number and password don't match an account. First time here? Tap \"Activate your account\" below: your account only exists after you activate it.";
+  }
+  if (error.status === 403 || /origin/.test(text)) {
+    return "Sign-in isn't allowed from this web address. Open the app at venture-simulator.vercel.app and try again.";
+  }
+  if (error.status === 429) return "Too many attempts. Wait a minute, then try again.";
+  return error.message || "Could not sign in. Check your connection and try again.";
 }
 
 /**
