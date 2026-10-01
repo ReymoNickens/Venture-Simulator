@@ -78,9 +78,21 @@ export const authConfigured = !authDisabled;
 // derives the origin per-request from the (proxied) host, validated against the
 // preview allowlist.
 const explicitBaseURL = env("BETTER_AUTH_URL");
+// Vercel serves every deployment at several addresses: a unique one per
+// deployment (VERCEL_URL, e.g. venture-simulator-aaw57wtei-….vercel.app), a
+// stable per-branch alias (VERCEL_BRANCH_URL) and the production domain
+// (VERCEL_PROJECT_PRODUCTION_URL). All are injected without a protocol. People
+// do open the deployment-specific link from the Vercel dashboard; without
+// these, activating or signing in there failed with "Invalid origin".
+const vercelHosts: string[] = [
+  env("VERCEL_URL"),
+  env("VERCEL_BRANCH_URL"),
+  env("VERCEL_PROJECT_PRODUCTION_URL"),
+].filter((h): h is string => Boolean(h));
+const vercelOrigins: string[] = vercelHosts.map((h) => `https://${h}`);
 // Explicit `string[]` (not a readonly tuple) — Better Auth's DynamicBaseURLConfig
 // requires a mutable `allowedHosts: string[]`.
-const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
+const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS, ...vercelHosts];
 // Local `npm run dev` (port 8080 contract). Browsers may send Origin as any of
 // these for the same server — trusting only `localhost` rejects `127.0.0.1` and
 // breaks email/password with "Invalid origin".
@@ -101,8 +113,10 @@ const baseURL = explicitBaseURL ?? {
 
 // Origins Better Auth accepts on credentialed POSTs (sign-up/sign-in, etc.).
 // Missing entries here surface as FORBIDDEN "Invalid origin".
+// vercelOrigins is in both branches: BETTER_AUTH_URL may be set for one
+// environment only, leaving the other on the dynamic branch below.
 const trustedOrigins: string[] = explicitBaseURL
-  ? [explicitBaseURL, ...LOCAL_DEV_ORIGINS]
+  ? [explicitBaseURL, ...vercelOrigins, ...LOCAL_DEV_ORIGINS]
   : [
       // Host wildcards (matched against Origin's host)
       ...previewAllowedHosts,
