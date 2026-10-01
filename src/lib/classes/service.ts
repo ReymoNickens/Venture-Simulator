@@ -360,11 +360,13 @@ export async function importClassList(
   if (people.length > MAX_ROWS) {
     throw new AppError("INVALID", `That is more than ${MAX_ROWS} rows. Split the list into two uploads.`);
   }
-  const offering = await db.query<{ programme: string | null }>(`select programme from course_offerings where id = $1`, [
-    offeringId,
-  ]);
+  const offering = await db.query<{ programme: string | null; rep_student_id: string | null }>(
+    `select programme, rep_student_id from course_offerings where id = $1`,
+    [offeringId],
+  );
   if (!offering.length) throw new AppError("NOT_FOUND", "Class not found.");
   const defaultProgramme = offering[0].programme ?? "";
+  const repId = offering[0].rep_student_id;
 
   const seenEmail = new Set<string>();
   const seenIndex = new Set<string>();
@@ -409,6 +411,10 @@ export async function importClassList(
         [newId(), studentId, offeringId],
       );
       out.push({ row: raw.row, status: "added" });
+      continue;
+    }
+    if (m.id === repId) {
+      out.push({ row: raw.row, status: "skipped", reason: "That’s you, the rep. You’re already on the list" });
       continue;
     }
     if (m.auth_user_id) {

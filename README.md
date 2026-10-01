@@ -41,21 +41,35 @@ Use **Simulate offline** in the top bar to test local save and replay.
 
 The original concept named Next.js, Supabase, and Claude. Pedagogy follows the concept; runtime follows this host.
 
-## Sign-in
+## Sign-in and class lists
 
-There is no open self-registration. An instructor pre-loads the student
-roster (email + index number + name + programme) with:
+There is no open self-registration. Each class keeps its own list, and the
+course rep maintains it from a phone, without any database work:
 
-```
-node scripts/roster-import.mjs roster.csv [courseOfferingId]
-```
+1. **Owner** (whoever runs the platform) opens `/owner`, enters the
+   `OWNER_ACCESS_CODE`, and makes a one-time setup code for each class
+   (e.g. "BSc Business, Level 300"). The page copies a ready-made WhatsApp
+   message with the link and code for the rep. Codes expire after 30 days and
+   are stored only as hashes.
+2. **Course rep** opens `/rep`, enters the code, names the programme and
+   level, and creates their own account. They land on **Class list**
+   (`/studio/class`), download the Excel template
+   (`public/templates/class-list-template.xlsx`: Full name, Index number,
+   Email, Programme), fill it in and upload it. Every bad row is explained by
+   its Excel row number. Uploading again adds late students and fixes typos;
+   anyone who has already activated is never changed. The page also copies a
+   WhatsApp message telling the class how to get in.
+3. **Students** activate at `/login` → "First time here? Activate your
+   account" with the email and index number on their class list, plus a
+   password. After that they sign in with EITHER their email or their index
+   number. Index number doubles as Better Auth's `username`, matched
+   case-insensitively.
 
-(CSV columns: `email,index_number,full_name,programme`.) A student then
-**activates** their own account at `/login` by entering the email and index
-number their instructor has on file plus a password of their choosing — this
-only succeeds against an unclaimed roster row. From then on they sign in with
-EITHER identifier (their email or their index number) plus that password.
-Index number doubles as Better Auth's `username`, matched case-insensitively.
+A "class" is one course offering for one programme and level; groups form
+within a class. The older script `node scripts/roster-import.mjs roster.csv
+[courseOfferingId]` (CSV: `email,index_number,full_name,programme`) still
+works for bulk loads by someone with database access. To rebuild the Excel
+template after changing it, run `node scripts/make-class-template.mjs`.
 
 ## Environment
 
@@ -67,6 +81,7 @@ Do not put secrets in the client. Deployed apps receive:
 | `ANTHROPIC_API_KEY` | server | Advisor (never `VITE_`-prefixed) |
 | `BETTER_AUTH_URL` | server | This app's public URL |
 | `BETTER_AUTH_SECRET` | server | Session signing secret |
+| `OWNER_ACCESS_CODE` | server | Unlocks `/owner`, where course rep setup codes are made. Use a long random phrase. |
 | `VITE_APP_NAME` | client | Optional display name |
 
 Copy [`.env.example`](.env.example) when running outside this host. Never commit a real `.env`.

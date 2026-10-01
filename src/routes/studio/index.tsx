@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Check, Copy } from "lucide-react";
+import { ArrowRight, Check, ChevronRight, Copy, Users } from "lucide-react";
 import { useState } from "react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { journeyFromSnapshot } from "@/lib/domain/journey-progress";
@@ -110,7 +110,7 @@ function StudioHome() {
       <div>
         <p className="text-xs font-semibold text-muted">
           {data.offering
-            ? `${data.offering.courseCode} · ${data.offering.semester} ${data.offering.academicYear}`
+            ? [data.offering.courseCode, data.offering.programme, data.offering.level].filter(Boolean).join(" · ")
             : "Studio"}
         </p>
         <h1 className="font-display text-[34px] leading-none font-extrabold">
@@ -148,6 +148,22 @@ function StudioHome() {
           {next.cta} <ArrowRight className="size-4" aria-hidden />
         </Link>
       </section>
+
+      {data.isClassRep ? (
+        <Link
+          to="/studio/class"
+          className="flex items-center gap-3.5 rounded-[20px] border border-line bg-bg-elevated p-4 hover:border-ink/40"
+        >
+          <span className="sticker flex size-11 shrink-0 items-center justify-center rounded-full bg-indigo text-white">
+            <Users className="size-5" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-lg leading-tight font-bold">Your class list</span>
+            <span className="block text-sm text-muted">You are the course rep. Add students and see who has activated.</span>
+          </span>
+          <ChevronRight className="size-5 shrink-0 text-faint" aria-hidden />
+        </Link>
+      ) : null}
 
       {data.group ? (
         <Card className="space-y-3">

@@ -36,7 +36,7 @@ export function AppShell({
           </Link>
           <div className="flex shrink-0 items-center gap-2">
             <SyncPill />
-            <AccountMenu name={data?.student?.fullName} canRehearse={inDemo} />
+            <AccountMenu name={data?.student?.fullName} canRehearse={inDemo} isClassRep={data?.isClassRep} />
           </div>
         </div>
       </header>

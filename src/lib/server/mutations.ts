@@ -183,7 +183,8 @@ export const joinGroup = createServerFn({ method: "POST" })
         id: string;
         capacity: number;
         status: string;
-      }>`select id, capacity, status from groups where upper(join_code) = ${code} limit 1 for update`;
+        course_offering_id: string;
+      }>`select id, capacity, status, course_offering_id from groups where upper(join_code) = ${code} limit 1 for update`;
       const group = groups[0];
       if (!group) return null;
       const count = await sql<{ n: number }>`
@@ -193,6 +194,11 @@ export const joinGroup = createServerFn({ method: "POST" })
       return { ...group, activeCount: Number(count[0]?.n ?? 0) };
     });
     if (!group) throw new AppError("NOT_FOUND", "No group uses that join code.");
+    // Each course rep's class is its own offering; groups form within a class.
+    const offering = await loadOfferingForStudent(student.id);
+    if (offering && group.course_offering_id !== offering.id) {
+      throw new AppError("OTHER_CLASS", "That join code belongs to a group in another class. Ask a classmate for your group’s code.");
+    }
     if (group.status === "venture_created") {
       throw new AppError("CLOSED", "This group has already selected a venture.");
     }

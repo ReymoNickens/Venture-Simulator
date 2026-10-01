@@ -174,6 +174,7 @@ describe("class list upload", () => {
           { row: 4, fullName: "", email: "nobody@stu.ucc.edu.gh", indexNumber: "PS/ITC/22/0004" },
           { row: 5, fullName: "Bad Email", email: "not-an-email", indexNumber: "PS/ITC/22/0005" },
           { row: 6, fullName: "Ama Again", email: "AMA@stu.ucc.edu.gh", indexNumber: "PS/ITC/22/0099" },
+          { row: 7, ...rep },
         ]),
       );
       assert.deepEqual(first, [
@@ -182,6 +183,7 @@ describe("class list upload", () => {
         { row: 4, status: "skipped", reason: "Full name is missing" },
         { row: 5, status: "skipped", reason: "Email does not look right" },
         { row: 6, status: "skipped", reason: "Same email or index number appears earlier in the sheet" },
+        { row: 7, status: "skipped", reason: "That’s you, the rep. You’re already on the list" },
       ]);
 
       // Re-uploading with a fixed name updates rather than duplicates.

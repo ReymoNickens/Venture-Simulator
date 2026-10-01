@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { FlaskConical, LogOut, RefreshCw } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { FlaskConical, LogOut, RefreshCw, Users } from "lucide-react";
 import { authEnabled, signOut } from "@/lib/auth/client";
 import { hasGateSessionMarker } from "@/lib/auth/gate-session-marker";
 import { useCurrentUser } from "@/lib/auth/use-current-user";
@@ -15,7 +16,15 @@ const noGateSessionOnServer = () => false;
  * demonstration cohort, where it is a teaching aid rather than a stray
  * developer switch in front of every student.
  */
-export function AccountMenu({ name, canRehearse }: { name?: string | null; canRehearse: boolean }) {
+export function AccountMenu({
+  name,
+  canRehearse,
+  isClassRep = false,
+}: {
+  name?: string | null;
+  canRehearse: boolean;
+  isClassRep?: boolean;
+}) {
   const user = useCurrentUser();
   const { state, simulating, toggleSimulatedOffline, retry } = useConnection();
   const copy = connectionCopy(state);
@@ -66,6 +75,15 @@ export function AccountMenu({ name, canRehearse }: { name?: string | null; canRe
             <MenuItem onClick={() => void retry()}>
               <RefreshCw className="size-4" aria-hidden /> Sync now
             </MenuItem>
+          ) : null}
+          {isClassRep ? (
+            <Link
+              to="/studio/class"
+              onClick={() => setOpen(false)}
+              className="flex min-h-11 w-full items-center gap-2.5 rounded-[14px] px-3 text-left text-sm hover:bg-bg-subtle"
+            >
+              <Users className="size-4" aria-hidden /> Class list
+            </Link>
           ) : null}
           {canRehearse || simulating ? (
             <MenuItem onClick={() => void toggleSimulatedOffline()}>

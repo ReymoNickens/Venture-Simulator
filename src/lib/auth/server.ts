@@ -174,7 +174,7 @@ export const auth = betterAuth({
           if (!rows[0]) {
             throw new APIError("FORBIDDEN", {
               message:
-                "No matching student record. Ask your instructor to add you to the roster.",
+                "That email and index number are not on a class list yet. Check them against what your course rep uploaded, or ask your course rep to add you.",
             });
           }
           return { data: { ...user, name: rows[0].full_name, username, displayUsername: username } };

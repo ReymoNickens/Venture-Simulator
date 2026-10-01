@@ -12,8 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as OwnerRouteImport } from './routes/owner'
+import { Route as RepRouteImport } from './routes/rep'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
+import { Route as StudioClassRouteImport } from './routes/studio/class'
 import { Route as StudioGroupRouteImport } from './routes/studio/group'
 import { Route as StudioJourneyRouteImport } from './routes/studio/journey'
 import { Route as StudioOpportunityRouteImport } from './routes/studio/opportunity'
@@ -37,6 +40,16 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OwnerRoute = OwnerRouteImport.update({
+  id: '/owner',
+  path: '/owner',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RepRoute = RepRouteImport.update({
+  id: '/rep',
+  path: '/rep',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudioRoute = StudioRouteImport.update({
   id: '/studio',
   path: '/studio',
@@ -45,6 +58,11 @@ const StudioRoute = StudioRouteImport.update({
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioClassRoute = StudioClassRouteImport.update({
+  id: '/class',
+  path: '/class',
   getParentRoute: () => StudioRoute,
 } as any)
 const StudioGroupRoute = StudioGroupRouteImport.update({
@@ -87,7 +105,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/owner': typeof OwnerRoute
+  '/rep': typeof RepRoute
   '/studio': typeof StudioRouteWithChildren
+  '/studio/class': typeof StudioClassRoute
   '/studio/group': typeof StudioGroupRoute
   '/studio/journey': typeof StudioJourneyRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
@@ -101,6 +122,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/owner': typeof OwnerRoute
+  '/rep': typeof RepRoute
+  '/studio/class': typeof StudioClassRoute
   '/studio/group': typeof StudioGroupRoute
   '/studio/journey': typeof StudioJourneyRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
@@ -115,7 +139,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
+  '/owner': typeof OwnerRoute
+  '/rep': typeof RepRoute
   '/studio': typeof StudioRouteWithChildren
+  '/studio/class': typeof StudioClassRoute
   '/studio/group': typeof StudioGroupRoute
   '/studio/journey': typeof StudioJourneyRoute
   '/studio/opportunity': typeof StudioOpportunityRoute
@@ -131,7 +158,10 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/onboarding'
+    | '/owner'
+    | '/rep'
     | '/studio'
+    | '/studio/class'
     | '/studio/group'
     | '/studio/journey'
     | '/studio/opportunity'
@@ -145,6 +175,9 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/onboarding'
+    | '/owner'
+    | '/rep'
+    | '/studio/class'
     | '/studio/group'
     | '/studio/journey'
     | '/studio/opportunity'
@@ -158,7 +191,10 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/onboarding'
+    | '/owner'
+    | '/rep'
     | '/studio'
+    | '/studio/class'
     | '/studio/group'
     | '/studio/journey'
     | '/studio/opportunity'
@@ -173,6 +209,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
+  OwnerRoute: typeof OwnerRoute
+  RepRoute: typeof RepRoute
   StudioRoute: typeof StudioRouteWithChildren
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
@@ -200,6 +238,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/owner': {
+      id: '/owner'
+      path: '/owner'
+      fullPath: '/owner'
+      preLoaderRoute: typeof OwnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/rep': {
+      id: '/rep'
+      path: '/rep'
+      fullPath: '/rep'
+      preLoaderRoute: typeof RepRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/studio': {
       id: '/studio'
       path: '/studio'
@@ -212,6 +264,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/studio/'
       preLoaderRoute: typeof StudioIndexRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/studio/class': {
+      id: '/studio/class'
+      path: '/class'
+      fullPath: '/studio/class'
+      preLoaderRoute: typeof StudioClassRouteImport
       parentRoute: typeof StudioRoute
     }
     '/studio/group': {
@@ -267,6 +326,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface StudioRouteChildren {
+  StudioClassRoute: typeof StudioClassRoute
   StudioGroupRoute: typeof StudioGroupRoute
   StudioJourneyRoute: typeof StudioJourneyRoute
   StudioOpportunityRoute: typeof StudioOpportunityRoute
@@ -277,6 +337,7 @@ interface StudioRouteChildren {
 }
 
 const StudioRouteChildren: StudioRouteChildren = {
+  StudioClassRoute: StudioClassRoute,
   StudioGroupRoute: StudioGroupRoute,
   StudioJourneyRoute: StudioJourneyRoute,
   StudioOpportunityRoute: StudioOpportunityRoute,
@@ -293,6 +354,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
+  OwnerRoute: OwnerRoute,
+  RepRoute: RepRoute,
   StudioRoute: StudioRouteWithChildren,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }

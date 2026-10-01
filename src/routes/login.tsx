@@ -112,7 +112,13 @@ function Login() {
             <p className="text-sm text-muted">Sign-in is disabled.</p>
           )}
         </Card>
-        <Link to="/" className="mt-6 inline-flex min-h-11 items-center text-sm text-muted">
+        <Link
+          to="/rep"
+          className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-ink underline underline-offset-2"
+        >
+          Course rep with a setup code? Set up your class
+        </Link>
+        <Link to="/" className="inline-flex min-h-11 items-center text-sm text-muted">
           Back
         </Link>
       </div>
