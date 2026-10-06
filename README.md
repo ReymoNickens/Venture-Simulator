@@ -41,6 +41,17 @@ Use **Simulate offline** in the top bar to test local save and replay.
 
 The original concept named Next.js, Supabase, and Claude. Pedagogy follows the concept; runtime follows this host.
 
+## Look around (demo class)
+
+The fastest way to see every screen: open `/owner`, enter
+`OWNER_ACCESS_CODE`, and tap **As a student**, **As a course rep** or **As a
+lecturer** under *Look around*. The first tap sets up a demo class (ENT 302 ·
+Demo class) with a rep, a student, a lecturer, three classmates still to
+activate and one group of synthetic classmates. Each tap signs you in with a
+one-off password, so there is nothing to remember. A gold bar on demo
+accounts says who you are and has **Switch role**, which goes back to the
+owner page. Demo accounts use `@tour.demo` emails (`src/lib/demo`).
+
 ## Sign-in and class lists
 
 There is no open self-registration. Each class keeps its own list, and the
