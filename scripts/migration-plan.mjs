@@ -44,3 +44,25 @@ export function pendingMigrations(paths, applied) {
     .sort((a, b) => a.name.localeCompare(b.name))
     .filter(({ name }) => !done.has(name));
 }
+
+/**
+ * Whether this build may change the database. Vercel preview builds of every
+ * branch get the production DATABASE_URL, so they used to run their own,
+ * unmerged migrations against production (an unmerged branch once replaced
+ * our access rules that way, see migrations/0012). Previews now skip unless
+ * MIGRATE_PREVIEWS=1, which is for a preview environment given its own
+ * database.
+ *
+ * @param {Record<string, string | undefined>} env
+ * @returns {{ run: boolean, reason?: string }}
+ */
+export function migrationDecision(env) {
+  if (!env.DATABASE_URL) return { run: false, reason: "DATABASE_URL not set — skipping (the PGLite fallback migrates itself)." };
+  if (env.VERCEL_ENV === "preview" && env.MIGRATE_PREVIEWS !== "1") {
+    return {
+      run: false,
+      reason: "preview build — skipping so unmerged migrations never reach the shared database (set MIGRATE_PREVIEWS=1 if previews have their own).",
+    };
+  }
+  return { run: true };
+}

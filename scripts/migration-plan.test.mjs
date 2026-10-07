@@ -95,3 +95,13 @@ test("the copy check reads both files and catches an edit", () => {
   const drifted = authSchemaCopy(root);
   assert.notEqual(drifted.copy, drifted.source);
 });
+
+test("preview builds never migrate the shared database unless told to", async () => {
+  const { migrationDecision } = await import("./migration-plan.mjs");
+  const url = "postgres://x";
+  assert.equal(migrationDecision({}).run, false);
+  assert.equal(migrationDecision({ DATABASE_URL: url, VERCEL_ENV: "production" }).run, true);
+  assert.equal(migrationDecision({ DATABASE_URL: url }).run, true, "non-Vercel deploys still migrate");
+  assert.equal(migrationDecision({ DATABASE_URL: url, VERCEL_ENV: "preview" }).run, false);
+  assert.equal(migrationDecision({ DATABASE_URL: url, VERCEL_ENV: "preview", MIGRATE_PREVIEWS: "1" }).run, true);
+});
