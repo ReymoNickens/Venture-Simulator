@@ -53,7 +53,7 @@ function LecturerLayout() {
             <LogoMark />
             <span className="min-w-0 border-l border-line-strong pl-2.5">
               <span className="block text-[11px] font-semibold text-muted">Lecturer</span>
-              <span className="block truncate font-display text-[15px] leading-tight font-semibold">
+              <span className="block truncate font-display text-[15px] leading-tight font-extrabold">
                 {home?.fullName ?? "…"}
               </span>
             </span>
@@ -109,7 +109,7 @@ function LecturerLayout() {
 
       <nav
         aria-label="Lecturer"
-        className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg-elevated pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="no-print fixed inset-x-0 bottom-0 z-30 border-t-2 border-ink bg-bg-elevated pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         <ul className="mx-auto grid max-w-sm grid-cols-3">
           {TABS.map((t) => (
@@ -117,10 +117,12 @@ function LecturerLayout() {
               <Link
                 to={t.to}
                 activeOptions={{ exact: t.exact }}
-                className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[12px] font-semibold text-muted"
-                activeProps={{ className: "!text-accent" }}
+                className="group flex min-h-14 flex-col items-center justify-center gap-0.5 text-[12px] font-bold text-muted"
+                activeProps={{ className: "!text-ink [&_.tab-icon]:bg-gold [&_.tab-icon]:border-ink" }}
               >
-                <t.icon className="size-5" aria-hidden strokeWidth={1.8} />
+                <span className="tab-icon flex h-7 w-12 items-center justify-center rounded-full border-2 border-transparent">
+                    <t.icon className="size-[18px]" aria-hidden strokeWidth={2} />
+                  </span>
                 {t.label}
               </Link>
             </li>

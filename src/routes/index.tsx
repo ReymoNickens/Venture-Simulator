@@ -25,15 +25,15 @@ function Home() {
       <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-5">
         <LogoMark full />
         <SignedOut>
-          <Link to="/login" className="inline-flex min-h-11 items-center px-1 text-sm font-semibold text-accent underline underline-offset-4">
+          <Link to="/login" className={buttonVariants({ size: "sm", variant: "secondary" })}>
             Sign in
           </Link>
         </SignedOut>
       </div>
 
       <div className="mx-auto max-w-3xl px-5 pt-6 pb-20">
-        <h1 className="max-w-[18ch] font-display text-[40px] leading-[1.05] font-semibold sm:text-6xl">
-          Your venture starts with something you have seen.
+        <h1 className="max-w-[16ch] font-display text-[44px] leading-[1.02] font-extrabold sm:text-7xl">
+          Your venture starts with something <span className="mark">you have seen.</span>
         </h1>
         <p className="mt-5 max-w-[56ch] text-lg leading-8 text-ink-soft">
           In ENT 302 your group goes out into Cape Coast (the shuttle stops, Kotokuraba, the hostels around campus) and
@@ -43,7 +43,7 @@ function Home() {
 
         <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
           {isPending ? (
-            <div className="h-13 w-40 animate-pulse rounded-[10px] bg-bg-subtle" />
+            <div className="h-13 w-40 animate-pulse rounded-full bg-bg-subtle" />
           ) : (
             <>
               <SignedIn>
@@ -61,28 +61,28 @@ function Home() {
           <span className="text-sm text-muted">Works on any phone, and keeps your work if the network drops.</span>
         </div>
 
-        <figure className="mt-14 rounded-[12px] border border-line bg-bg-elevated p-5 sm:p-6">
-          <figcaption className="text-xs font-semibold tracking-wide text-muted uppercase">An example field note</figcaption>
+        <figure className="tape mt-16 -rotate-1 rounded-[6px] border border-line bg-bg-elevated p-5 pt-7 shadow-[0_10px_24px_-14px_rgba(26,23,20,0.45)] [background-image:repeating-linear-gradient(to_bottom,transparent_0_31px,var(--color-line)_31px_32px)] sm:p-7">
+          <figcaption className="text-xs font-bold tracking-wide text-muted uppercase">From a student’s field notebook</figcaption>
           <p className="mt-1 text-sm text-muted">Tuesday, 6:50 to 7:40am · Science shuttle stop</p>
-          <blockquote className="mt-3 font-display text-[22px] leading-snug">
-            Counted more than 60 people waiting at the peak, and 4 shuttles in 50 minutes. I asked 6 people: 4 had paid
-            for a taxi at least once this week.
+          <blockquote className="mt-3 font-hand text-[25px] leading-8 text-ink">
+            Counted more than 60 people waiting at the peak, and 4 shuttles in 50 minutes. Asked 6 people: 4 had paid
+            for a taxi at least once this week!
           </blockquote>
-          <p className="mt-3 text-sm text-ink-soft">
-            Notes like this are the start of every venture here: something counted, not guessed.
-          </p>
         </figure>
+        <p className="mt-5 text-[15px] text-ink-soft">
+          Notes like this start every venture here: <span className="mark font-semibold">counted, not guessed.</span>
+        </p>
 
         <section className="mt-14" aria-labelledby="semester-title">
-          <h2 id="semester-title" className="font-display text-[28px] font-semibold">
+          <h2 id="semester-title" className="font-display text-[28px] font-extrabold">
             How the semester runs
           </h2>
           <ol className="mt-5 space-y-4">
             {SEMESTER.map((s) => (
-              <li key={s.step} className="flex gap-4">
-                <StepSticker step={s.step} size="sm" />
+              <li key={s.step} className="flex items-start gap-4">
+                <StepSticker step={s.step} size="md" />
                 <div className="pt-1">
-                  <p className="font-semibold">{s.title}</p>
+                  <p className="font-display text-lg font-extrabold">{s.title}</p>
                   <p className="text-[15px] leading-6 text-muted">{s.body}</p>
                 </div>
               </li>

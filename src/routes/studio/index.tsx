@@ -34,7 +34,7 @@ function nextStep(data: WorkspaceSnapshot): NextStep {
     return {
       step: "group",
       title: "Find your group",
-      body: "Everything happens in a group of up to ten. Join with the code a classmate shares, start a new group, or try a practice group on your own.",
+      body: "Everything happens in a group of up to ten. Start one and invite your classmates with a link, join with the link your group leader sent, or try a practice group on your own.",
       href: "/studio/group",
       cta: "Find your group",
     };
@@ -113,25 +113,31 @@ function StudioHome() {
             ? [data.offering.courseCode, data.offering.programme, data.offering.level].filter(Boolean).join(" · ")
             : "Studio"}
         </p>
-        <h1 className="font-display text-[34px] leading-none font-semibold">
-          {firstName ? `Hi, ${firstName}.` : "Studio"}
+        <h1 className="font-display text-[34px] leading-none font-extrabold">
+          {firstName ? (
+            <>
+              Hi, <span className="mark">{firstName}</span>.
+            </>
+          ) : (
+            "Studio"
+          )}
         </h1>
       </div>
 
       <section
         aria-labelledby="next-title"
         className={cn(
-          "relative mt-3 rounded-[14px] border border-line bg-bg-elevated px-5 pt-5 pb-5",
-          !next.waiting && "border-l-4 border-l-accent",
+          "relative mt-3 rounded-[18px] px-5 pt-5 pb-5",
+          next.waiting ? "border border-line bg-bg-elevated" : "paper",
         )}
       >
         <div className="flex items-center gap-3">
-          <StepSticker step={next.step} size="md" />
+          <StepSticker step={next.step} size="lg" />
           <div>
             <p className="text-xs font-semibold text-muted">
               {next.waiting ? "Nothing to do right now" : `Step ${progress.stop} of ${progress.total} · Now`}
             </p>
-            <h2 id="next-title" className="font-display text-2xl leading-tight font-semibold">
+            <h2 id="next-title" className="font-display text-2xl leading-tight font-extrabold">
               {next.title}
             </h2>
           </div>

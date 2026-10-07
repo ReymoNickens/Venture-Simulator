@@ -53,7 +53,7 @@ export function JourneyMap({
                   </span>
                   <span
                     className={cn(
-                      "block font-display leading-tight font-semibold",
+                      "block font-display leading-tight font-extrabold",
                       compact ? "text-sm" : "text-base",
                       st === "todo" && "text-faint",
                     )}

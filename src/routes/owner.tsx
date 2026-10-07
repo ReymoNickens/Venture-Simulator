@@ -111,7 +111,7 @@ function Unlock({
   const [value, setValue] = useState("");
   return (
     <div className="mx-auto max-w-md pt-10">
-      <h1 className="font-display text-4xl font-semibold">Owner page</h1>
+      <h1 className="font-display text-4xl font-extrabold">Owner page</h1>
       <p className="mt-2 text-[15px] leading-6 text-muted">
         Look around the app, add classes and lecturers. Enter the owner access code.
       </p>
@@ -163,7 +163,7 @@ function Dashboard({
 function HeldTexts({ page, reload }: { page: OwnerPageData; reload: () => Promise<void> }) {
   return (
     <section className="rounded-[14px] border border-gold bg-gold-soft p-4">
-      <h2 className="font-display text-xl font-semibold">Texts are not switched on yet</h2>
+      <h2 className="font-display text-xl font-extrabold">Texts are not switched on yet</h2>
       <p className="mt-1 text-sm leading-6 text-ink-soft">
         Sign-in codes are not sent by SMS until the Arkesel account is connected (ARKESEL_API_KEY and ARKESEL_SENDER_ID
         in Vercel). Until then they appear here for 10 minutes.
@@ -216,7 +216,7 @@ function ClassesSection({ page, ownerCode, reload }: { page: OwnerPageData; owne
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="font-display text-2xl font-semibold">Classes</h2>
+        <h2 className="font-display text-2xl font-extrabold">Classes</h2>
         <p className="text-sm text-muted">
           Students choose their class from this list when they fill in their details. Group leaders start groups within
           a class and invite the members.
@@ -238,7 +238,7 @@ function ClassesSection({ page, ownerCode, reload }: { page: OwnerPageData; owne
       )}
       <Card>
         <form className="space-y-3" onSubmit={(e) => void create(e)}>
-          <h3 className="font-display text-lg font-semibold">Add a class</h3>
+          <h3 className="font-display text-lg font-extrabold">Add a class</h3>
           {page.courses.length > 1 ? (
             <Field label="Course">
               <Select value={courseId} onChange={(e) => setCourseId(e.target.value)}>

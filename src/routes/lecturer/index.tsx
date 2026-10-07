@@ -28,7 +28,7 @@ function NeedsYou() {
   if (!home.classes.length) {
     return (
       <div className="pt-6">
-        <h1 className="font-display text-[32px] font-semibold">No classes yet</h1>
+        <h1 className="font-display text-[32px] font-extrabold">No classes yet</h1>
         <EmptyNote>The platform owner has not assigned you any classes yet. Ask them to add your classes.</EmptyNote>
       </div>
     );
@@ -40,7 +40,7 @@ function NeedsYou() {
         <p className="text-xs font-semibold text-muted">
           {home.classes.length} {home.classes.length === 1 ? "class" : "classes"} · {home.groups.length} groups
         </p>
-        <h1 className="font-display text-[32px] leading-none font-semibold">
+        <h1 className="font-display text-[32px] leading-none font-extrabold">
           {flagged.length ? `${flagged.length} ${flagged.length === 1 ? "group needs" : "groups need"} you` : "All groups on track"}
         </h1>
       </div>

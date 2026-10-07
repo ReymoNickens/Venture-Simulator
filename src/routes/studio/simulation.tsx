@@ -266,7 +266,7 @@ function StatusHeader({
           )}
         </div>
         <p className="mt-3 text-xs text-white/60">Cash now</p>
-        <p className={cn("font-display text-[32px] leading-none font-semibold whitespace-nowrap tabular-nums sm:text-[40px]", view.cash < 0 && "text-clay")}>
+        <p className={cn("font-display text-[32px] leading-none font-extrabold whitespace-nowrap tabular-nums sm:text-[40px]", view.cash < 0 && "text-clay")}>
           {formatGhs(view.cash)}
         </p>
         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">

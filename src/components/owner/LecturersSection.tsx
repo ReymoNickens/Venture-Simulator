@@ -41,7 +41,7 @@ export function LecturersSection({ ownerCode }: { ownerCode: string }) {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="font-display text-2xl font-semibold">Lecturers</h2>
+        <h2 className="font-display text-2xl font-extrabold">Lecturers</h2>
         <p className="text-sm text-muted">
           A lecturer sees only the classes you tick: their groups, work, simulation results, and a marks sheet.
         </p>

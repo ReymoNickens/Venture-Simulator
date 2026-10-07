@@ -57,7 +57,7 @@ export function AccountMenu({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label={`${label}, ${copy.label}`}
-        className="relative flex size-11 items-center justify-center rounded-full border border-line-strong bg-bg-elevated font-display text-base font-semibold text-ink"
+        className="relative flex size-11 items-center justify-center rounded-full border border-line-strong bg-bg-elevated font-display text-base font-extrabold text-ink"
       >
         {label.charAt(0).toUpperCase()}
       </button>

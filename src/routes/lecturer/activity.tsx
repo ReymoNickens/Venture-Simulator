@@ -38,7 +38,7 @@ function ActivityPage() {
     <div className="flow-enter space-y-5 pt-2">
       <div>
         <p className="text-xs font-semibold text-muted">Newest first</p>
-        <h1 className="font-display text-[32px] leading-none font-semibold">What students are doing</h1>
+        <h1 className="font-display text-[32px] leading-none font-extrabold">What students are doing</h1>
       </div>
       <ClassChips classes={home.classes} value={offering} onChange={setOffering} />
       <FormMessages error={error} />

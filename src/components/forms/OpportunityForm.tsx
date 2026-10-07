@@ -330,7 +330,7 @@ export function OpportunityForm({
       </div>
 
       <label className="block space-y-3">
-        <span className="block font-display text-[26px] leading-tight font-semibold">{q.label}</span>
+        <span className="block font-display text-[26px] leading-tight font-extrabold">{q.label}</span>
         {q.multiline ? (
           <Textarea
             autoFocus

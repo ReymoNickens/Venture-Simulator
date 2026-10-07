@@ -17,7 +17,7 @@ function JourneyPage() {
         <p className="text-xs font-semibold text-muted">
           {progress.doneCount} of {progress.total} steps done
         </p>
-        <h1 className="font-display text-[32px] leading-none font-semibold">The seven steps</h1>
+        <h1 className="font-display text-[32px] leading-none font-extrabold">The seven steps</h1>
         <div
           className="mt-4 h-1.5 overflow-hidden rounded-full bg-bg-subtle"
           role="progressbar"

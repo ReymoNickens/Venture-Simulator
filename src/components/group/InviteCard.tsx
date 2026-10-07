@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { inviteLink, whatsappShare } from "@/lib/invite/pending";
-import { Card } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { cn } from "@/lib/utils";
 
@@ -24,9 +23,11 @@ export function InviteCard({
   const link = inviteLink(code);
   const full = members >= capacity;
   return (
-    <Card className="space-y-3">
+    <div className="paper space-y-3 rounded-[18px] p-5">
       <div>
-        <h2 className="font-display text-xl font-semibold">Invite your group</h2>
+        <h2 className="font-display text-xl font-extrabold">
+          Invite your <span className="mark">group</span>
+        </h2>
         <p className="mt-1 text-[15px] leading-6 text-ink-soft">
           {full
             ? `All ${capacity} places are taken.`
@@ -64,6 +65,6 @@ export function InviteCard({
           </p>
         </>
       ) : null}
-    </Card>
+    </div>
   );
 }
