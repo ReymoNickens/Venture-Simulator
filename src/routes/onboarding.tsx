@@ -66,8 +66,8 @@ function Onboarding() {
   return (
     <main className="min-h-dvh text-ink">
       <div className="mx-auto max-w-md px-5 py-10">
-        <LogoMark className="size-12" />
-        <h1 className="mt-5 font-display text-4xl font-extrabold">Who are you on the register?</h1>
+        <LogoMark full />
+        <h1 className="mt-5 font-display text-4xl font-semibold">Who are you on the register?</h1>
         <p className="mt-2 text-[15px] leading-6 text-muted">
           This is separate from how you signed in. Index numbers are not passwords, and they must be unique.
         </p>

@@ -57,11 +57,11 @@ function LecturerSetup() {
   return (
     <main className="min-h-dvh text-ink">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-        <LogoMark className="mb-5 size-12" />
+        <LogoMark full className="mb-5" />
         <p className="text-xs font-semibold text-muted">Lecturer setup · step {step === "code" ? 1 : 2} of 2</p>
         {step === "code" ? (
           <>
-            <h1 className="mt-1 font-display text-4xl font-extrabold">Welcome, lecturer</h1>
+            <h1 className="mt-1 font-display text-4xl font-semibold">Welcome, lecturer</h1>
             <p className="mt-2 text-[15px] leading-6 text-muted">
               Enter the invite code you were sent. It looks like <span className="font-mono">LEC-K7M2-QX4P</span>.
             </p>
@@ -86,8 +86,8 @@ function LecturerSetup() {
           </>
         ) : (
           <>
-            <h1 className="mt-1 font-display text-4xl font-extrabold">Your account</h1>
-            <div className="mt-3 rounded-[16px] bg-bg-subtle p-3 text-sm">
+            <h1 className="mt-1 font-display text-4xl font-semibold">Your account</h1>
+            <div className="mt-3 rounded-[14px] bg-bg-subtle p-3 text-sm">
               <p className="font-semibold">You will see:</p>
               <ul className="mt-1 list-disc space-y-0.5 pl-5 text-ink-soft">
                 {classes.map((c) => (

@@ -15,18 +15,18 @@ function JourneyPage() {
     <div className="flow-enter space-y-5 pt-2">
       <div>
         <p className="text-xs font-semibold text-muted">
-          {progress.doneCount} of {progress.total} stops done
+          {progress.doneCount} of {progress.total} steps done
         </p>
-        <h1 className="font-display text-[32px] leading-none font-extrabold">Your journey</h1>
+        <h1 className="font-display text-[32px] leading-none font-semibold">The seven steps</h1>
         <div
-          className="mt-4 h-2.5 overflow-hidden rounded-full bg-bg-subtle"
+          className="mt-4 h-1.5 overflow-hidden rounded-full bg-bg-subtle"
           role="progressbar"
           aria-valuenow={pct}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label="Journey progress"
+          aria-label="Progress through the steps"
         >
-          <div className="h-full rounded-full bg-ink" style={{ width: `${pct}%` }} />
+          <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
         </div>
       </div>
       <JourneyMap progress={progress} />

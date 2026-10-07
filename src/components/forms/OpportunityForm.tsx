@@ -232,7 +232,7 @@ export function OpportunityForm({
             {QUESTIONS.length - missing.length} of {QUESTIONS.length} answered
           </span>
         </div>
-        <ol className="divide-y divide-line rounded-[20px] border border-line bg-bg-elevated">
+        <ol className="divide-y divide-line rounded-[14px] border border-line bg-bg-elevated">
           {QUESTIONS.map((q, i) => {
             const value = fields[q.key].trim();
             const gap = q.required && !value;
@@ -330,7 +330,7 @@ export function OpportunityForm({
       </div>
 
       <label className="block space-y-3">
-        <span className="block font-display text-[26px] leading-tight font-extrabold">{q.label}</span>
+        <span className="block font-display text-[26px] leading-tight font-semibold">{q.label}</span>
         {q.multiline ? (
           <Textarea
             autoFocus

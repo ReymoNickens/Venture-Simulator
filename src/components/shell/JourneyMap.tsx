@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import { Check } from "lucide-react";
 import { JOURNEY_STEPS } from "@/lib/domain/config";
 import type { JourneyProgress } from "@/lib/domain/journey-progress";
 import { StepSticker } from "@/components/ui/sticker";
@@ -9,7 +8,7 @@ import { cn } from "@/lib/utils";
 const STATE_WORDS = { done: "Done", current: "You are here", todo: "Later" } as const;
 
 /**
- * The whole route as a vertical trail of stickers. Every stop is always
+ * The whole route as a numbered list. Every stop is always
  * visible (unlike a horizontal rail that clips on a phone), and the stop
  * you are on is the one that stands out.
  */
@@ -42,31 +41,19 @@ export function JourneyMap({
                 to={step.href}
                 aria-current={st === "current" ? "step" : undefined}
                 className={cn(
-                  "relative flex min-h-11 flex-1 items-center gap-3 rounded-[16px] py-1.5 pr-2 transition-colors",
+                  "relative flex min-h-11 flex-1 items-center gap-3 rounded-[14px] py-1.5 pr-2 transition-colors",
                   st === "current" && "bg-gold-soft ring-1 ring-gold",
                   st !== "current" && "hover:bg-bg-subtle",
                 )}
               >
-                <span className="relative">
-                  <StepSticker
-                    step={step.id}
-                    size={compact ? "sm" : "md"}
-                    muted={st === "todo"}
-                    tilt={st !== "todo"}
-                  />
-                  {st === "done" ? (
-                    <span className="absolute -right-1 -bottom-1 flex size-4.5 items-center justify-center rounded-full border-2 border-bg bg-mint text-white">
-                      <Check className="size-2.5" strokeWidth={3.5} aria-hidden />
-                    </span>
-                  ) : null}
-                </span>
+                <StepSticker step={step.id} size={compact ? "sm" : "md"} muted={st === "todo"} done={st === "done"} />
                 <span className="min-w-0">
                   <span className="block text-[11px] font-semibold text-muted">
-                    Stop {i + 1} · {STATE_WORDS[st]}
+                    Step {i + 1} · {STATE_WORDS[st]}
                   </span>
                   <span
                     className={cn(
-                      "block font-display leading-tight font-bold",
+                      "block font-display leading-tight font-semibold",
                       compact ? "text-sm" : "text-base",
                       st === "todo" && "text-faint",
                     )}

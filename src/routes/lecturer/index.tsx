@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, MessageSquareText, PartyPopper } from "lucide-react";
+import { ChevronRight, MessageSquareText } from "lucide-react";
 import { useLecturer } from "@/hooks/lecturer-context";
 import { attentionFor, stageLabel, type GroupSignals } from "@/lib/lecturers/insights";
 import { classLabel } from "@/lib/lecturers/data";
@@ -28,7 +28,7 @@ function NeedsYou() {
   if (!home.classes.length) {
     return (
       <div className="pt-6">
-        <h1 className="font-display text-[32px] font-extrabold">No classes yet</h1>
+        <h1 className="font-display text-[32px] font-semibold">No classes yet</h1>
         <EmptyNote>The platform owner has not assigned you any classes yet. Ask them to add your classes.</EmptyNote>
       </div>
     );
@@ -40,7 +40,7 @@ function NeedsYou() {
         <p className="text-xs font-semibold text-muted">
           {home.classes.length} {home.classes.length === 1 ? "class" : "classes"} · {home.groups.length} groups
         </p>
-        <h1 className="font-display text-[32px] leading-none font-extrabold">
+        <h1 className="font-display text-[32px] leading-none font-semibold">
           {flagged.length ? `${flagged.length} ${flagged.length === 1 ? "group needs" : "groups need"} you` : "All groups on track"}
         </h1>
       </div>
@@ -50,8 +50,7 @@ function NeedsYou() {
       {groups.length === 0 ? (
         <EmptyNote>No groups have formed in this class yet. They appear here as students team up.</EmptyNote>
       ) : flagged.length === 0 ? (
-        <div className="flex items-center gap-3 rounded-[20px] bg-mint-soft p-4 text-mint">
-          <PartyPopper className="size-6 shrink-0" aria-hidden />
+        <div className="flex items-center gap-3 rounded-[12px] bg-mint-soft p-4 text-mint">
           <p className="font-semibold">Nobody needs you right now.</p>
         </div>
       ) : (
@@ -67,7 +66,7 @@ function NeedsYou() {
       {fine.length ? (
         <section className="space-y-2">
           <h2 className="font-display text-lg font-bold">On track ({fine.length})</h2>
-          <ul className="divide-y divide-line rounded-[18px] border border-line bg-bg-elevated">
+          <ul className="divide-y divide-line rounded-[14px] border border-line bg-bg-elevated">
             {fine.map((g) => (
               <li key={g.groupId}>
                 <Link
@@ -98,7 +97,7 @@ function GroupCard({ g, reasons, classLabel, urgent }: { g: GroupSignals; reason
       to="/lecturer/groups/$groupId"
       params={{ groupId: g.groupId }}
       className={cn(
-        "block rounded-[20px] border bg-bg-elevated p-4 transition-colors hover:border-ink",
+        "block rounded-[14px] border bg-bg-elevated p-4 transition-colors hover:border-ink",
         urgent ? "border-clay/60" : "border-line",
       )}
     >

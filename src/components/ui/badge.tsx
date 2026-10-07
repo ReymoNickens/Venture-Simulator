@@ -43,7 +43,7 @@ export function Card({
   return (
     <Tag
       className={cn(
-        "rounded-[20px] border border-line bg-bg-elevated p-4 sm:p-5",
+        "rounded-[14px] border border-line bg-bg-elevated p-4 sm:p-5",
         className,
       )}
     >
@@ -63,7 +63,7 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
 
 export function EmptyNote({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-[16px] bg-bg-subtle px-4 py-5 text-center text-sm text-muted">
+    <p className="rounded-[14px] bg-bg-subtle px-4 py-5 text-center text-sm text-muted">
       {children}
     </p>
   );

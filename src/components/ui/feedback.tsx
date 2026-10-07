@@ -23,8 +23,8 @@ export function FormMessages({ error, notice }: { error: string | null; notice?:
 export function Loading() {
   return (
     <div className="space-y-3" aria-busy="true" aria-label="Loading">
-      <div className="h-20 animate-pulse rounded-[18px] bg-bg-subtle" />
-      <div className="h-40 animate-pulse rounded-[18px] bg-bg-subtle" />
+      <div className="h-20 animate-pulse rounded-[14px] bg-bg-subtle" />
+      <div className="h-40 animate-pulse rounded-[14px] bg-bg-subtle" />
     </div>
   );
 }

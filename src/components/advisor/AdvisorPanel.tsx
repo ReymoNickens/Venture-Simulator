@@ -65,8 +65,8 @@ export function AdvisorPanel({
             key={m.id}
             className={
               m.role === "advisor"
-                ? "mr-6 rounded-[18px] rounded-tl-[6px] bg-indigo-soft px-3.5 py-2.5 text-sm leading-6 text-ink"
-                : "ml-6 rounded-[18px] rounded-tr-[6px] bg-ink px-3.5 py-2.5 text-sm leading-6 text-white"
+                ? "mr-6 rounded-[14px] rounded-tl-[6px] bg-indigo-soft px-3.5 py-2.5 text-sm leading-6 text-ink"
+                : "ml-6 rounded-[14px] rounded-tr-[6px] bg-ink px-3.5 py-2.5 text-sm leading-6 text-white"
             }
           >
             <p className={m.role === "advisor" ? "mb-1 text-xs font-semibold text-indigo" : "mb-1 text-xs font-semibold text-white/60"}>

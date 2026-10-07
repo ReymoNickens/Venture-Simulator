@@ -70,7 +70,7 @@ function RepSetup() {
   if (!isPending && user) {
     return (
       <Shell>
-        <h1 className="font-display text-4xl font-extrabold">You are already signed in</h1>
+        <h1 className="font-display text-4xl font-semibold">You are already signed in</h1>
         <p className="mt-2 text-[15px] leading-6 text-muted">
           A course rep sets up their class with a new account. If you are the rep and already set up your class, open
           your class list. Otherwise sign out first, then open the link from your setup message again.
@@ -94,7 +94,7 @@ function RepSetup() {
       </p>
       {step === "code" ? (
         <>
-          <h1 className="mt-1 font-display text-4xl font-extrabold">Set up your class</h1>
+          <h1 className="mt-1 font-display text-4xl font-semibold">Set up your class</h1>
           <p className="mt-2 text-[15px] leading-6 text-muted">
             Enter the setup code you were sent. It looks like <span className="font-mono">REP-K7M2-QX4P</span>.
           </p>
@@ -121,7 +121,7 @@ function RepSetup() {
 
       {step === "class" && preview ? (
         <>
-          <h1 className="mt-1 font-display text-4xl font-extrabold">Your class</h1>
+          <h1 className="mt-1 font-display text-4xl font-semibold">Your class</h1>
           <p className="mt-2 text-[15px] leading-6 text-muted">
             {preview.courseCode} · {preview.courseName} · {preview.semester} {preview.academicYear}
           </p>
@@ -190,7 +190,7 @@ function RepSetup() {
 
       {step === "you" ? (
         <>
-          <h1 className="mt-1 font-display text-4xl font-extrabold">About you</h1>
+          <h1 className="mt-1 font-display text-4xl font-semibold">About you</h1>
           <p className="mt-2 text-[15px] leading-6 text-muted">
             You are the first person on the class list. Use your own details exactly as on the university register.
           </p>
@@ -253,7 +253,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-dvh text-ink">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-        <LogoMark className="mb-5 size-12" />
+        <LogoMark full className="mb-5" />
         {children}
         <Link to="/" className="mt-6 inline-flex min-h-11 items-center text-sm text-muted">
           Back to the start

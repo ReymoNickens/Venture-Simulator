@@ -60,13 +60,12 @@ export function AccountMenu({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-label={`${label}, ${copy.label}`}
-        className="relative flex size-11 items-center justify-center rounded-full bg-ink font-display text-base font-bold text-white"
+        className="relative flex size-11 items-center justify-center rounded-full border border-line-strong bg-bg-elevated font-display text-base font-semibold text-ink"
       >
         {label.charAt(0).toUpperCase()}
-        <span className={cn("absolute right-0 bottom-0 size-3 rounded-full border-2 border-bg", dot)} />
       </button>
       {open ? (
-        <div className="rise absolute top-13 right-0 z-40 w-64 rounded-[18px] border border-line bg-bg-elevated p-2 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.25)]">
+        <div className="rise absolute top-13 right-0 z-40 w-64 rounded-[14px] border border-line bg-bg-elevated p-2 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.25)]">
           <p className="px-3 pt-2 font-semibold">{label}</p>
           <p className="flex items-center gap-2 px-3 pb-2 text-xs text-muted">
             <span className={cn("size-2 rounded-full", dot)} /> {copy.label}

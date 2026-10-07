@@ -55,11 +55,11 @@ function GroupPage() {
         <p className="text-xs font-semibold text-muted">
           Group {d.groupNumber} · {d.groupName} · {d.members.length} members
         </p>
-        <h1 className="font-display text-[30px] leading-tight font-extrabold">{d.venture?.name ?? d.groupName}</h1>
+        <h1 className="font-display text-[30px] leading-tight font-semibold">{d.venture?.name ?? d.groupName}</h1>
       </div>
 
       {reasons.length ? (
-        <ul className="space-y-1 rounded-[16px] bg-gold-soft p-3 text-sm text-gold-deep">
+        <ul className="space-y-1 rounded-[14px] bg-gold-soft p-3 text-sm text-gold-deep">
           {reasons.map((r) => (
             <li key={r.code} className="flex gap-2 leading-6">
               <span className="mt-2 size-2 shrink-0 rounded-full bg-gold-deep" aria-hidden />
@@ -235,7 +235,7 @@ function Work({ d }: { d: GroupDetail }) {
         {d.opportunities.length ? (
           <ul className="space-y-2">
             {d.opportunities.map((o) => (
-              <li key={o.id} className="rounded-[16px] border border-line bg-bg-elevated p-3 text-sm leading-6">
+              <li key={o.id} className="rounded-[14px] border border-line bg-bg-elevated p-3 text-sm leading-6">
                 <span className="flex items-center gap-2 text-xs font-semibold text-muted">
                   {o.author}
                   {o.status === "selected" ? <Stamp tone="forest" size="xs">chosen</Stamp> : null}
@@ -253,7 +253,7 @@ function Work({ d }: { d: GroupDetail }) {
         {d.evidence.length ? (
           <ul className="space-y-2">
             {d.evidence.map((e) => (
-              <li key={e.id} className="rounded-[16px] border border-line bg-bg-elevated p-3">
+              <li key={e.id} className="rounded-[14px] border border-line bg-bg-elevated p-3">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold">{e.title}</p>
                   <ClassificationStamp value={e.classification} />
@@ -274,7 +274,7 @@ function Work({ d }: { d: GroupDetail }) {
         {d.assumptions.length ? (
           <ul className="space-y-2">
             {d.assumptions.map((a) => (
-              <li key={a.id} className="rounded-[16px] border border-line bg-bg-elevated p-3">
+              <li key={a.id} className="rounded-[14px] border border-line bg-bg-elevated p-3">
                 <p className="text-sm leading-6">{a.statement}</p>
                 <p className="mt-1 flex flex-wrap gap-1.5">
                   <Stamp tone={a.importance === "critical" ? "clay" : "muted"} size="xs">{a.importance}</Stamp>
@@ -335,7 +335,7 @@ function Money({ d }: { d: GroupDetail }) {
 function ActivityList({ items }: { items: ActivityItem[] }) {
   if (!items.length) return <EmptyNote>No activity yet.</EmptyNote>;
   return (
-    <ul className="divide-y divide-line rounded-[18px] border border-line bg-bg-elevated">
+    <ul className="divide-y divide-line rounded-[14px] border border-line bg-bg-elevated">
       {items.map((it) => (
         <li key={it.id} className="flex items-start gap-3 px-4 py-3 text-sm leading-6">
           <span className="min-w-0 flex-1">

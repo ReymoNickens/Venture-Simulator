@@ -1,94 +1,94 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SignedIn, SignedOut } from "@/lib/auth/gates";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { APP_NAME } from "@/lib/brand";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { LogoMark, Scribble, Sparkle, StepSticker } from "@/components/ui/sticker";
+import { LogoMark, StepSticker } from "@/components/ui/sticker";
+import type { JourneyId } from "@/lib/domain/state-machine";
 
 export const Route = createFileRoute("/")({ component: Home });
+
+/** The semester in the words a lecturer would use on the first day. */
+const SEMESTER: { step: JourneyId; title: string; body: string }[] = [
+  { step: "group", title: "Form a group", body: "Up to ten classmates." },
+  { step: "opportunity", title: "Go and look", body: "Each of you writes up one problem you saw with your own eyes." },
+  { step: "submit", title: "Hand it in", body: "Nobody sees the others’ problems until they have handed in their own." },
+  { step: "select", title: "Choose one together", body: "The group picks the problem most worth working on." },
+  { step: "evidence", title: "Collect evidence", body: "Counts, interviews, photos. What did people actually say and do?" },
+  { step: "assumptions", title: "Test what you’re unsure of", body: "Write down the guesses your idea depends on, then check them." },
+  { step: "simulate", title: "Run a food stall", body: "Six weeks in a simulated campus market: price, stock and cash." },
+];
 
 function Home() {
   const { isPending } = useCurrentUserState();
   return (
-    <main className="min-h-dvh overflow-hidden text-ink">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5">
-        <span className="flex min-w-0 items-center gap-2.5">
-          <LogoMark className="shrink-0" />
-          <span className="font-display text-[15px] leading-tight font-bold">{APP_NAME}</span>
-        </span>
+    <main className="min-h-dvh text-ink">
+      <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-5">
+        <LogoMark full />
         <SignedOut>
-          <Link
-            to="/login"
-            className="ml-3 inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-semibold whitespace-nowrap text-ink ring-1 ring-line"
-          >
+          <Link to="/login" className="inline-flex min-h-11 items-center px-1 text-sm font-semibold text-accent underline underline-offset-4">
             Sign in
           </Link>
         </SignedOut>
       </div>
 
-      <div className="mx-auto grid max-w-5xl gap-12 px-5 pt-6 pb-20 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:pt-16">
-        <div>
-          <p className="inline-flex items-center gap-2 rounded-full bg-bg-elevated px-3 py-1 text-xs font-semibold ring-1 ring-line">
-            <span className="size-2 rounded-full bg-mint" /> ENT 302 · University of Cape Coast
-          </p>
-          <h1 className="mt-5 font-display text-[44px] leading-[0.98] font-extrabold tracking-[-0.035em] sm:text-7xl">
-            Find a real problem.
-            <br />
-            Prove it’s{" "}
-            <span className="relative inline-block">
-              real
-              <Scribble className="absolute -bottom-2 left-0" />
-            </span>
-            .
-            <br />
-            Run it.
-          </h1>
-          <p className="mt-6 max-w-[38ch] text-lg leading-8 text-ink-soft">
-            Not another business plan assignment. You’ll go out into Cape Coast, count what you see,
-            argue with an advisor that won’t flatter you, then run a venture for six weeks and live
-            with the numbers.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            {isPending ? (
-              <div className="h-13 w-44 animate-pulse rounded-full bg-bg-subtle" />
-            ) : (
-              <>
-                <SignedIn>
-                  <Link to="/studio" className={buttonVariants({ size: "lg" })}>
-                    Continue
-                  </Link>
-                </SignedIn>
-                <SignedOut>
-                  <Link to="/login" className={buttonVariants({ size: "lg" })}>
-                    Start now
-                  </Link>
-                </SignedOut>
-              </>
-            )}
-            <span className="text-sm text-muted">Works on any phone, even offline.</span>
-          </div>
+      <div className="mx-auto max-w-3xl px-5 pt-6 pb-20">
+        <h1 className="max-w-[18ch] font-display text-[40px] leading-[1.05] font-semibold sm:text-6xl">
+          Your venture starts with something you have seen.
+        </h1>
+        <p className="mt-5 max-w-[56ch] text-lg leading-8 text-ink-soft">
+          In ENT 302 your group goes out into Cape Coast (the shuttle stops, Kotokuraba, the hostels around campus) and
+          writes down problems people really have. You choose one together, gather evidence, test what you’re unsure of,
+          and finish the semester running a food stall in a market simulation.
+        </p>
+
+        <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">
+          {isPending ? (
+            <div className="h-13 w-40 animate-pulse rounded-[10px] bg-bg-subtle" />
+          ) : (
+            <>
+              <SignedIn>
+                <Link to="/studio" className={buttonVariants({ size: "lg" })}>
+                  Continue where you left off
+                </Link>
+              </SignedIn>
+              <SignedOut>
+                <Link to="/login" className={buttonVariants({ size: "lg" })}>
+                  Sign in to your class
+                </Link>
+              </SignedOut>
+            </>
+          )}
+          <span className="text-sm text-muted">Works on any phone, and keeps your work if the network drops.</span>
         </div>
 
-        {/* Collage: stickers and a taped field note. Decorative only. */}
-        <div aria-hidden className="relative mx-auto h-[360px] w-full max-w-[420px]">
-          <div className="absolute inset-x-8 top-10 bottom-10 rounded-[36px] bg-gold" />
-          <div className="note absolute top-16 left-4 w-60 rotate-[-4deg] p-4 shadow-lg">
-            <p className="text-xs font-semibold text-muted">Observation · Science shuttle stop</p>
-            <p className="mt-2 font-display text-lg leading-snug font-bold">
-              “60 people waiting. 4 shuttles in 50 minutes.”
-            </p>
-          </div>
-          <div className="absolute right-2 bottom-16 w-52 rotate-[5deg] rounded-[20px] bg-ink p-4 text-white shadow-lg">
-            <p className="text-xs text-white/60">Break-even this week</p>
-            <p className="font-display text-3xl font-extrabold">79 packs</p>
-          </div>
-          <StepSticker step="evidence" size="lg" className="absolute top-2 right-16" />
-          <StepSticker step="simulate" size="md" className="absolute bottom-4 left-10" />
-          <StepSticker step="select" size="lg" className="absolute top-28 right-0" />
-          <StepSticker step="opportunity" size="sm" className="absolute bottom-40 left-0" />
-          <Sparkle className="absolute top-0 left-16 size-6 text-clay" />
-          <Sparkle className="absolute right-24 bottom-2 size-5 text-accent" />
-        </div>
+        <figure className="mt-14 rounded-[12px] border border-line bg-bg-elevated p-5 sm:p-6">
+          <figcaption className="text-xs font-semibold tracking-wide text-muted uppercase">An example field note</figcaption>
+          <p className="mt-1 text-sm text-muted">Tuesday, 6:50 to 7:40am · Science shuttle stop</p>
+          <blockquote className="mt-3 font-display text-[22px] leading-snug">
+            Counted more than 60 people waiting at the peak, and 4 shuttles in 50 minutes. I asked 6 people: 4 had paid
+            for a taxi at least once this week.
+          </blockquote>
+          <p className="mt-3 text-sm text-ink-soft">
+            Notes like this are the start of every venture here: something counted, not guessed.
+          </p>
+        </figure>
+
+        <section className="mt-14" aria-labelledby="semester-title">
+          <h2 id="semester-title" className="font-display text-[28px] font-semibold">
+            How the semester runs
+          </h2>
+          <ol className="mt-5 space-y-4">
+            {SEMESTER.map((s) => (
+              <li key={s.step} className="flex gap-4">
+                <StepSticker step={s.step} size="sm" />
+                <div className="pt-1">
+                  <p className="font-semibold">{s.title}</p>
+                  <p className="text-[15px] leading-6 text-muted">{s.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
       </div>
     </main>
   );

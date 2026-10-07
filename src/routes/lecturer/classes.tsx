@@ -15,7 +15,7 @@ function ClassesPage() {
     <div className="flow-enter space-y-5 pt-2">
       <div>
         <p className="text-xs font-semibold text-muted">Classes you teach</p>
-        <h1 className="font-display text-[32px] leading-none font-extrabold">Classes</h1>
+        <h1 className="font-display text-[32px] leading-none font-semibold">Classes</h1>
       </div>
       <ul className="space-y-3">
         {home.classes.map((c) => (
@@ -61,7 +61,7 @@ function ClassCard({ c, activeGroups }: { c: LecturerClass; activeGroups: number
   }
 
   return (
-    <div className="space-y-3 rounded-[20px] border border-line bg-bg-elevated p-4">
+    <div className="space-y-3 rounded-[14px] border border-line bg-bg-elevated p-4">
       <div>
         <p className="font-display text-lg leading-tight font-bold">{label}</p>
         <p className="text-sm text-muted">

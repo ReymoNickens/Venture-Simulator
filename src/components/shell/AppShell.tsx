@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Gauge, Home, Map as MapIcon, WifiOff } from "lucide-react";
+import { Home, ListOrdered, NotebookText, Store, WifiOff } from "lucide-react";
 import { APP_NAME } from "@/lib/brand";
 import type { WorkspaceSnapshot } from "@/lib/domain/types";
 import { connectionCopy, useConnection } from "@/hooks/use-connection";
@@ -11,11 +11,13 @@ import { journeyFromSnapshot } from "@/lib/domain/journey-progress";
 import { JourneyMap } from "./JourneyMap";
 import { cn } from "@/lib/utils";
 
+// Tab names say what is on the screen. Icons are the common ones (home,
+// list, notebook, shop) and always sit above their word.
 const TABS = [
   { to: "/studio", label: "Today", icon: Home, exact: true },
-  { to: "/studio/journey", label: "Journey", icon: MapIcon, exact: false },
-  { to: "/studio/venture", label: "Notebook", icon: BookOpen, exact: false },
-  { to: "/studio/simulation", label: "Run it", icon: Gauge, exact: false },
+  { to: "/studio/journey", label: "Steps", icon: ListOrdered, exact: false },
+  { to: "/studio/venture", label: "Venture", icon: NotebookText, exact: false },
+  { to: "/studio/simulation", label: "Food stall", icon: Store, exact: false },
 ] as const;
 
 export function AppShell({
@@ -34,7 +36,6 @@ export function AppShell({
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
           <Link to="/studio" className="flex min-w-0 items-center gap-2.5" aria-label={`${APP_NAME}, today`}>
             <LogoMark />
-            <span className="hidden truncate font-display text-base font-bold sm:block">{APP_NAME}</span>
           </Link>
           <div className="flex shrink-0 items-center gap-2">
             <SyncPill />
@@ -49,21 +50,24 @@ export function AppShell({
             <JourneyMap progress={progress} compact />
           </aside>
         ) : null}
-        <main className="mx-auto w-full max-w-2xl min-w-0 flex-1 pt-2 pb-28 lg:pb-16">{children}</main>
+        <main className="mx-auto w-full max-w-2xl min-w-0 flex-1 pt-2 pb-24 lg:pb-16">{children}</main>
       </div>
 
       {progress ? (
-        <nav aria-label="Studio" className="no-print fixed inset-x-3 bottom-3 z-30 lg:hidden">
-          <ul className="mx-auto grid max-w-md grid-cols-4 rounded-full bg-ink p-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]">
+        <nav
+          aria-label="Studio"
+          className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg-elevated pb-[env(safe-area-inset-bottom)] lg:hidden"
+        >
+          <ul className="mx-auto grid max-w-md grid-cols-4">
             {TABS.map((t) => (
               <li key={t.to}>
                 <Link
                   to={t.to}
                   activeOptions={{ exact: t.exact }}
-                  className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-full py-1.5 text-[11px] font-semibold text-white/65"
-                  activeProps={{ className: "bg-white/12 !text-white [&_svg]:text-gold" }}
+                  className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[12px] font-semibold text-muted"
+                  activeProps={{ className: "!text-accent" }}
                 >
-                  <t.icon className="size-5" aria-hidden />
+                  <t.icon className="size-5" aria-hidden strokeWidth={1.8} />
                   {t.label}
                 </Link>
               </li>

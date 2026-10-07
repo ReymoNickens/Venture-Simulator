@@ -183,7 +183,7 @@ function AssumptionsTab({ data, refresh }: { data: WorkspaceSnapshot; refresh: (
           {data.assumptions.map((a) => {
             const links = data.links.filter((l) => l.assumptionId === a.id);
             return (
-              <li key={a.id} className="rounded-[20px] border border-line bg-bg-elevated p-4">
+              <li key={a.id} className="rounded-[14px] border border-line bg-bg-elevated p-4">
                 <p className="text-[15px] leading-6">{a.statement}</p>
                 <p className="mt-2 flex flex-wrap gap-1.5">
                   <Stamp tone={IMPORTANCE_TONE[a.importance]} size="xs">

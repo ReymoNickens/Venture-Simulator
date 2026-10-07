@@ -53,7 +53,7 @@ function ClassListPage() {
   if (data === null) {
     return (
       <div className="pt-2">
-        <h1 className="font-display text-3xl font-extrabold">Class list</h1>
+        <h1 className="font-display text-3xl font-semibold">Class list</h1>
         <EmptyNote>Only your class’s course rep can manage the class list.</EmptyNote>
       </div>
     );
@@ -72,15 +72,15 @@ function ClassListPage() {
         <p className="text-xs font-semibold text-muted">
           You are the course rep · {info.semester} {info.academicYear}
         </p>
-        <h1 className="font-display text-[32px] leading-none font-extrabold">Your class list</h1>
+        <h1 className="font-display text-[32px] leading-none font-semibold">Your class list</h1>
         <p className="mt-2 text-[15px] text-ink-soft">
           {info.courseCode} · {info.programme} · {info.level}
         </p>
       </div>
 
-      <div className="rounded-[22px] bg-ink p-5 text-white">
+      <div className="rounded-[14px] bg-ink p-5 text-white">
         <p className="text-xs text-white/60">Activated so far</p>
-        <p className="font-display text-4xl font-extrabold tabular-nums">
+        <p className="font-display text-4xl font-semibold tabular-nums">
           {activated} <span className="text-xl text-white/60">of {members.length}</span>
         </p>
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/20" aria-hidden>
@@ -163,7 +163,7 @@ function UploadCard({ onDone, firstTime }: { onDone: () => Promise<void>; firstT
           <Num n={3} />
           <div className="min-w-0 flex-1">
             <p>Upload it here.</p>
-            <label className="mt-2 flex min-h-14 cursor-pointer items-center gap-3 rounded-[16px] border-2 border-dashed border-line-strong bg-bg-subtle px-4 py-3 text-sm font-semibold focus-within:ring-2 focus-within:ring-accent/40">
+            <label className="mt-2 flex min-h-14 cursor-pointer items-center gap-3 rounded-[14px] border-2 border-dashed border-line-strong bg-bg-subtle px-4 py-3 text-sm font-semibold focus-within:ring-2 focus-within:ring-accent/40">
               <FileSpreadsheet className="size-6 shrink-0 text-mint" aria-hidden />
               <span className="min-w-0 truncate">{fileName ?? "Choose the filled-in file"}</span>
               <input
@@ -181,7 +181,7 @@ function UploadCard({ onDone, firstTime }: { onDone: () => Promise<void>; firstT
       </ol>
 
       {parsed ? (
-        <div className="flow-enter space-y-3 rounded-[16px] border border-ink p-4">
+        <div className="flow-enter space-y-3 rounded-[14px] border border-ink p-4">
           {parsed.fatal ? (
             <FormMessages error={parsed.fatal} />
           ) : (
@@ -213,7 +213,7 @@ function UploadCard({ onDone, firstTime }: { onDone: () => Promise<void>; firstT
       ) : null}
 
       {results ? (
-        <div className="flow-enter space-y-2 rounded-[16px] bg-mint-soft p-4" role="status">
+        <div className="flow-enter space-y-2 rounded-[14px] bg-mint-soft p-4" role="status">
           <p className="flex items-center gap-2 font-semibold text-mint">
             <Check className="size-4" aria-hidden /> Done: {added} added{updated ? `, ${updated} corrected` : ""}
             {skipped.length ? `, ${skipped.length} not changed` : ""}.
@@ -406,7 +406,7 @@ function MemberList({ data, onChanged }: { data: MyClassData; onChanged: () => P
         </label>
       ) : null}
       <FormMessages error={error} />
-      <ul className="divide-y divide-line rounded-[18px] border border-line bg-bg-elevated">
+      <ul className="divide-y divide-line rounded-[14px] border border-line bg-bg-elevated">
         {shown.map((m) => (
           <li key={m.studentId} className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">

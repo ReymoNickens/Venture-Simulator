@@ -12,15 +12,15 @@ export function DemoBar({ role }: { role: string }) {
   const [leaving, setLeaving] = useState(false);
   if (!isDemoEmail(user?.primaryEmail)) return null;
   return (
-    <div className="no-print bg-gold text-ink">
+    <div className="no-print border-b border-gold/40 bg-gold-soft text-ink">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-1.5 text-sm">
         <span className="min-w-0 truncate">
-          Demo: you are the <strong>{role}</strong>
+          Practice account: you are the <strong>{role}</strong>
         </span>
         <button
           type="button"
           disabled={leaving}
-          className="min-h-9 shrink-0 rounded-full bg-ink px-3 font-semibold text-white"
+          className="min-h-9 shrink-0 rounded-[8px] border border-ink/20 bg-bg-elevated px-3 font-semibold"
           onClick={() => {
             setLeaving(true);
             signOut("/owner").catch(() => setLeaving(false));
