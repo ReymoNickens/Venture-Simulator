@@ -11,7 +11,9 @@ import { asUser, freshSeededDb } from "./test-db.ts";
 const read = (path: string) => readFile(new URL(path, import.meta.url), "utf8");
 
 async function joinOwnGroup(pg: PGlite) {
-  // A student starting a group adds themselves as its first member.
+  // A student starting a group adds themselves as its first member (after
+  // leaving their old one: one active group each, 0013).
+  await pg.query(`update group_members set membership_status = 'left' where id = 'member-a'`);
   await pg.query(
     `insert into groups (id, course_offering_id, group_name, group_number, join_code, status, created_by_student_id, capacity)
      values ('group-new','off1','New',9,'CODENEW','opportunity_collection','student-a',10)`,

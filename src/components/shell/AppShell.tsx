@@ -32,14 +32,14 @@ export function AppShell({
   return (
     <div className="min-h-dvh text-ink">
       <header className="sticky top-0 z-30 bg-bg/90 backdrop-blur-md">
-        <DemoBar role={data?.isClassRep ? "course rep" : "student"} />
+        <DemoBar role="student" />
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
           <Link to="/studio" className="flex min-w-0 items-center gap-2.5" aria-label={`${APP_NAME}, today`}>
             <LogoMark />
           </Link>
           <div className="flex shrink-0 items-center gap-2">
             <SyncPill />
-            <AccountMenu name={data?.student?.fullName} canRehearse={inDemo} isClassRep={data?.isClassRep} />
+            <AccountMenu name={data?.student?.fullName} canRehearse={inDemo} />
           </div>
         </div>
       </header>

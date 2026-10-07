@@ -6,9 +6,9 @@ import { createGroup, joinGroup } from "@/lib/server/mutations";
 import { bootstrapDemoCohort } from "@/lib/server/bootstrap";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/badge";
 import { FormMessages } from "@/components/ui/feedback";
 import { StepHeader } from "@/components/shell/StepHeader";
+import { InviteCard } from "@/components/group/InviteCard";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/studio/group")({ component: GroupPage });
@@ -30,7 +30,8 @@ function GroupPage() {
     try {
       await fn();
       await refresh();
-      await navigate({ to: "/studio" });
+      // A new leader stays here to send the invite link.
+      await navigate({ to: kind === "create" ? "/studio/group" : "/studio" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "That did not work. Check your connection and try again.");
     } finally {
@@ -40,16 +41,20 @@ function GroupPage() {
 
   if (data?.group) {
     const active = data.members.filter((m) => m.membershipStatus === "active").length;
+    const leader = data.members.find((m) => m.studentId === data.group?.createdByStudentId);
+    const isLeader = data.student?.id === data.group.createdByStudentId;
     return (
-      <div>
-        <StepHeader step="group" title={data.group.groupName} lead="You are in. Share the code so the rest of your group can join." />
-        <Card className="space-y-2">
-          <p className="text-sm text-muted">Group {data.group.groupNumber} · join code</p>
-          <p className="font-mono text-3xl font-medium tracking-wider">{data.group.joinCode}</p>
-          <p className="text-sm text-muted">
-            {active} of {data.group.capacity} places taken. Whoever created the group is not automatically its leader.
-          </p>
-        </Card>
+      <div className="space-y-4">
+        <StepHeader
+          step="group"
+          title={data.group.groupName}
+          lead={
+            isLeader
+              ? "You started this group, so you are its leader. Invite the others below."
+              : `Group ${data.group.groupNumber}${leader ? `, led by ${leader.fullName}` : ""}.`
+          }
+        />
+        <InviteCard groupName={data.group.groupName} code={data.group.joinCode} members={active} capacity={data.group.capacity} />
       </div>
     );
   }
@@ -66,7 +71,7 @@ function GroupPage() {
           icon={<KeyRound className="size-5" aria-hidden />}
           tint="bg-gold"
           title="I have a code"
-          sub="Someone in your group shared it"
+          sub="Your group leader sent it, or the link"
           open={choice === "join"}
           onOpen={() => setChoice(choice === "join" ? null : "join")}
         >
@@ -92,8 +97,8 @@ function GroupPage() {
         <Option
           icon={<Plus className="size-5" aria-hidden />}
           tint="bg-pink"
-          title="Start a new group"
-          sub="You’ll get a code to share"
+          title="Start a group and lead it"
+          sub="You’ll get a link to send on WhatsApp"
           open={choice === "create"}
           onOpen={() => setChoice(choice === "create" ? null : "create")}
         >

@@ -492,13 +492,16 @@ export const listOfferings = createServerFn({ method: "GET" })
       max_photo_bytes: number;
       course_code: string;
       course_name: string;
+      programme: string | null;
+      level: string | null;
     }>`
       select o.id, o.course_id, o.semester, o.academic_year, o.default_group_size,
              o.selection_requires_all_active, o.max_photo_bytes,
-             c.course_code, c.course_name
+             c.course_code, c.course_name, o.programme, o.level
       from course_offerings o
       join courses c on c.id = o.course_id
-      order by o.academic_year desc
+      where o.id <> 'demo_tour'
+      order by o.academic_year desc, c.course_code, o.programme nulls first, o.level
     `;
     return rows.map((row) => ({
       id: row.id,
@@ -512,5 +515,7 @@ export const listOfferings = createServerFn({ method: "GET" })
       maxPhotoBytes: Number(row.max_photo_bytes),
       courseCode: row.course_code,
       courseName: row.course_name,
+      programme: row.programme,
+      level: row.level,
     }));
   });

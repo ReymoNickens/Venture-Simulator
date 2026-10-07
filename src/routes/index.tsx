@@ -9,7 +9,7 @@ export const Route = createFileRoute("/")({ component: Home });
 
 /** The semester in the words a lecturer would use on the first day. */
 const SEMESTER: { step: JourneyId; title: string; body: string }[] = [
-  { step: "group", title: "Form a group", body: "Up to ten classmates." },
+  { step: "group", title: "Form a group", body: "A group leader starts it and sends the others an invite link. Up to ten classmates." },
   { step: "opportunity", title: "Go and look", body: "Each of you writes up one problem you saw with your own eyes." },
   { step: "submit", title: "Hand it in", body: "Nobody sees the others’ problems until they have handed in their own." },
   { step: "select", title: "Choose one together", body: "The group picks the problem most worth working on." },
@@ -53,7 +53,7 @@ function Home() {
               </SignedIn>
               <SignedOut>
                 <Link to="/login" className={buttonVariants({ size: "lg" })}>
-                  Sign in to your class
+                  Sign in with your phone number
                 </Link>
               </SignedOut>
             </>

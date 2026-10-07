@@ -1,5 +1,5 @@
 import { createAuthClient } from "better-auth/react";
-import { usernameClient } from "better-auth/client/plugins";
+import { phoneNumberClient, usernameClient } from "better-auth/client/plugins";
 import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.mjs";
 
 /**
@@ -18,7 +18,7 @@ import { runPreSignInSignOut, runSignOut } from "../../../scripts/sign-out-plan.
  * the visitor stays signed in.
  */
 export const authClient = createAuthClient({
-  plugins: [usernameClient()],
+  plugins: [usernameClient(), phoneNumberClient()],
   fetchOptions: {
     onRequest(ctx) {
       const token = getBearerToken();
@@ -106,13 +106,50 @@ export async function signIn(identifier: string, password: string): Promise<void
 }
 
 /**
+ * Step 1 of phone sign-in: text a 6-digit code to this number (already
+ * normalised to +233…, see src/lib/phone.ts).
+ */
+export async function sendPhoneCode(phone: string): Promise<void> {
+  const { error } = await authClient.phoneNumber.sendOtp({ phoneNumber: phone });
+  if (error) {
+    if (error.status === 429) throw new Error("Too many codes asked for. Wait a minute, then try again.");
+    throw new Error(error.message || "Could not send the code. Check the number and try again.");
+  }
+}
+
+/**
+ * Step 2: check the code. The first time, this creates the account; either
+ * way it signs in.
+ */
+export async function verifyPhoneCode(phone: string, code: string): Promise<void> {
+  await runPreSignInSignOut({
+    livePreview: inLivePreview(),
+    hasBearer: Boolean(getBearerToken()),
+    requestSignOut: () => authClient.signOut(),
+    clearToken: () => setBearerToken(null),
+  });
+  const { data, error } = await authClient.phoneNumber.verify({ phoneNumber: phone, code: code.trim() });
+  if (error) {
+    if (error.status === 429) throw new Error("Too many tries. Wait a minute, then ask for a new code.");
+    throw new Error("That code is not right, or it has expired. Check the text message, or ask for a new code.");
+  }
+  setBearerToken(tokenFromResponse(data));
+}
+
+/** Google sign-in: leaves the app and comes back to `returnTo`. */
+export async function signInWithGoogle(returnTo = "/studio"): Promise<void> {
+  const { error } = await authClient.signIn.social({ provider: "google", callbackURL: returnTo });
+  if (error) throw new Error(error.message || "Could not start Google sign-in.");
+}
+
+/**
  * Turn Better Auth's sign-in errors into a next step. The common case is a
  * student who never activated: their account does not exist until they do.
  */
 export function signInErrorMessage(error: { status?: number; code?: string; message?: string }): string {
   const text = `${error.code ?? ""} ${error.message ?? ""}`.toLowerCase();
   if (error.status === 401 || /invalid (email|username)|password/.test(text)) {
-    return "That email or index number and password don't match an account. First time here? Tap \"Activate your account\" below: your account only exists after you activate it.";
+    return "That email and password don't match an account. Students sign in with their phone number instead. Lecturers can ask the platform owner for a new password.";
   }
   if (error.status === 403 || /origin/.test(text)) {
     return "Sign-in isn't allowed from this web address. Open the app at venture-simulator.vercel.app and try again.";

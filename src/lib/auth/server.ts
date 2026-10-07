@@ -30,7 +30,9 @@
  * via `@/lib/auth/middleware`.
  */
 import { betterAuth } from "better-auth";
-import { bearer, username } from "better-auth/plugins";
+import { bearer, phoneNumber, username } from "better-auth/plugins";
+import { codeMessage, sendSms } from "@/lib/sms/arkesel";
+import { normalisePhone, phoneEmail } from "@/lib/phone";
 import { claimStaff, pendingStaffByEmail } from "@/lib/lecturers/accounts";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
@@ -141,8 +143,13 @@ export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 
 type RosterMatch = { id: string; full_name: string };
 
+// Google sign-in switches on when both are set (see README, "Google sign-in").
+const googleClientId = env("GOOGLE_CLIENT_ID");
+const googleClientSecret = env("GOOGLE_CLIENT_SECRET");
+export const googleEnabled = Boolean(googleClientId && googleClientSecret);
+
 /** A user object mid-creation, as Better Auth's `databaseHooks` hand it to us. */
-type CreatingUser = { email?: string; username?: string } & Record<string, unknown>;
+type CreatingUser = { email?: string; username?: string; phoneNumber?: string } & Record<string, unknown>;
 
 export const auth = betterAuth({
   baseURL,
@@ -155,6 +162,18 @@ export const auth = betterAuth({
   // See `trustedOrigins` construction above — must cover live preview hosts AND
   // local loopback variants, or clients get "Invalid origin".
   trustedOrigins,
+
+  ...(googleEnabled
+    ? { socialProviders: { google: { clientId: googleClientId!, clientSecret: googleClientSecret!, prompt: "select_account" as const } } }
+    : {}),
+
+  // Sign-in codes are texts that cost money: a few per number per minute.
+  rateLimit: {
+    customRules: {
+      "/phone-number/send-otp": { window: 60, max: 3 },
+      "/phone-number/verify": { window: 60, max: 10 },
+    },
+  },
 
   account: {
     accountLinking: {
@@ -170,11 +189,17 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        before: async (user: CreatingUser) => {
+        before: async (user: CreatingUser, context: { path?: string } | null) => {
           const email = user.email?.trim().toLowerCase();
           const username = user.username?.trim().toUpperCase();
           if (!email) {
             throw new APIError("BAD_REQUEST", { message: "Email is required." });
+          }
+          // Students sign themselves up with a texted code or Google, then
+          // give their details (src/routes/onboarding.tsx). Only the
+          // email-and-password route stays closed to self-sign-up.
+          if (user.phoneNumber || context?.path?.startsWith("/callback/")) {
+            return { data: user };
           }
           const sql = await getSql();
           // Lecturers sign up with email only, after redeeming an owner's
@@ -183,7 +208,7 @@ export const auth = betterAuth({
             const staff = await pendingStaffByEmail(sql, email);
             if (!staff) {
               throw new APIError("FORBIDDEN", {
-                message: "Students need their index number to activate. Lecturers need an invite code from the platform owner.",
+                message: "Students sign in with their phone number or Google. Lecturer accounts are made by the platform owner.",
               });
             }
             return { data: { ...user, name: staff.fullName } };
@@ -244,6 +269,23 @@ export const auth = betterAuth({
 
   plugins: [
     gateIdentitySessions(),
+
+    // Sign-in by phone number: a 6-digit code by SMS (Arkesel), and a first
+    // successful code creates the account. Numbers are normalised to +233…
+    // on the client; anything else is refused here.
+    phoneNumber({
+      otpLength: 6,
+      expiresIn: 300,
+      allowedAttempts: 5,
+      phoneNumberValidator: (value) => normalisePhone(value) === value,
+      sendOTP: async ({ phoneNumber: to, code }) => {
+        await sendSms(await getSql(), to, codeMessage(code));
+      },
+      signUpOnVerification: {
+        getTempEmail: (value) => phoneEmail(value),
+        getTempName: () => "New student",
+      },
+    }),
 
     // Index number doubles as the Better Auth "username", so sign-in accepts
     // either identifier (see `client.ts`'s `signIn`). Normalized/validated the

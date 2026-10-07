@@ -157,6 +157,48 @@ export async function redeemLecturerCode(
   return { email };
 }
 
+/**
+ * The owner adds a lecturer directly: a staff record and their classes,
+ * ready for the server to create the email-and-password account (the
+ * sign-up hook then claims this record). Returns the staff id.
+ */
+export async function createLecturerRecord(
+  db: Db,
+  input: { fullName: string; email: string; offeringIds: string[] },
+): Promise<{ staffId: string; email: string; fullName: string }> {
+  const fullName = input.fullName.trim().replace(/\s+/g, " ");
+  const email = input.email.trim().toLowerCase();
+  if (!fullName) throw new AppError("INVALID", "Add the lecturer's name as students should see it, e.g. Dr Ama Owusu.");
+  if (!EMAIL.test(email)) throw new AppError("INVALID", "That email does not look right.");
+  const offeringIds = await checkOfferings(db, input.offeringIds);
+  const taken = await db.query(
+    `select 1 from lecturers where lower(email) = $1
+     union all select 1 from students where lower(email) = $1
+     union all select 1 from "user" where lower(email) = $1`,
+    [email],
+  );
+  if (taken.length) throw new AppError("INVALID", "That email already has an account.");
+  const staffId = newId();
+  await db.query(`insert into lecturers (id, auth_user_id, email, full_name) values ($1, null, $2, $3)`, [staffId, email, fullName]);
+  for (const offeringId of offeringIds) {
+    await db.query(`insert into lecturer_classes (staff_id, course_offering_id) values ($1, $2) on conflict do nothing`, [
+      staffId,
+      offeringId,
+    ]);
+  }
+  return { staffId, email, fullName };
+}
+
+/** The sign-in account behind a lecturer, once it exists. */
+export async function lecturerAccount(db: Db, staffId: string): Promise<{ authUserId: string | null; email: string; fullName: string }> {
+  const rows = await db.query<{ auth_user_id: string | null; email: string; full_name: string }>(
+    `select auth_user_id, email, full_name from lecturers where id = $1`,
+    [staffId],
+  );
+  if (!rows[0]) throw new AppError("NOT_FOUND", "Lecturer not found.");
+  return { authUserId: rows[0].auth_user_id, email: rows[0].email, fullName: rows[0].full_name };
+}
+
 /** Sign-up hook, before: is this email an invited lecturer who has not signed up yet? */
 export async function pendingStaffByEmail(db: Db, email: string): Promise<{ id: string; fullName: string } | null> {
   const rows = await db.query<{ id: string; full_name: string }>(

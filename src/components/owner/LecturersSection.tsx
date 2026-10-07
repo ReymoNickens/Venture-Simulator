@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Check, Copy, GraduationCap } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import {
-  createOwnerLecturerInvite,
+  createOwnerLecturerLogin,
   getOwnerLecturers,
-  revokeOwnerLecturerInvite,
+  resetOwnerLecturerPassword,
   setOwnerLecturerClasses,
   type OwnerLecturerData,
 } from "@/lib/server/lecturers";
@@ -12,17 +12,21 @@ import { Button } from "@/components/ui/button";
 import { Card, EmptyNote } from "@/components/ui/badge";
 import { FormMessages } from "@/components/ui/feedback";
 import { Field, Input } from "@/components/ui/input";
-import { Stamp } from "@/components/ui/stamp";
 import { cn } from "@/lib/utils";
 
 function message(err: unknown) {
   return err instanceof Error ? err.message : "Something went wrong. Try again.";
 }
 
-/** Owner page: invite lecturers and choose the classes each one sees. */
+/**
+ * Owner page: add lecturers and choose the classes each one sees. The owner
+ * gets a ready login (email and a generated password) to pass on; the
+ * lecturer has nothing to set up.
+ */
 export function LecturersSection({ ownerCode }: { ownerCode: string }) {
   const [data, setData] = useState<OwnerLecturerData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [login, setLogin] = useState<{ name: string; email: string; password: string; isNew: boolean } | null>(null);
   const load = useCallback(async () => {
     try {
       setData(await getOwnerLecturers({ data: { ownerCode } }));
@@ -37,55 +41,35 @@ export function LecturersSection({ ownerCode }: { ownerCode: string }) {
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="flex items-center gap-2 font-display text-xl font-bold">
-          <GraduationCap className="size-5" aria-hidden /> Lecturers
-        </h2>
+        <h2 className="font-display text-2xl font-semibold">Lecturers</h2>
         <p className="text-sm text-muted">
           A lecturer sees only the classes you tick: their groups, work, simulation results, and a marks sheet.
         </p>
       </div>
       <FormMessages error={error} />
+      {login ? <LoginToPassOn {...login} onDone={() => setLogin(null)} /> : null}
       {!data ? null : (
         <>
-          <InviteForm ownerCode={ownerCode} classes={data.classes} onCreated={load} />
+          <AddLecturerForm
+            ownerCode={ownerCode}
+            classes={data.classes}
+            onCreated={async (l) => {
+              setLogin({ ...l, isNew: true });
+              await load();
+            }}
+          />
           {data.lecturers.length ? (
             <ul className="space-y-2">
               {data.lecturers.map((l) => (
-                <LecturerRow key={l.staffId} l={l} classes={data.classes} ownerCode={ownerCode} onSaved={load} />
+                <LecturerRow
+                  key={l.staffId}
+                  l={l}
+                  classes={data.classes}
+                  ownerCode={ownerCode}
+                  onSaved={load}
+                  onNewPassword={(p) => setLogin({ name: l.fullName, email: p.email, password: p.password, isNew: false })}
+                />
               ))}
-            </ul>
-          ) : null}
-          {data.invites.some((i) => i.status === "waiting") ? (
-            <ul className="divide-y divide-line rounded-[14px] border border-line bg-bg-elevated">
-              {data.invites
-                .filter((i) => i.status === "waiting")
-                .map((i) => (
-                  <li key={i.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold">{i.label}</p>
-                      <p className="text-xs text-muted">
-                        {i.classCount} {i.classCount === 1 ? "class" : "classes"} · expires {new Date(i.expiresAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <Stamp size="xs" tone="gold">
-                        not used yet
-                      </Stamp>
-                      <button
-                        type="button"
-                        className="min-h-11 px-2 text-sm font-semibold text-clay"
-                        onClick={() => {
-                          if (!window.confirm(`Cancel the lecturer code for "${i.label}"?`)) return;
-                          void revokeOwnerLecturerInvite({ data: { ownerCode, id: i.id } }).then(load, (err: unknown) =>
-                            window.alert(message(err)),
-                          );
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </li>
-                ))}
             </ul>
           ) : null}
         </>
@@ -125,10 +109,18 @@ function ClassTicks({ classes, value, onChange }: { classes: ClassOption[]; valu
   );
 }
 
-function InviteForm({ ownerCode, classes, onCreated }: { ownerCode: string; classes: ClassOption[]; onCreated: () => Promise<void> }) {
-  const [label, setLabel] = useState("");
+function AddLecturerForm({
+  ownerCode,
+  classes,
+  onCreated,
+}: {
+  ownerCode: string;
+  classes: ClassOption[];
+  onCreated: (l: { name: string; email: string; password: string }) => Promise<void>;
+}) {
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
-  const [fresh, setFresh] = useState<{ code: string; expiresAt: string; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -137,11 +129,11 @@ function InviteForm({ ownerCode, classes, onCreated }: { ownerCode: string; clas
     setBusy(true);
     setError(null);
     try {
-      const r = await createOwnerLecturerInvite({ data: { ownerCode, label, offeringIds: picked } });
-      setFresh({ code: r.code, expiresAt: r.expiresAt, label });
-      setLabel("");
+      const r = await createOwnerLecturerLogin({ data: { ownerCode, fullName, email, offeringIds: picked } });
+      await onCreated({ name: fullName.trim(), email: r.email, password: r.password });
+      setFullName("");
+      setEmail("");
       setPicked([]);
-      await onCreated();
     } catch (err) {
       setError(message(err));
     } finally {
@@ -150,44 +142,61 @@ function InviteForm({ ownerCode, classes, onCreated }: { ownerCode: string; clas
   }
 
   return (
-    <>
-      {fresh ? <NewLecturerCode {...fresh} /> : null}
-      <Card>
-        <form className="space-y-3" onSubmit={(e) => void create(e)}>
-          <Field label="Who is this for?" hint="Only you see this note.">
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Dr Ama Owusu" />
-          </Field>
-          <ClassTicks classes={classes} value={picked} onChange={setPicked} />
-          <FormMessages error={error} />
-          <Button type="submit" size="lg" className="w-full" disabled={busy || !label.trim() || !picked.length}>
-            {busy ? "Making code…" : "Make a lecturer invite code"}
-          </Button>
-        </form>
-      </Card>
-    </>
+    <Card>
+      <form className="space-y-3" onSubmit={(e) => void create(e)}>
+        <Field label="Name, as students should see it">
+          <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Dr Ama Owusu" />
+        </Field>
+        <Field label="Email they will sign in with">
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="a.owusu@ucc.edu.gh" />
+        </Field>
+        <ClassTicks classes={classes} value={picked} onChange={setPicked} />
+        <FormMessages error={error} />
+        <Button type="submit" size="lg" className="w-full" disabled={busy || !fullName.trim() || !email.trim() || !picked.length}>
+          {busy ? "Adding…" : "Add lecturer and make their login"}
+        </Button>
+      </form>
+    </Card>
   );
 }
 
-function NewLecturerCode({ code, expiresAt, label }: { code: string; expiresAt: string; label: string }) {
+/** The login, shown once, with a message ready to paste into WhatsApp or email. */
+function LoginToPassOn({
+  name,
+  email,
+  password,
+  isNew,
+  onDone,
+}: {
+  name: string;
+  email: string;
+  password: string;
+  isNew: boolean;
+  onDone: () => void;
+}) {
   const [copied, setCopied] = useState(false);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const text = [
-    `Hello ${label}, you have a lecturer account on the Experiential Venture Platform for ENT 302.`,
+    `Hello ${name},`,
+    isNew ? `you have a lecturer login for ENT 302.` : `here is a new password for your ENT 302 lecturer login.`,
     ``,
-    `1. Open ${origin}/lecturer-setup`,
-    `2. Enter this invite code: ${code}`,
-    `3. Add your name and email and choose a password.`,
+    `Open: ${origin}/login`,
+    `Tap "Lecturer? Sign in with email and password"`,
+    `Email: ${email}`,
+    `Password: ${password}`,
     ``,
-    `After that, sign in at ${origin}/login with your email. The code works once and expires on ${new Date(expiresAt).toLocaleDateString()}.`,
+    `You can change the password after signing in.`,
   ].join("\n");
   return (
-    <div className="flow-enter tape rounded-[14px] border-2 border-ink bg-bg-elevated p-5 pt-6">
-      <p className="text-xs font-semibold text-muted">Lecturer invite for {label}</p>
-      <p className="mt-1 font-mono text-3xl font-medium tracking-wider">{code}</p>
-      <p className="mt-1 text-sm text-muted">Shown only now. Send it before you leave this page.</p>
+    <div className="flow-enter rounded-[14px] border-2 border-accent bg-bg-elevated p-5">
+      <p className="text-xs font-semibold text-muted">{isNew ? "Login for" : "New password for"} {name}</p>
+      <p className="mt-2 text-sm">Email</p>
+      <p className="font-mono text-lg break-all">{email}</p>
+      <p className="mt-2 text-sm">Password</p>
+      <p className="font-mono text-2xl tracking-wide">{password}</p>
+      <p className="mt-2 text-sm text-muted">Shown only now. Send it before you leave this page.</p>
       <Button
         size="lg"
-        variant="gold"
         className="mt-4 w-full"
         onClick={() => {
           void navigator.clipboard?.writeText(text).then(() => {
@@ -197,9 +206,11 @@ function NewLecturerCode({ code, expiresAt, label }: { code: string; expiresAt: 
         }}
       >
         {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
-        {copied ? "Copied, paste it into WhatsApp or email" : "Copy message for the lecturer"}
+        {copied ? "Copied. Paste it into WhatsApp or email" : "Copy message for the lecturer"}
       </Button>
-      <pre className="mt-3 rounded-[14px] bg-bg-subtle p-3 text-xs leading-5 whitespace-pre-wrap text-ink-soft">{text}</pre>
+      <button type="button" className="mt-2 min-h-11 w-full text-sm font-semibold text-muted" onClick={onDone}>
+        I’ve sent it
+      </button>
     </div>
   );
 }
@@ -209,11 +220,13 @@ function LecturerRow({
   classes,
   ownerCode,
   onSaved,
+  onNewPassword,
 }: {
   l: OwnerLecturer;
   classes: ClassOption[];
   ownerCode: string;
   onSaved: () => Promise<void>;
+  onNewPassword: (p: { email: string; password: string }) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [picked, setPicked] = useState(l.offeringIds);
@@ -226,7 +239,7 @@ function LecturerRow({
         <div className="min-w-0">
           <p className="font-semibold">{l.fullName}</p>
           <p className="truncate text-xs text-muted">
-            {l.email} · {l.signedUp ? "signed up" : "has not signed up yet"}
+            {l.email}
           </p>
         </div>
         <button type="button" className="min-h-11 shrink-0 px-2 text-sm font-semibold text-accent" onClick={() => setEditing((v) => !v)}>
@@ -234,11 +247,30 @@ function LecturerRow({
         </button>
       </div>
       {!editing ? (
-        <ul className="mt-2 space-y-0.5 text-sm text-ink-soft">
-          {names.map((n) => (
-            <li key={n}>· {n}</li>
-          ))}
-        </ul>
+        <>
+          <ul className="mt-2 space-y-0.5 text-sm text-ink-soft">
+            {names.map((n) => (
+              <li key={n}>· {n}</li>
+            ))}
+          </ul>
+          {l.signedUp ? (
+            <button
+              type="button"
+              className="mt-2 min-h-11 text-sm font-semibold text-accent"
+              disabled={busy}
+              onClick={() => {
+                if (!window.confirm(`Make a new password for ${l.fullName}? The old one stops working.`)) return;
+                setBusy(true);
+                resetOwnerLecturerPassword({ data: { ownerCode, staffId: l.staffId } })
+                  .then(onNewPassword, (err: unknown) => setError(message(err)))
+                  .finally(() => setBusy(false));
+              }}
+            >
+              Forgot their password? Make a new one
+            </button>
+          ) : null}
+          <FormMessages error={error} />
+        </>
       ) : (
         <div className="mt-3 space-y-3">
           <ClassTicks classes={classes} value={picked} onChange={setPicked} />
