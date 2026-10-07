@@ -8,7 +8,7 @@ import { findUnsourcedParams } from "../params.ts";
 import type { PeriodOutput, Scenario } from "../types.ts";
 import { CURRENT_ENGINE_VERSION, runPeriod } from "../versions.ts";
 import { campusFoodStall } from "./campus-food-stall.ts";
-import { checkVentureNumbers, scenarioFromVenture, type VentureNumbers } from "./own-venture.ts";
+import { checkVentureNumbers, scenarioFromVenture, startupGoal, type VentureNumbers } from "./own-venture.ts";
 
 const shuttle: VentureNumbers = {
   offer: "Shuttle seat booking",
@@ -122,5 +122,11 @@ describe("a group's own venture as a scenario", () => {
     assert.ok(problems.includes("Enter what one costs you to provide."));
     assert.ok(problems.some((p) => /alternative/.test(p)));
     assert.deepEqual(checkVentureNumbers(shuttle), []);
+  });
+
+  it("sets the money to raise from the group's own numbers", () => {
+    // 900 people x 4 a week x 25% = 900 seats, capped at 1200; 900 x GHS 1.50 + 2 x GHS 620 = GHS 2,590 -> 2,600
+    assert.equal(startupGoal(shuttle), 2600);
+    assert.equal(startupGoal({ ...shuttle, costPerUnit: 1, fixedCosts: [] }), 300, "never below GHS 300");
   });
 });

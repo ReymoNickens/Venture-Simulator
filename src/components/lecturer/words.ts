@@ -15,6 +15,8 @@ const EVENT_WORDS: Record<string, string> = {
   AI_SESSION_STARTED: "started a conversation with the advisor",
   SIMULATION_STARTED: "launched the simulated venture",
   VENTURE_NUMBERS_SAVED: "set the venture's numbers for the simulation",
+  FUNDRAISING_STARTED: "started raising the money to open",
+  FUNDRAISING_FINISHED: "finished raising the money to open",
   SIMULATION_DECISIONS_SUBMITTED: "submitted a week in the simulation",
 };
 

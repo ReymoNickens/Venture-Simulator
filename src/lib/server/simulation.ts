@@ -14,7 +14,8 @@ import {
   type SimulationView,
 } from "@/lib/simulation/service";
 import type { StudentPeriodView } from "@/sim/index";
-import { checkVentureNumbers, scenarioFromVenture, type VentureNumbers } from "@/sim/scenarios/own-venture";
+import { checkVentureNumbers, scenarioFromVenture, startupGoal, type VentureNumbers } from "@/sim/scenarios/own-venture";
+import { fundingPlan, type GameState } from "@/lib/game/fundraise";
 import { AppError, loadGroupForStudent, loadOfferingForStudent, logEvent, requireStudent } from "./authz";
 import { parseInput } from "./validate";
 
@@ -48,6 +49,18 @@ export interface SimulationPageData {
   numbers: VentureNumbers | null;
   /** The group's evidence, to say where a number came from. */
   evidence: { id: string; title: string }[];
+  /** Raising the money to open: the group's game, and the target from their numbers. */
+  fundraising: { state: GameState | null; finished: boolean; goal: number | null };
+}
+
+async function fundraisingFor(groupId: string, numbers: VentureNumbers | null) {
+  const sql = await getSql();
+  const rows = await sql<{ state: GameState; finished_at: unknown }>`select state, finished_at from fundraising where group_id = ${groupId}`;
+  return {
+    state: rows[0]?.state ?? null,
+    finished: Boolean(rows[0]?.finished_at),
+    goal: numbers && checkVentureNumbers(numbers).length === 0 ? startupGoal(numbers) : null,
+  };
 }
 
 const money = z.number().int().min(0).max(100_000_000);
@@ -83,7 +96,7 @@ export const getSimulation = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<SimulationPageData> => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
-    const none = { venture: null, numbers: null, evidence: [] };
+    const none = { venture: null, numbers: null, evidence: [], fundraising: { state: null, finished: false, goal: null } };
     if (!group) return { view: null, canStart: false, blockedReason: "Join a group first.", ...none };
     const sql = await getSql();
     const view = await loadSimulationView(sql, group.id);
@@ -96,9 +109,11 @@ export const getSimulation = createServerFn({ method: "GET" })
       select id, title from evidence_items where venture_id = ${venture.id} order by created_at desc limit 50
     `;
     const numbers = venture.sim_inputs;
+    const fundraising = await fundraisingFor(group.id, numbers);
     return {
       view: null,
-      canStart: Boolean(numbers && checkVentureNumbers(numbers).length === 0),
+      canStart: Boolean(numbers && checkVentureNumbers(numbers).length === 0 && fundraising.finished),
+      fundraising,
       blockedReason: null,
       venture: { name: venture.name, problem: venture.problem ?? "", alternatives: venture.alternatives ?? "" },
       numbers,
@@ -119,6 +134,8 @@ export const saveVentureNumbers = createServerFn({ method: "POST" })
     if (!venture) throw new AppError("NO_VENTURE", "Select a venture first.");
     const running = await sql`select 1 from simulations where group_id = ${group.id} limit 1`;
     if (running[0]) throw new AppError("CLOSED", "Your venture is already open. Its numbers are fixed now.");
+    const raising = await sql`select 1 from fundraising where group_id = ${group.id} limit 1`;
+    if (raising[0]) throw new AppError("CLOSED", "You’ve started raising money for these numbers, so they’re fixed now.");
     const problems = checkVentureNumbers(data.numbers);
     if (problems.length) throw new AppError("INVALID", problems[0]);
     // A source must be this group's own evidence.
@@ -158,12 +175,21 @@ export const startGroupSimulation = createServerFn({ method: "POST" })
     if (!numbers || checkVentureNumbers(numbers).length) {
       throw new AppError("NO_NUMBERS", "Fill in your venture’s numbers first.");
     }
+    const raised = await fundraisingFor(group.id, numbers);
+    if (!raised.state || !raised.finished) throw new AppError("NOT_FUNDED", "Raise the money to open first.");
+    const plan = fundingPlan(raised.state, 6);
     const sim = await startSimulation(sql, {
       studentId: student.id,
       groupId: group.id,
       ventureId: venture.id,
       offeringId: offering.id,
-      buildScenario: (frame) => scenarioFromVenture(numbers, frame),
+      buildScenario: (frame) => {
+        const scenario = scenarioFromVenture(numbers, frame);
+        // The cash the group raised that is theirs (savings, gifts, wages, susu, grants, a share sold).
+        scenario.startingCapital = { value: plan.startingCash, assumption: true, note: "Raised by the group before opening." };
+        return scenario;
+      },
+      openingLoans: plan.loans.map((l) => ({ ...l, termPeriods: Math.min(l.termPeriods, 6) })),
     });
     await logEvent({
       studentId: student.id,

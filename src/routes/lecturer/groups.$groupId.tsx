@@ -414,17 +414,43 @@ function VentureNumbersCard({ d }: { d: GroupDetail }) {
   );
 }
 
+/** How the group raised its starting money. */
+function RaisedCard({ d }: { d: GroupDetail }) {
+  const r = d.raised;
+  if (!r) return null;
+  return (
+    <Card className="space-y-2">
+      <h2 className="font-display text-lg font-bold">Raising the money</h2>
+      <p className="text-sm text-muted">
+        Life card: {r.cardTitle}. {r.finished ? "Finished" : `Day ${r.day} of 10`}: GHS {r.cash} of GHS {r.goal}.
+      </p>
+      <ul className="space-y-1 text-sm">
+        {r.bySource.map((b) => (
+          <li key={b.source} className="flex justify-between gap-3">
+            <span>{b.source}</span>
+            <span className="tabular-nums">GHS {b.amount}</span>
+          </li>
+        ))}
+      </ul>
+      {r.weeklyRepayments ? <p className="text-sm">Repayments: GHS {r.weeklyRepayments} a week.</p> : null}
+      {r.equityGiven ? <p className="text-sm">Share of the venture given away: {r.equityGiven}%.</p> : null}
+    </Card>
+  );
+}
+
 function Money({ d }: { d: GroupDetail }) {
   if (!d.sim)
     return (
       <div className="space-y-3">
         <VentureNumbersCard d={d} />
+        <RaisedCard d={d} />
         <EmptyNote>The group has not launched its simulated venture yet.</EmptyNote>
       </div>
     );
   return (
     <div className="space-y-3">
       <VentureNumbersCard d={d} />
+      <RaisedCard d={d} />
       <Card className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-lg font-bold">Simulation</h2>

@@ -8,6 +8,9 @@ import { StepHeader } from "@/components/shell/StepHeader";
 import { MarketInfo } from "@/components/sim/MarketInfo";
 import { ghs } from "@/components/sim/money";
 import { NumbersWizard } from "@/components/sim/NumbersWizard";
+import { RaiseMoney } from "@/components/sim/RaiseMoney";
+import { End } from "@/components/game/FundraiseGame";
+import { startFundraising } from "@/lib/server/fundraising";
 import { PlanWeek } from "@/components/sim/PlanWeek";
 import { StallBoard } from "@/components/sim/StallBoard";
 import { WeekResult } from "@/components/sim/WeekResult";
@@ -26,7 +29,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/studio/simulation")({ component: SimulationPage });
 
-type Mode = "home" | "plan" | "numbers";
+type Mode = "home" | "plan" | "numbers" | "raise";
 
 function SimulationPage() {
   const { refresh: refreshWorkspace } = useStudioWorkspace();
@@ -74,6 +77,19 @@ function SimulationPage() {
   }
 
   if (!page.view) {
+    if (mode === "raise" && page.venture && page.fundraising.state) {
+      return (
+        <RaiseMoney
+          initial={page.fundraising.state}
+          ventureName={page.venture.name}
+          onLeave={() => {
+            setMode("home");
+            window.scrollTo({ top: 0 });
+            void load();
+          }}
+        />
+      );
+    }
     if (mode === "numbers" && page.venture) {
       return (
         <NumbersWizard
@@ -94,6 +110,8 @@ function SimulationPage() {
       <StartCard
         page={page}
         onSetNumbers={() => setMode("numbers")}
+        onRaise={() => setMode("raise")}
+        onReload={() => load()}
         onStarted={() => void Promise.all([load(), refreshWorkspace()])}
       />
     );
@@ -120,15 +138,20 @@ function SimulationPage() {
 function StartCard({
   page,
   onSetNumbers,
+  onRaise,
+  onReload,
   onStarted,
 }: {
   page: SimulationPageData;
   onSetNumbers: () => void;
+  onRaise: () => void;
+  onReload: () => Promise<void>;
   onStarted: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const n = page.numbers;
+  const raise = page.fundraising;
   const name = page.venture?.name ?? "your venture";
 
   if (!page.venture) {
@@ -166,44 +189,91 @@ function StartCard({
           </Button>
         </div>
       ) : (
-        <div className="paper space-y-3 rounded-[20px] p-5">
-          <h2 className="font-display text-xl font-extrabold">Your numbers</h2>
-          <ul className="space-y-1 text-[15px]">
-            <li>
-              Each {n.unit} costs you <strong>{ghs(n.costPerUnit)}</strong> and sells for about <strong>{ghs(n.price)}</strong>.
-            </li>
-            <li>
-              About <strong>{n.peoplePerWeek}</strong> people have the problem each week; you can provide up to{" "}
-              <strong>{n.capacityPerWeek}</strong>.
-            </li>
-            <li>
-              Running costs: <strong>{ghs(n.fixedCosts.reduce((a, f) => a + f.amount, 0))}</strong> a week.
-            </li>
-          </ul>
-          <button type="button" className="min-h-11 text-sm font-bold underline underline-offset-4" onClick={onSetNumbers}>
-            Change our numbers
-          </button>
-          <p className="text-[15px] leading-6 text-ink-soft">
-            Once you open, these numbers are fixed. You start with cash in the box; run out and the venture closes, and working
-            out why <span className="mark">is the lesson</span>.
-          </p>
-          <FormMessages error={error} />
-          <Button
-            size="lg"
-            className="w-full"
-            disabled={busy || !page.canStart}
-            onClick={() => {
-              setBusy(true);
-              setError(null);
-              startGroupSimulation()
-                .then(onStarted)
-                .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not start."))
-                .finally(() => setBusy(false));
-            }}
-          >
-            {busy ? "Opening…" : `Open ${name}`}
-          </Button>
-        </div>
+        <>
+          <div className="paper space-y-3 rounded-[20px] p-5">
+            <h2 className="font-display text-xl font-extrabold">Your numbers</h2>
+            <ul className="space-y-1 text-[15px]">
+              <li>
+                Each {n.unit} costs you <strong>{ghs(n.costPerUnit)}</strong> and sells for about <strong>{ghs(n.price)}</strong>.
+              </li>
+              <li>
+                About <strong>{n.peoplePerWeek}</strong> people have the problem each week; you can provide up to{" "}
+                <strong>{n.capacityPerWeek}</strong>.
+              </li>
+              <li>
+                Running costs: <strong>{ghs(n.fixedCosts.reduce((a, f) => a + f.amount, 0))}</strong> a week.
+              </li>
+            </ul>
+            {!raise.state ? (
+              <button type="button" className="min-h-11 text-sm font-bold underline underline-offset-4" onClick={onSetNumbers}>
+                Change our numbers
+              </button>
+            ) : null}
+          </div>
+
+          {!raise.state ? (
+            <div className="paper space-y-3 rounded-[20px] p-5">
+              <h2 className="font-display text-xl font-extrabold">
+                Next, raise <span className="mark">GHS {raise.goal}</span>
+              </h2>
+              <p className="text-[15px] leading-6 text-ink-soft">
+                Stock for your first week and two weeks of running costs. Money won’t come to you: ten days in Cape Coast to
+                persuade family, friends, a bank or a microfinance office, or to earn and save it. Your numbers are fixed once
+                you start.
+              </p>
+              <FormMessages error={error} />
+              <Button
+                size="lg"
+                className="w-full"
+                disabled={busy}
+                onClick={() => {
+                  setBusy(true);
+                  setError(null);
+                  startFundraising()
+                    .then(() => onReload())
+                    .then(onRaise)
+                    .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not start."))
+                    .finally(() => setBusy(false));
+                }}
+              >
+                {busy ? "Getting ready…" : "Start raising money"}
+              </Button>
+            </div>
+          ) : !raise.finished ? (
+            <div className="paper space-y-3 rounded-[20px] p-5">
+              <h2 className="font-display text-xl font-extrabold">Raising money</h2>
+              <p className="text-[15px] leading-6">
+                Day {raise.state.day} of 10 · <strong>GHS {raise.state.cash}</strong> of GHS {raise.goal} raised so far.
+              </p>
+              <Button size="lg" className="w-full" onClick={onRaise}>
+                Carry on raising money <ArrowRight className="size-4" aria-hidden />
+              </Button>
+            </div>
+          ) : (
+            <End state={raise.state}>
+              <p className="text-[15px] leading-6 text-ink-soft">
+                You open with <strong>GHS {raise.state.cash}</strong>. Loans are repaid with interest from week 1, out of
+                your takings. Running out of cash closes the venture, and working out why <span className="mark">is the lesson</span>.
+              </p>
+              <FormMessages error={error} />
+              <Button
+                size="lg"
+                className="w-full"
+                disabled={busy || !page.canStart}
+                onClick={() => {
+                  setBusy(true);
+                  setError(null);
+                  startGroupSimulation()
+                    .then(onStarted)
+                    .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not start."))
+                    .finally(() => setBusy(false));
+                }}
+              >
+                {busy ? "Opening…" : `Open ${name}`}
+              </Button>
+            </End>
+          )}
+        </>
       )}
     </div>
   );

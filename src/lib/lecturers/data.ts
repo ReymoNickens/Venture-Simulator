@@ -234,6 +234,17 @@ export interface GroupDetail {
   assumptions: { id: string; statement: string; importance: string; confidence: string; supports: number; challenges: number }[];
   weeks: { period: number; revenue: number; profit: number; closingCash: number; status: string }[];
   sim: { status: string; completedPeriod: number; periodCount: number } | null;
+  /** How the group raised its money (the fundraising game), once started. */
+  raised: {
+    cardTitle: string;
+    finished: boolean;
+    day: number;
+    cash: number;
+    goal: number;
+    bySource: { source: string; amount: number }[];
+    weeklyRepayments: number;
+    equityGiven: number;
+  } | null;
   feedback: { id: string; author: string; body: string; at: string }[];
 }
 
@@ -328,6 +339,13 @@ export async function groupDetail(db: Db, groupId: string): Promise<GroupDetail>
 
   const v = venture[0];
   const s = sim[0];
+  const fr = (
+    await db.query<{ state: import("../game/fundraise.ts").GameState; finished_at: unknown }>(
+      `select state, finished_at from fundraising where group_id = $1`,
+      [groupId],
+    )
+  )[0];
+  const { cardOf, goalOf, summary: raisedSummary, SOURCE_NAMES } = await import("../game/fundraise.ts");
   const truthy = (x: boolean | string) => x === true || x === "t";
   return {
     groupId: g.id,
@@ -383,6 +401,21 @@ export async function groupDetail(db: Db, groupId: string): Promise<GroupDetail>
       status: w.status,
     })),
     sim: s ? { status: s.status, completedPeriod: Number(s.completed_period), periodCount: Number(s.period_count) } : null,
+    raised: fr
+      ? (() => {
+          const sum = raisedSummary(fr.state);
+          return {
+            cardTitle: cardOf(fr.state).title,
+            finished: Boolean(fr.finished_at),
+            day: fr.state.day,
+            cash: fr.state.cash,
+            goal: goalOf(fr.state),
+            bySource: sum.bySource.map((b) => ({ source: SOURCE_NAMES[b.source], amount: b.amount })),
+            weeklyRepayments: sum.weeklyRepayments,
+            equityGiven: sum.equityGiven,
+          };
+        })()
+      : null,
     feedback: feedback.map((f) => ({ id: f.id, author: f.author_name, body: f.body, at: new Date(String(f.created_at)).toISOString() })),
   };
 }

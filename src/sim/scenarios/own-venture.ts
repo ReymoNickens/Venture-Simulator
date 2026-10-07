@@ -367,3 +367,16 @@ export function scenarioFromVenture(n: VentureNumbers, frame: Scenario = campusF
     events: events(n),
   };
 }
+
+/**
+ * What a group must raise before opening, in cedis: stock for a first week
+ * (a quarter of what the market might buy, up to capacity) plus two weeks of
+ * running costs. Rounded up to GHS 50, between GHS 300 and GHS 20,000.
+ */
+export function startupGoal(n: VentureNumbers): number {
+  const firstWeekUnits = Math.min(n.capacityPerWeek, Math.ceil(n.peoplePerWeek * n.buysPerWeek * 0.25));
+  const weekly = n.fixedCosts.reduce((a, f) => a + f.amount, 0);
+  const pesewas = firstWeekUnits * n.costPerUnit + 2 * weekly;
+  const cedis = Math.ceil(pesewas / 100 / 50) * 50;
+  return Math.min(20000, Math.max(300, cedis));
+}
