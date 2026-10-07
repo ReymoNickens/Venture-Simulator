@@ -14,6 +14,7 @@ import { Route as LecturerRouteImport } from './routes/lecturer'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as OwnerRouteImport } from './routes/owner'
+import { Route as PlayRouteImport } from './routes/play'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as JoinCodeRouteImport } from './routes/join.$code'
 import { Route as LecturerIndexRouteImport } from './routes/lecturer/index'
@@ -53,6 +54,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
 const OwnerRoute = OwnerRouteImport.update({
   id: '/owner',
   path: '/owner',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayRoute = PlayRouteImport.update({
+  id: '/play',
+  path: '/play',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudioRoute = StudioRouteImport.update({
@@ -137,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/owner': typeof OwnerRoute
+  '/play': typeof PlayRoute
   '/studio': typeof StudioRouteWithChildren
   '/join/$code': typeof JoinCodeRoute
   '/lecturer/activity': typeof LecturerActivityRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/owner': typeof OwnerRoute
+  '/play': typeof PlayRoute
   '/join/$code': typeof JoinCodeRoute
   '/lecturer/activity': typeof LecturerActivityRoute
   '/lecturer/classes': typeof LecturerClassesRoute
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/owner': typeof OwnerRoute
+  '/play': typeof PlayRoute
   '/studio': typeof StudioRouteWithChildren
   '/join/$code': typeof JoinCodeRoute
   '/lecturer/activity': typeof LecturerActivityRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/owner'
+    | '/play'
     | '/studio'
     | '/join/$code'
     | '/lecturer/activity'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/owner'
+    | '/play'
     | '/join/$code'
     | '/lecturer/activity'
     | '/lecturer/classes'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/owner'
+    | '/play'
     | '/studio'
     | '/join/$code'
     | '/lecturer/activity'
@@ -269,6 +281,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   OwnerRoute: typeof OwnerRoute
+  PlayRoute: typeof PlayRoute
   StudioRoute: typeof StudioRouteWithChildren
   JoinCodeRoute: typeof JoinCodeRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -309,6 +322,13 @@ declare module '@tanstack/react-router' {
       path: '/owner'
       fullPath: '/owner'
       preLoaderRoute: typeof OwnerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play': {
+      id: '/play'
+      path: '/play'
+      fullPath: '/play'
+      preLoaderRoute: typeof PlayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/studio': {
@@ -468,6 +488,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   OwnerRoute: OwnerRoute,
+  PlayRoute: PlayRoute,
   StudioRoute: StudioRouteWithChildren,
   JoinCodeRoute: JoinCodeRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

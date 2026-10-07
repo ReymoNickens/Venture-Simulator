@@ -75,6 +75,16 @@ export function LookAround({ ownerCode }: { ownerCode: string }) {
         </ul>
       </Card>
       <FormMessages error={error} />
+      <a
+        href="/play"
+        className="mt-3 flex items-center justify-between gap-3 rounded-[16px] border-2 border-ink bg-gold-soft px-4 py-3 shadow-[3px_3px_0_var(--color-ink)]"
+      >
+        <span>
+          <span className="block font-display font-extrabold">Try the fundraising game</span>
+          <span className="block text-sm text-ink-soft">Prototype: ten days in Cape Coast to raise the money to start.</span>
+        </span>
+        <span className="shrink-0 rounded-full border-2 border-ink bg-gold px-2 py-0.5 text-xs font-bold">New</span>
+      </a>
     </section>
   );
 }
