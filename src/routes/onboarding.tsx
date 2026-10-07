@@ -104,7 +104,7 @@ function Onboarding() {
     <main className="min-h-dvh text-ink">
       <div className="mx-auto max-w-md px-5 py-10">
         <LogoMark full />
-        <h1 className="mt-5 font-display text-4xl font-semibold">Your details</h1>
+        <h1 className="mt-5 font-display text-4xl font-extrabold">Your details</h1>
         <p className="mt-2 text-[15px] leading-6 text-muted">
           {invite
             ? `Once these are in, you join ${invite.groupName}.`

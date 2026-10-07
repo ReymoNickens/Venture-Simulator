@@ -96,7 +96,7 @@ function GroupPage() {
 
         <Option
           icon={<Plus className="size-5" aria-hidden />}
-          tint="bg-pink"
+          tint="bg-clay text-white"
           title="Start a group and lead it"
           sub="You’ll get a link to send on WhatsApp"
           open={choice === "create"}
@@ -117,7 +117,7 @@ function GroupPage() {
 
         <Option
           icon={<Users className="size-5" aria-hidden />}
-          tint="bg-accent text-white"
+          tint="bg-indigo text-white"
           title="Try a practice group"
           sub="Nine practice classmates, so you can walk the whole journey alone"
           open={choice === "demo"}
@@ -169,7 +169,7 @@ function Option({
         aria-expanded={open}
         className="flex w-full items-center gap-3.5 p-4 text-left"
       >
-        <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full bg-bg-subtle text-ink-soft", tint && "")}>{icon}</span>
+        <span className={cn("sticker flex size-11 shrink-0 items-center justify-center rounded-full", tint)}>{icon}</span>
         <span className="min-w-0 flex-1">
           <span className="block font-display text-lg leading-tight font-bold">{title}</span>
           <span className="block text-sm text-muted">{sub}</span>

@@ -55,7 +55,7 @@ function GroupPage() {
         <p className="text-xs font-semibold text-muted">
           Group {d.groupNumber} · {d.groupName} · {d.members.length} members
         </p>
-        <h1 className="font-display text-[30px] leading-tight font-semibold">{d.venture?.name ?? d.groupName}</h1>
+        <h1 className="font-display text-[30px] leading-tight font-extrabold">{d.venture?.name ?? d.groupName}</h1>
       </div>
 
       {reasons.length ? (

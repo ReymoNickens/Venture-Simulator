@@ -40,7 +40,7 @@ function ChangePassword() {
       <Link to="/lecturer" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-muted">
         <ArrowLeft className="size-4" aria-hidden /> Back
       </Link>
-      <h1 className="font-display text-3xl font-semibold">Change your password</h1>
+      <h1 className="font-display text-3xl font-extrabold">Change your password</h1>
       {done ? (
         <Card>
           <p className="text-[15px] leading-6">Done. Use your new password next time you sign in.</p>

@@ -31,7 +31,7 @@ function Login() {
     <main className="min-h-dvh text-ink">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
         <LogoMark full />
-        <h1 className="mt-5 font-display text-4xl font-semibold">Sign in</h1>
+        <h1 className="mt-5 font-display text-4xl font-extrabold">Sign in</h1>
         <p className="mt-2 text-[15px] leading-6 text-muted">
           {mode === "phone"
             ? "Use your phone number. We text you a code; there is no password to remember. First time? This creates your account."

@@ -61,13 +61,13 @@ function JoinPage() {
           <Loading />
         ) : !invite ? (
           <div className="mt-8 space-y-4">
-            <h1 className="font-display text-3xl font-semibold">This link doesn’t work</h1>
+            <h1 className="font-display text-3xl font-extrabold">This link doesn’t work</h1>
             <FormMessages error={error} />
           </div>
         ) : (
           <>
             <p className="mt-8 text-sm font-semibold text-muted">You’re invited to join</p>
-            <h1 className="font-display text-4xl font-semibold">{invite.groupName}</h1>
+            <h1 className="font-display text-4xl font-extrabold">{invite.groupName}</h1>
             <p className="mt-2 text-[15px] leading-6 text-ink-soft">
               Group {invite.groupNumber} in {invite.classLabel}
               {invite.leaderName ? `, led by ${invite.leaderName}` : ""}. {invite.members} of {invite.capacity} places

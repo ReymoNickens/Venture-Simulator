@@ -1,59 +1,65 @@
-@import "@fontsource-variable/newsreader/opsz.css";
+@import "@fontsource-variable/archivo/wdth.css";
 @import "@fontsource-variable/source-sans-3";
+@import "@fontsource/patrick-hand/400.css";
 @import "tailwindcss";
 
 /*
- * Design language: a field notebook, not a tech product.
- *  - Paper, ink and an editorial serif for headings; a humanist sans for
- *    reading. Fonts are bundled, so they load fast on mobile data and offline.
- *  - Colours come from the place: deep sea green for action, ochre for
- *    "you are here", laterite red for warnings, palm green for done.
- *  - No decoration for its own sake: an icon only appears next to words that
- *    say the same thing, and steps are numbered, not symbolised.
+ * Design language: a student's notebook meets a Cape Coast shop sign.
+ *  - Headings are bold poster letters (Archivo, slightly condensed), like
+ *    hand-painted signs; reading text is a friendly humanist sans.
+ *  - Kente colours: gold, green, red, indigo on warm paper, with ink
+ *    outlines. Buttons and hero cards have a hard ink shadow, like cut-out
+ *    paper stuck on a page.
+ *  - Playful, but every playful thing means something: steps are numbered
+ *    stickers, key words get a highlighter swipe, field notes are taped in.
+ *    No icon appears without words next to it.
+ *  - Fonts are bundled, so they load fast on mobile data and offline.
  */
 
 @theme {
-  --font-display: "Newsreader Variable", Georgia, "Times New Roman", serif;
+  --font-display: "Archivo Variable", "Arial Narrow", system-ui, sans-serif;
   --font-sans: "Source Sans 3 Variable", "Segoe UI", system-ui, sans-serif;
+  /* Handwriting: only for things a student wrote by hand, like field notes. */
+  --font-hand: "Patrick Hand", "Comic Neue", cursive;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-  --color-bg: #f6f1e7;
-  --color-bg-elevated: #fffdf8;
-  --color-bg-subtle: #ede6d8;
-  --color-ink: #1d1a16;
-  --color-ink-soft: #3a342c;
-  --color-muted: #6b6256;
-  --color-faint: #9a9083;
-  --color-line: #e3dacb;
-  --color-line-strong: #cbbfa9;
+  --color-bg: #fff8ec;
+  --color-bg-elevated: #ffffff;
+  --color-bg-subtle: #f6ecdb;
+  --color-ink: #1a1714;
+  --color-ink-soft: #37322c;
+  --color-muted: #6b6257;
+  --color-faint: #9c9284;
+  --color-line: #eadfcc;
+  --color-line-strong: #d3c5ad;
 
-  /* Sea green: the single action/progress colour. */
-  --color-accent: #1e5b4f;
+  /* Kente green: the action colour. */
+  --color-accent: #0e7a4a;
   --color-accent-fg: #ffffff;
-  --color-accent-soft: #e1ece7;
-  /* Ochre: highlights and "you are here". */
-  --color-gold: #e2a93b;
-  --color-gold-deep: #7a5410;
-  --color-gold-soft: #f7ead0;
-  /* Laterite: urgency, objections, market shocks. */
-  --color-clay: #b4492c;
-  --color-clay-soft: #f6e1d8;
-  /* Indigo dye: people — lecturers, messages. */
-  --color-indigo: #34487a;
-  --color-indigo-soft: #e3e7f1;
-  /* Palm: done. */
-  --color-mint: #3f7d3a;
-  --color-mint-soft: #e3eedd;
-  --color-pink: #e7c3b8;
+  --color-accent-soft: #dcf1e5;
+  /* Kente gold: highlights, "you are here", the highlighter. */
+  --color-gold: #f6b800;
+  --color-gold-deep: #7a5600;
+  --color-gold-soft: #fff0c2;
+  /* Kente red: urgency, objections, market shocks. */
+  --color-clay: #e0412b;
+  --color-clay-soft: #fde3dd;
+  /* Adinkra indigo: people — lecturers, messages. */
+  --color-indigo: #2f4ba0;
+  --color-indigo-soft: #e2e8f7;
+  /* Done. */
+  --color-mint: #0e7a4a;
+  --color-mint-soft: #dcf1e5;
+  --color-pink: #f6a6c1;
 
   --color-sun: var(--color-gold);
   --color-sun-soft: var(--color-gold-soft);
-  --color-warn: #8a5a12;
-  --color-warn-soft: #f7ead0;
+  --color-warn: #8a5a00;
+  --color-warn-soft: #fff0c2;
   --color-bad: var(--color-clay);
   --color-bad-soft: var(--color-clay-soft);
   --color-ok: var(--color-mint);
-  --color-spine: #1d1a16;
+  --color-spine: #1a1714;
 }
 
 @layer base {
@@ -75,9 +81,9 @@
   h3 {
     font-family: var(--font-display);
     text-wrap: balance;
-    letter-spacing: -0.01em;
-    font-weight: 600;
-    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+    font-weight: 800;
+    font-stretch: 88%;
   }
   p {
     text-wrap: pretty;
@@ -87,7 +93,7 @@
     cursor: pointer;
   }
   ::selection {
-    background: var(--color-gold-soft);
+    background: var(--color-gold);
   }
   :focus-visible {
     outline: 2px solid var(--color-accent);
@@ -96,9 +102,34 @@
 }
 
 @layer components {
-  /* Kept as hooks; the decorative tape strips are gone. */
+  /* A strip of tape: a note stuck into the notebook. Field notes only. */
   .tape {
     position: relative;
+  }
+  .tape::before {
+    content: "";
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    width: 88px;
+    height: 22px;
+    transform: translateX(-50%) rotate(-3deg);
+    background: color-mix(in oklab, var(--color-gold) 55%, white);
+    opacity: 0.9;
+    z-index: 1;
+  }
+  /* Highlighter: the way a student marks the words that matter. */
+  .mark {
+    background: linear-gradient(transparent 52%, color-mix(in oklab, var(--color-gold) 85%, white) 52%, color-mix(in oklab, var(--color-gold) 85%, white) 92%, transparent 92%);
+    padding: 0 0.08em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+  /* Cut-out paper: an ink outline and a hard shadow, for hero cards. */
+  .paper {
+    background: var(--color-bg-elevated);
+    border: 2px solid var(--color-ink);
+    box-shadow: 4px 4px 0 var(--color-ink);
   }
   .note {
     position: relative;
@@ -119,9 +150,9 @@
   .tabular {
     font-variant-numeric: tabular-nums;
   }
-  /* Step marker: a plain ring, no lift. */
+  /* Sticker: an ink edge, as if cut out and stuck on. */
   .sticker {
-    box-shadow: none;
+    border: 2px solid var(--color-ink);
   }
 }
 

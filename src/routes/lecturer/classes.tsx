@@ -15,7 +15,7 @@ function ClassesPage() {
     <div className="flow-enter space-y-5 pt-2">
       <div>
         <p className="text-xs font-semibold text-muted">Classes you teach</p>
-        <h1 className="font-display text-[32px] leading-none font-semibold">Classes</h1>
+        <h1 className="font-display text-[32px] leading-none font-extrabold">Classes</h1>
       </div>
       <ul className="space-y-3">
         {home.classes.map((c) => (

@@ -1,15 +1,15 @@
 import { cva } from "class-variance-authority";
 
 export const buttonVariants = cva(
-  "inline-flex select-none items-center justify-center gap-2 rounded-[10px] font-semibold transition-[transform,background-color,opacity] duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-40",
+  "inline-flex select-none items-center justify-center gap-2 rounded-full font-bold transition-[transform,box-shadow,background-color,opacity] duration-150 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-40",
   {
     variants: {
       variant: {
-        primary: "bg-accent text-accent-fg hover:bg-accent/90",
-        gold: "bg-gold text-ink hover:brightness-95",
-        secondary: "border border-line-strong bg-bg-elevated text-ink hover:border-ink/40",
+        primary: "border-2 border-ink bg-accent text-accent-fg shadow-[3px_3px_0_var(--color-ink)] hover:brightness-110",
+        gold: "border-2 border-ink bg-gold text-ink shadow-[3px_3px_0_var(--color-ink)] hover:brightness-105",
+        secondary: "border-2 border-ink bg-bg-elevated text-ink shadow-[3px_3px_0_var(--color-ink)] hover:bg-bg-subtle",
         ghost: "text-ink-soft hover:bg-bg-subtle",
-        danger: "bg-clay text-white hover:brightness-95",
+        danger: "border-2 border-ink bg-clay text-white shadow-[3px_3px_0_var(--color-ink)] hover:brightness-105",
       },
       size: {
         md: "h-11 px-5 text-sm",

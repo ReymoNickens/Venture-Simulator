@@ -27,7 +27,7 @@ export function StepHeader({
           {aside ? <span className="text-faint"> · </span> : null}
           {aside}
         </p>
-        <h1 className="font-display text-[28px] leading-[1.05] font-semibold sm:text-4xl">{title}</h1>
+        <h1 className="font-display text-[28px] leading-[1.05] font-extrabold sm:text-4xl">{title}</h1>
         {lead ? <p className="mt-2 text-[15px] leading-6 text-ink-soft">{lead}</p> : null}
       </div>
     </header>

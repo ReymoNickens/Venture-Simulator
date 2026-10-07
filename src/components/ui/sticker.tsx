@@ -3,6 +3,17 @@ import { JOURNEY_STEPS } from "@/lib/domain/config";
 import type { JourneyId } from "@/lib/domain/state-machine";
 import { cn } from "@/lib/utils";
 
+/** Each step keeps its colour everywhere, like a sticker you recognise. */
+const STEP_COLOURS: Record<JourneyId, string> = {
+  group: "bg-gold text-ink",
+  opportunity: "bg-clay text-white",
+  submit: "bg-indigo text-white",
+  select: "bg-pink text-ink",
+  evidence: "bg-accent text-white",
+  assumptions: "bg-gold text-ink",
+  simulate: "bg-clay text-white",
+};
+
 const SIZES = {
   xs: { box: "size-7 text-[13px]", icon: "size-3.5" },
   sm: { box: "size-9 text-[15px]", icon: "size-4" },
@@ -12,20 +23,20 @@ const SIZES = {
 } as const;
 
 /**
- * A step's marker: its number in a circle, the way steps are numbered on a
- * handout. Numbers mean something to everyone; symbols for "evidence" or
- * "assumptions" did not. Done steps show a tick.
+ * A step's sticker: its number on a coloured disc with an ink edge, stuck on
+ * slightly crooked. Numbers mean something to everyone; symbols for
+ * "evidence" or "assumptions" did not. Done steps show a tick.
  */
 export function StepSticker({
   step,
   size = "md",
   muted = false,
   done = false,
+  tilt = true,
   className,
 }: {
   step: JourneyId;
   size?: keyof typeof SIZES;
-  /** Kept for older callers; markers are never tilted now. */
   tilt?: boolean;
   muted?: boolean;
   done?: boolean;
@@ -37,15 +48,16 @@ export function StepSticker({
     <span
       aria-hidden
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full font-display font-semibold tabular-nums",
+        "inline-flex shrink-0 items-center justify-center rounded-full font-display font-extrabold tabular-nums",
         s.box,
         done
-          ? "bg-mint text-white"
+          ? "sticker bg-mint text-white"
           : muted
-            ? "border border-line-strong bg-transparent text-faint"
-            : "bg-accent text-accent-fg",
+            ? "border-2 border-dashed border-line-strong bg-transparent text-faint"
+            : cn("sticker", STEP_COLOURS[step]),
         className,
       )}
+      style={tilt && !muted ? { transform: `rotate(${number % 2 ? -5 : 4}deg)` } : undefined}
     >
       {done ? <Check className={s.icon} strokeWidth={3} /> : number}
     </span>
@@ -59,7 +71,9 @@ export function StepSticker({
 export function LogoMark({ full = false, className }: { full?: boolean; className?: string }) {
   return (
     <span className={cn("inline-flex flex-col leading-none", className)}>
-      <span className="font-display text-[19px] font-semibold tracking-tight whitespace-nowrap text-ink">ENT 302</span>
+      <span className="font-display text-[20px] font-extrabold tracking-tight whitespace-nowrap text-ink">
+        <span className="mark">ENT 302</span>
+      </span>
       {full ? <span className="mt-1 text-[12px] font-medium text-muted">University of Cape Coast</span> : null}
     </span>
   );
