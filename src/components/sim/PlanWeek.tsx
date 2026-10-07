@@ -1,5 +1,6 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, Minus, Plus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { BigChoice, Question, Stepper } from "./controls";
 import { Button } from "@/components/ui/button";
 import { FormMessages } from "@/components/ui/feedback";
 import { saveSimDecisions } from "@/lib/offline/actions";
@@ -35,7 +36,7 @@ export function PlanWeek({
   const [form, setForm] = useState<DecisionForm>(() =>
     initialForm(
       m.products,
-      { qualityTier: m.qualityTiers[1]?.id ?? m.qualityTiers[0].id, supplierId: m.suppliers[0].id, price: 2500 },
+      { qualityTier: m.qualityTiers[1]?.id ?? m.qualityTiers[0].id, supplierId: m.suppliers[0].id, price: m.products[0]?.startingPrice ?? 2500 },
       view.lastDecisions,
     ),
   );
@@ -46,7 +47,12 @@ export function PlanWeek({
   const names = useMemo(() => Object.fromEntries(m.products.map((p) => [p.id, p.name])), [m.products]);
 
   const questions: Q[] = [
-    ...m.products.flatMap((p) => (["units", "quality", "supplier", "price"] as const).map((kind) => ({ kind, productId: p.id }))),
+    // One supplier (a group's own cost) needs no question.
+    ...m.products.flatMap((p) =>
+      (m.suppliers.length > 1 ? (["units", "quality", "supplier", "price"] as const) : (["units", "quality", "price"] as const)).map(
+        (kind) => ({ kind, productId: p.id }),
+      ),
+    ),
     { kind: "marketing" },
     ...awaiting.map((e) => ({ kind: "event" as const, eventId: e.instanceId })),
     { kind: "review" },
@@ -112,11 +118,13 @@ export function PlanWeek({
       <div key={at} className="flow-enter min-h-[340px]">
         {q.kind === "units" ? (
           <Question
-            title={`How many ${productOf(q.productId).name.toLowerCase()}s will you make?`}
+            title={`How many ${productOf(q.productId).unit}s will you ${m.kind === "service" ? "offer" : "prepare"} this ${label}?`}
             help={
               view.latest
                 ? `Last ${label}, ${view.latest.outcomes.unitsDemanded} people wanted one and you sold ${view.latest.outcomes.unitsSold}. You have ${view.stock[q.productId] ?? 0} left.`
-                : `It’s your first ${label}. Anything you don’t sell goes to waste, so don’t overdo it.`
+                : m.kind === "service"
+                  ? `It’s your first ${label}. Any you offer but don’t sell are lost, and you pay for each one you offer.`
+                  : `It’s your first ${label}. Some of what you don’t sell goes to waste, so don’t overdo it.`
             }
           >
             <Stepper
@@ -126,12 +134,12 @@ export function PlanWeek({
               presets={[50, 100, 150, 200]}
               max={m.capacityUnitsPerPeriod}
             />
-            <p className="text-center text-sm text-muted">Your stall can make at most {m.capacityUnitsPerPeriod} a {label}.</p>
+            <p className="text-center text-sm text-muted">You can provide at most {m.capacityUnitsPerPeriod} a {label}.</p>
           </Question>
         ) : null}
 
         {q.kind === "quality" ? (
-          <Question title="What quality?" help="Better ingredients cost more per meal. What do you think your customers will pay for?">
+          <Question title="What quality?" help={`A better version costs you more per ${productOf(q.productId).unit}. What do you think your customers will pay for?`}>
             <div className="grid gap-2">
               {m.qualityTiers.map((t) => {
                 const from = Math.min(...m.suppliers.map((s) => s.unitPrice[q.productId]?.[t.id] ?? Infinity));
@@ -171,7 +179,7 @@ export function PlanWeek({
         ) : null}
 
         {q.kind === "price" ? (
-          <Question title="What price will you charge?" help={`Each one costs you ${ghs(unitCost(q.productId))} to make.`}>
+          <Question title="What price will you charge?" help={`Each ${productOf(q.productId).unit} costs you ${ghs(unitCost(q.productId))} to provide.`}>
             <Stepper
               value={form.products[q.productId].price}
               onChange={(v) => setProduct(q.productId, "price", v)}
@@ -252,7 +260,7 @@ export function PlanWeek({
                   const sup = m.suppliers.find((s) => s.id === f.supplierId)?.name;
                   return (
                     <div key={p.id} className="space-y-2">
-                      <Row left={`${Number(f.units) || 0} × ${p.name.toLowerCase()} (${tier}, ${sup})`} right={ghs(unitCost(p.id) * (Number(f.units) || 0))} />
+                      <Row left={`${Number(f.units) || 0} ${p.unit}s (${tier}${m.suppliers.length > 1 ? `, ${sup}` : ""})`} right={ghs(unitCost(p.id) * (Number(f.units) || 0))} />
                       <Row left={`Selling at`} right={`${ghs(typedCedis(f.price) ?? 0)} each`} muted />
                     </div>
                   );
@@ -300,110 +308,6 @@ export function PlanWeek({
         <p className="text-center text-sm text-muted">
           Cash {ghs(view.cash)} · this plan spends about {ghs(goingOut)} this {label}
         </p>
-      ) : null}
-    </div>
-  );
-}
-
-function Question({ title, help, children }: { title: string; help: string; children: ReactNode }) {
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="font-display text-[28px] leading-tight font-extrabold">{title}</h2>
-        <p className="mt-2 text-[15px] leading-6 text-ink-soft">{help}</p>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function BigChoice({ selected, onClick, title, side, sub }: { selected: boolean; onClick: () => void; title: string; side?: string; sub?: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={selected}
-      className={cn(
-        "w-full rounded-[16px] border-2 px-4 py-3 text-left transition-[transform,box-shadow]",
-        selected ? "border-ink bg-gold shadow-[3px_3px_0_var(--color-ink)]" : "border-line-strong bg-bg-elevated",
-      )}
-    >
-      <span className="flex items-baseline justify-between gap-3">
-        <span className="font-display text-lg font-extrabold">{title}</span>
-        {side ? <span className="shrink-0 text-sm font-bold">{side}</span> : null}
-      </span>
-      {sub ? <span className="mt-0.5 block text-sm leading-5 text-ink-soft">{sub}</span> : null}
-    </button>
-  );
-}
-
-/** A big number with − and + buttons and quick picks, easier on a phone than typing. */
-function Stepper({
-  value,
-  onChange,
-  step,
-  presets,
-  max,
-  money = false,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  step: number;
-  presets?: number[];
-  max?: number;
-  money?: boolean;
-}) {
-  const asNumber = money ? (typedCedis(value) ?? 0) / 100 : Number(value) || 0;
-  const write = (n: number) => {
-    const clamped = Math.max(0, max ? Math.min(max, n) : n);
-    onChange(money ? cedisText(Math.round(clamped * 100)) : String(Math.round(clamped)));
-  };
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-center gap-4">
-        <button
-          type="button"
-          aria-label={`Less by ${step}`}
-          onClick={() => write(asNumber - step)}
-          className="flex size-14 items-center justify-center rounded-full border-2 border-ink bg-bg-elevated shadow-[3px_3px_0_var(--color-ink)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-        >
-          <Minus className="size-6" aria-hidden />
-        </button>
-        <label className="flex items-baseline gap-1">
-          {money ? <span className="font-display text-xl font-extrabold text-muted">GHS</span> : null}
-          <input
-            inputMode={money ? "decimal" : "numeric"}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-32 bg-transparent text-center font-display text-[48px] leading-none font-extrabold tabular-nums outline-none focus:underline"
-            aria-label="Amount"
-          />
-        </label>
-        <button
-          type="button"
-          aria-label={`More by ${step}`}
-          onClick={() => write(asNumber + step)}
-          className="flex size-14 items-center justify-center rounded-full border-2 border-ink bg-bg-elevated shadow-[3px_3px_0_var(--color-ink)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
-        >
-          <Plus className="size-6" aria-hidden />
-        </button>
-      </div>
-      {presets ? (
-        <div className="flex flex-wrap justify-center gap-2">
-          {presets.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => write(p)}
-              className={cn(
-                "min-h-11 min-w-16 rounded-full border-2 px-3 text-sm font-bold",
-                asNumber === p ? "border-ink bg-gold" : "border-line-strong bg-bg-elevated",
-              )}
-            >
-              {money ? `GHS ${p}` : p}
-            </button>
-          ))}
-        </div>
       ) : null}
     </div>
   );

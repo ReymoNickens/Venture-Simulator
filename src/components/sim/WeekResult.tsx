@@ -39,13 +39,17 @@ export function WeekResult({ detail, market }: { detail: StudentPeriodView; mark
       {flow ? (
         <div className="grid grid-cols-3 gap-2">
           <Tile label={`${cap(unit)}s sold`} value={flow.sold} tone="bg-gold" />
-          <Tile label="Went to waste" value={flow.spoiled} tone={flow.spoiled ? "bg-clay text-white" : "bg-bg-elevated"} />
-          <Tile label="Left over" value={flow.closing} tone="bg-bg-elevated" />
+          <Tile
+            label={market.kind === "service" ? "Unused" : "Went to waste"}
+            value={flow.spoiled}
+            tone={flow.spoiled ? "bg-clay text-white" : "bg-bg-elevated"}
+          />
+          <Tile label={market.kind === "service" ? "Offered" : "Left over"} value={market.kind === "service" ? flow.sold + flow.spoiled : flow.closing} tone="bg-bg-elevated" />
         </div>
       ) : null}
 
       <p className="text-[15px] leading-6">
-        <strong>{o.unitsDemanded}</strong> people wanted a {unit}; you sold <strong>{o.unitsSold}</strong>.
+        People wanted <strong>{o.unitsDemanded}</strong> {unit}s; you sold <strong>{o.unitsSold}</strong>.
         {o.unmetUnits > 0 ? ` ${o.unmetUnits} went away because you ran out.` : ""}
         {o.breakEvenUnits !== null ? ` To cover all your costs you needed to sell about ${o.breakEvenUnits}.` : ""}
       </p>

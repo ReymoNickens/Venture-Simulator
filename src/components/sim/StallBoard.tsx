@@ -39,10 +39,10 @@ export function StallBoard({ view }: { view: SimulationView }) {
         <p className={cn("font-display text-[34px] leading-none font-extrabold tabular-nums", view.cash < 0 && "text-clay")}>
           {ghs(view.cash)}
         </p>
-        {product ? (
+        {product && view.market.kind === "goods" ? (
           <p className="mt-2 text-sm">
             <strong className="font-display text-base font-extrabold tabular-nums">{view.stock[product.id] ?? 0}</strong>{" "}
-            {product.name.toLowerCase()}s in stock
+            {product.unit}s in stock
           </p>
         ) : null}
       </div>

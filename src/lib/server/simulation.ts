@@ -14,6 +14,7 @@ import {
   type SimulationView,
 } from "@/lib/simulation/service";
 import type { StudentPeriodView } from "@/sim/index";
+import { checkVentureNumbers, scenarioFromVenture, type VentureNumbers } from "@/sim/scenarios/own-venture";
 import { AppError, loadGroupForStudent, loadOfferingForStudent, logEvent, requireStudent } from "./authz";
 import { parseInput } from "./validate";
 
@@ -41,6 +42,40 @@ export interface SimulationPageData {
   canStart: boolean;
   /** Why the simulation cannot start yet, in plain words. */
   blockedReason: string | null;
+  /** The venture this group runs, before it starts. */
+  venture: { name: string; problem: string; alternatives: string } | null;
+  /** The group's own numbers, once someone has entered them. */
+  numbers: VentureNumbers | null;
+  /** The group's evidence, to say where a number came from. */
+  evidence: { id: string; title: string }[];
+}
+
+const money = z.number().int().min(0).max(100_000_000);
+const NumbersSchema = z.object({
+  offer: z.string().max(80),
+  unit: z.string().max(30),
+  kind: z.enum(["goods", "service"]),
+  costPerUnit: money,
+  price: money,
+  alternatives: z.array(z.object({ name: z.string().max(60), price: money })).max(4),
+  peoplePerWeek: z.number().int().min(0).max(1_000_000),
+  buysPerWeek: z.number().min(0).max(50),
+  capacityPerWeek: z.number().int().min(0).max(1_000_000),
+  wasteShare: z.number().min(0).max(1),
+  fixedCosts: z.array(z.object({ label: z.string().max(60), amount: money })).max(8),
+  sources: z
+    .object({ costPerUnit: id.nullable().optional(), price: id.nullable().optional(), peoplePerWeek: id.nullable().optional() })
+    .optional(),
+});
+
+async function ventureFor(groupId: string) {
+  const sql = await getSql();
+  const rows = await sql<{ id: string; name: string; sim_inputs: VentureNumbers | null; problem: string | null; alternatives: string | null }>`
+    select v.id, v.name, v.sim_inputs, o.problem, o.current_alternatives as alternatives
+    from ventures v left join opportunities o on o.id = v.opportunity_id
+    where v.group_id = ${groupId} limit 1
+  `;
+  return rows[0] ?? null;
 }
 
 export const getSimulation = createServerFn({ method: "GET" })
@@ -48,15 +83,64 @@ export const getSimulation = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<SimulationPageData> => {
     const student = await requireStudent(context.userId);
     const group = await loadGroupForStudent(student.id);
-    if (!group) return { view: null, canStart: false, blockedReason: "Join a group first." };
+    const none = { venture: null, numbers: null, evidence: [] };
+    if (!group) return { view: null, canStart: false, blockedReason: "Join a group first.", ...none };
     const sql = await getSql();
     const view = await loadSimulationView(sql, group.id);
-    if (view) return { view, canStart: false, blockedReason: null };
-    const venture = await sql<{ id: string }>`select id from ventures where group_id = ${group.id} limit 1`;
-    if (!venture[0]) {
-      return { view: null, canStart: false, blockedReason: "Your group must select a venture before it can run." };
+    if (view) return { view, canStart: false, blockedReason: null, ...none };
+    const venture = await ventureFor(group.id);
+    if (!venture) {
+      return { view: null, canStart: false, blockedReason: "Your group must select a venture before it can run.", ...none };
     }
-    return { view: null, canStart: true, blockedReason: null };
+    const evidence = await sql<{ id: string; title: string }>`
+      select id, title from evidence_items where venture_id = ${venture.id} order by created_at desc limit 50
+    `;
+    const numbers = venture.sim_inputs;
+    return {
+      view: null,
+      canStart: Boolean(numbers && checkVentureNumbers(numbers).length === 0),
+      blockedReason: null,
+      venture: { name: venture.name, problem: venture.problem ?? "", alternatives: venture.alternatives ?? "" },
+      numbers,
+      evidence,
+    };
+  });
+
+/** Save the group's numbers (any member, until the venture opens). */
+export const saveVentureNumbers = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(parseInput(z.object({ numbers: NumbersSchema })))
+  .handler(async ({ context, data }) => {
+    const student = await requireStudent(context.userId);
+    const group = await loadGroupForStudent(student.id);
+    if (!group) throw new AppError("NO_GROUP", "Join a group first.");
+    const sql = await getSql();
+    const venture = await ventureFor(group.id);
+    if (!venture) throw new AppError("NO_VENTURE", "Select a venture first.");
+    const running = await sql`select 1 from simulations where group_id = ${group.id} limit 1`;
+    if (running[0]) throw new AppError("CLOSED", "Your venture is already open. Its numbers are fixed now.");
+    const problems = checkVentureNumbers(data.numbers);
+    if (problems.length) throw new AppError("INVALID", problems[0]);
+    // A source must be this group's own evidence.
+    const cited = Object.values(data.numbers.sources ?? {}).filter((x): x is string => Boolean(x));
+    if (cited.length) {
+      const ok = await sql<{ id: string }>`select id from evidence_items where venture_id = ${venture.id} and id = any(${cited})`;
+      if (ok.length !== new Set(cited).size) throw new AppError("INVALID", "One of those sources isn’t in your group’s evidence.");
+    }
+    await sql`
+      update ventures set sim_inputs = ${JSON.stringify(data.numbers)}::jsonb, sim_inputs_updated_at = now(),
+        sim_inputs_updated_by = ${student.id}, updated_at = now()
+      where id = ${venture.id}
+    `;
+    await logEvent({
+      studentId: student.id,
+      groupId: group.id,
+      ventureId: venture.id,
+      eventType: "VENTURE_NUMBERS_SAVED",
+      entityType: "venture",
+      entityId: venture.id,
+    });
+    return { ok: true };
   });
 
 export const startGroupSimulation = createServerFn({ method: "POST" })
@@ -68,18 +152,23 @@ export const startGroupSimulation = createServerFn({ method: "POST" })
     const offering = await loadOfferingForStudent(student.id);
     if (!offering) throw new AppError("NO_OFFERING", "You are not enrolled in a course.");
     const sql = await getSql();
-    const venture = await sql<{ id: string }>`select id from ventures where group_id = ${group.id} limit 1`;
-    if (!venture[0]) throw new AppError("NO_VENTURE", "Select a venture first.");
+    const venture = await ventureFor(group.id);
+    if (!venture) throw new AppError("NO_VENTURE", "Select a venture first.");
+    const numbers = venture.sim_inputs;
+    if (!numbers || checkVentureNumbers(numbers).length) {
+      throw new AppError("NO_NUMBERS", "Fill in your venture’s numbers first.");
+    }
     const sim = await startSimulation(sql, {
       studentId: student.id,
       groupId: group.id,
-      ventureId: venture[0].id,
+      ventureId: venture.id,
       offeringId: offering.id,
+      buildScenario: (frame) => scenarioFromVenture(numbers, frame),
     });
     await logEvent({
       studentId: student.id,
       groupId: group.id,
-      ventureId: venture[0].id,
+      ventureId: venture.id,
       eventType: "SIMULATION_STARTED",
       entityType: "simulation",
       entityId: sim.id,

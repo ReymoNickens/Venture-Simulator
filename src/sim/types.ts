@@ -157,7 +157,7 @@ export interface Scenario {
   id: string;
   version: number;
   name: string;
-  family: "food" | "retail";
+  family: "food" | "retail" | "service";
   description: string;
   periodLabel: string;
   periodCount: Param;

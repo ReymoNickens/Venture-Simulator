@@ -6,7 +6,15 @@ import { formatGhs } from "../money.ts";
 export function learningSignals(
   o: Outcomes,
   prev: PeriodSummary | undefined,
-  context: { avgUnitVariableCost: number; avgPrice: number; nextRepayment: number; marketingSpend: number },
+  context: {
+    avgUnitVariableCost: number;
+    avgPrice: number;
+    nextRepayment: number;
+    marketingSpend: number;
+    /** A service: what is not sold this period is unused, not spoiled. */
+    service?: boolean;
+    unit?: string;
+  },
 ): LearningSignal[] {
   const out: LearningSignal[] = [];
   const add = (s: LearningSignal) => out.push(s);
@@ -56,7 +64,9 @@ export function learningSignals(
     add({
       code: "HIGH_SPOILAGE",
       severity: "warning",
-      message: `${spoiled} units spoiled, ${Math.round((spoiled / handled) * 100)}% of the stock you handled.`,
+      message: context.service
+        ? `${spoiled} of the ${handled} ${context.unit ?? "unit"}s you offered went unused (${Math.round((spoiled / handled) * 100)}%).`
+        : `${spoiled} units spoiled, ${Math.round((spoiled / handled) * 100)}% of the stock you handled.`,
       prompt: "What does this tell you about how you are forecasting demand?",
       metrics: { spoiled, handled },
     });

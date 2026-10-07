@@ -11,7 +11,7 @@ const ROLES: { role: Role; title: string; body: string; to: string; icon: Lucide
   {
     role: "student",
     title: "As a student",
-    body: "Start a group and invite members, find problems, test a venture, run the food stall.",
+    body: "Start a group and invite members, find problems, test a venture, then run it for six weeks.",
     to: "/studio",
     icon: UserRound,
   },

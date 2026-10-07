@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import type { PGlite } from "@electric-sql/pglite";
 import { canonicalJson, runPeriod, type Decisions, type PeriodOutput, type SimState } from "../../sim/index.ts";
+import { scenarioFromVenture } from "../../sim/scenarios/own-venture.ts";
 import { setLogSink } from "../server/log.ts";
 import { asUser, freshSeededDb } from "../server/test-db.ts";
 import {
@@ -382,5 +383,58 @@ describe("cohort settings", () => {
       const c = await asUser(pg, "auth-a", (tx) => ensureCohort(dbOf(tx), "off1"));
       assert.equal(c.period_count, 6);
       assert.equal(c.scenario.periodCount.value, 6);
+    }));
+});
+
+describe("a group's own venture", () => {
+  const numbers = {
+    offer: "Shuttle seat booking",
+    unit: "seat",
+    kind: "service" as const,
+    costPerUnit: 150,
+    price: 300,
+    alternatives: [{ name: "Dropping taxi", price: 600 }],
+    peoplePerWeek: 900,
+    buysPerWeek: 4,
+    capacityPerWeek: 1200,
+    wasteShare: 0,
+    fixedCosts: [{ label: "Bus hire", amount: 60000 }],
+  };
+
+  it("is frozen at start and run instead of the class's food stall, with the class's cash and events", () =>
+    withDb(async (pg) => {
+      const sim = await as(pg, "auth-a", (db) =>
+        startSimulation(db, {
+          studentId: "student-a",
+          groupId: "group-a",
+          ventureId: "venture-a",
+          offeringId: "off1",
+          buildScenario: (frame) => scenarioFromVenture(numbers, frame),
+        }),
+      );
+      assert.equal(sim.scenario?.id, "own-venture");
+      const before = await as(pg, "auth-a", (db) => loadSimulationView(db, "group-a"));
+      assert.equal(before?.market.products[0].name, "Shuttle seat booking");
+      assert.equal(before?.cash, 400000, "the class's starting cash");
+      await as(pg, "auth-a", (db) =>
+        submitDecisions(db, {
+          simulationId: sim.id,
+          studentId: "student-a",
+          clientId: "c1",
+          decisions: {
+            period: 1,
+            products: { offer: { price: 300, qualityTier: "standard", order: { supplierId: "own_cost", units: 400 } } },
+            marketingBudget: 5000,
+            eventResponses: {},
+          },
+        }),
+      );
+      const after = await as(pg, "auth-a", (db) => loadSimulationView(db, "group-a"));
+      assert.equal(after?.completedPeriod, 1);
+      assert.equal(after?.stock.offer, 0, "unused seats do not carry over");
+      // Group B, in the same class, still plays the class's scenario.
+      await started(pg, "b");
+      const b = await as(pg, "auth-b", (db) => loadSimulationView(db, "group-b"));
+      assert.equal(b?.market.products[0].id, "rice_pack");
     }));
 });

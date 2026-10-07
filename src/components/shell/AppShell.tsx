@@ -17,7 +17,7 @@ const TABS = [
   { to: "/studio", label: "Today", icon: Home, exact: true },
   { to: "/studio/journey", label: "Steps", icon: ListOrdered, exact: false },
   { to: "/studio/venture", label: "Venture", icon: NotebookText, exact: false },
-  { to: "/studio/simulation", label: "Food stall", icon: Store, exact: false },
+  { to: "/studio/simulation", label: "Simulation", icon: Store, exact: false },
 ] as const;
 
 export function AppShell({

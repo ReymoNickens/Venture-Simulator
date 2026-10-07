@@ -15,7 +15,7 @@ const SEMESTER: { step: JourneyId; title: string; body: string }[] = [
   { step: "select", title: "Choose one together", body: "The group picks the problem most worth working on." },
   { step: "evidence", title: "Collect evidence", body: "Counts, interviews, photos. What did people actually say and do?" },
   { step: "assumptions", title: "Test what you’re unsure of", body: "Write down the guesses your idea depends on, then check them." },
-  { step: "simulate", title: "Run a food stall", body: "Six weeks in a simulated campus market: price, stock and cash." },
+  { step: "simulate", title: "Run your venture", body: "Six weeks in a simulated market built from your own numbers: price, costs and cash." },
 ];
 
 function Home() {
@@ -38,7 +38,7 @@ function Home() {
         <p className="mt-5 max-w-[56ch] text-lg leading-8 text-ink-soft">
           In ENT 302 your group goes out into Cape Coast (the shuttle stops, Kotokuraba, the hostels around campus) and
           writes down problems people really have. You choose one together, gather evidence, test what you’re unsure of,
-          and finish the semester running a food stall in a market simulation.
+          and finish the semester running your venture for six weeks in a simulated market built from your own numbers.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-3">

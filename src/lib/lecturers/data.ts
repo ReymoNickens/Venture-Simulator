@@ -207,7 +207,16 @@ export interface GroupDetail {
   groupNumber: number;
   offeringId: string;
   status: string;
-  venture: { name: string; rationale: string; problem: string | null; author: string | null } | null;
+  venture: {
+    name: string;
+    rationale: string;
+    problem: string | null;
+    author: string | null;
+    /** The numbers the group set for its simulation, with where each key one came from. */
+    numbers: import("../../sim/scenarios/own-venture.ts").VentureNumbers | null;
+    /** Evidence titles cited as sources, by id. */
+    sourceTitles: Record<string, string>;
+  } | null;
   members: {
     studentId: string;
     fullName: string;
@@ -239,8 +248,14 @@ export async function groupDetail(db: Db, groupId: string): Promise<GroupDetail>
   if (!g) throw new AppError("NOT_FOUND", "That group is not in your classes.");
 
   const [venture, members, opps, prefs, evidence, assumptions, weeks, sim, feedback] = await Promise.all([
-    db.query<{ name: string; selection_rationale: string; problem: string | null; author: string | null }>(
-      `select v.name, v.selection_rationale, o.problem, s.full_name as author
+    db.query<{
+      name: string;
+      selection_rationale: string;
+      problem: string | null;
+      author: string | null;
+      sim_inputs: import("../../sim/scenarios/own-venture.ts").VentureNumbers | null;
+    }>(
+      `select v.name, v.selection_rationale, o.problem, s.full_name as author, v.sim_inputs
        from ventures v left join opportunities o on o.id = v.opportunity_id left join students s on s.id = o.student_id
        where v.group_id = $1`,
       [groupId],
@@ -320,7 +335,16 @@ export async function groupDetail(db: Db, groupId: string): Promise<GroupDetail>
     groupNumber: Number(g.group_number),
     offeringId: g.course_offering_id,
     status: g.status,
-    venture: v ? { name: v.name, rationale: v.selection_rationale, problem: v.problem, author: v.author } : null,
+    venture: v
+      ? {
+          name: v.name,
+          rationale: v.selection_rationale,
+          problem: v.problem,
+          author: v.author,
+          numbers: v.sim_inputs,
+          sourceTitles: Object.fromEntries(evidence.map((e) => [e.id, e.title])),
+        }
+      : null,
     members: members.map((m) => ({
       studentId: m.id,
       fullName: m.full_name,

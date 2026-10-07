@@ -32,6 +32,27 @@ After creating a student profile, open **Enter demonstration cohort**. Nine peer
 
 Use **Simulate offline** in the top bar to test local save and replay.
 
+## The simulation: your own venture
+
+The last step runs each group's **own venture** for six weeks, not a shared
+example. Before opening it, the group answers about ten questions
+(`src/components/sim/NumbersWizard.tsx`): what they sell and what one is
+called, whether it is a product or a service, what one costs to provide,
+what customers would pay, what people use now and its price, how many people
+have the problem each week, how often one buys, the most they can provide,
+how much unsold stock is wasted, and weekly running costs. For cost, price
+and people per week they say where the number came from: one of their
+evidence items, or "our best guess". Lecturers see the numbers and the
+guesses on the group's Money tab.
+
+`src/sim/scenarios/own-venture.ts` turns those numbers into a market for the
+unchanged engine. A service cannot carry unused capacity into the next week.
+The class-wide events (power cuts, price wars, exam period...) keep the same
+ids as the class's scenario, so every group in a class still faces the same
+luck (ADR 0004). The market is frozen on the simulation when it opens
+(`simulations.scenario`, migration 0014). Simulations started before this
+change keep the class's food stall.
+
 ## Stack
 
 - TanStack Start + Vite + Tailwind
