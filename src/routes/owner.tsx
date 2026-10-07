@@ -79,7 +79,7 @@ function OwnerPage() {
         <div className="mb-6 flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-2.5">
             <LogoMark />
-            <span className="font-display font-bold">Owner</span>
+            <span className="border-l border-line-strong pl-2.5 text-sm font-semibold text-muted">Owner</span>
           </Link>
           {page ? (
             <button
@@ -117,7 +117,7 @@ function Unlock({
   const [value, setValue] = useState("");
   return (
     <div className="mx-auto max-w-md pt-10">
-      <h1 className="font-display text-4xl font-extrabold">Owner page</h1>
+      <h1 className="font-display text-4xl font-semibold">Owner page</h1>
       <p className="mt-2 text-[15px] leading-6 text-muted">
         Look around the app as a student, rep or lecturer, give course reps their setup codes, and see which classes are ready. Enter the owner access code.
       </p>
@@ -181,7 +181,7 @@ function Dashboard({
       <LookAround ownerCode={ownerCode} />
 
       <section>
-        <h2 className="font-display text-2xl font-extrabold">Set up a class</h2>
+        <h2 className="font-display text-2xl font-semibold">Set up a class</h2>
         <p className="mt-1 text-[15px] leading-6 text-muted">
           Make a code for each course rep. They use it once to set up their class and upload the class list. Nobody
           else needs to touch anything technical.
@@ -237,7 +237,7 @@ function Dashboard({
         {page.classes.length ? (
           <ul className="mt-2 space-y-2">
             {page.classes.map((c) => (
-              <li key={c.offeringId} className="rounded-[18px] border border-line bg-bg-elevated p-4">
+              <li key={c.offeringId} className="rounded-[14px] border border-line bg-bg-elevated p-4">
                 <p className="font-semibold">
                   {c.courseCode} · {c.programme ?? "Class"} {c.level ? `· ${c.level}` : ""}
                 </p>
@@ -263,7 +263,7 @@ function Dashboard({
       <section>
         <h2 className="font-display text-xl font-bold">Codes</h2>
         {page.codes.length ? (
-          <ul className="mt-2 divide-y divide-line rounded-[18px] border border-line bg-bg-elevated">
+          <ul className="mt-2 divide-y divide-line rounded-[14px] border border-line bg-bg-elevated">
             {page.codes.map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
@@ -331,7 +331,7 @@ function NewCode({
     `The code works once and expires on ${new Date(expiresAt).toLocaleDateString()}.`,
   ].join("\n");
   return (
-    <div className="flow-enter tape mt-6 rounded-[22px] border-2 border-ink bg-bg-elevated p-5 pt-6">
+    <div className="flow-enter tape mt-6 rounded-[14px] border-2 border-ink bg-bg-elevated p-5 pt-6">
       <p className="flex items-center gap-2 text-xs font-semibold text-muted">
         <KeyRound className="size-4" aria-hidden /> Setup code for {label}
       </p>

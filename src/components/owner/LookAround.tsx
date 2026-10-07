@@ -54,7 +54,7 @@ export function LookAround({ ownerCode }: { ownerCode: string }) {
 
   return (
     <section>
-      <h1 className="font-display text-3xl font-extrabold">Look around</h1>
+      <h1 className="font-display text-3xl font-semibold">Look around</h1>
       <p className="mt-1 text-[15px] leading-6 text-muted">
         Try the app as each person in a ready-made demo class. One tap, no codes or passwords. Your changes stay in
         the demo class, and you can switch role from the bar at the top.

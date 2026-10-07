@@ -38,7 +38,7 @@ function ActivityPage() {
     <div className="flow-enter space-y-5 pt-2">
       <div>
         <p className="text-xs font-semibold text-muted">Newest first</p>
-        <h1 className="font-display text-[32px] leading-none font-extrabold">What students are doing</h1>
+        <h1 className="font-display text-[32px] leading-none font-semibold">What students are doing</h1>
       </div>
       <ClassChips classes={home.classes} value={offering} onChange={setOffering} />
       <FormMessages error={error} />
@@ -50,7 +50,7 @@ function ActivityPage() {
         [...days.entries()].map(([day, list]) => (
           <section key={day} className="space-y-2">
             <h2 className="text-sm font-semibold text-muted">{day}</h2>
-            <ul className="divide-y divide-line rounded-[18px] border border-line bg-bg-elevated">
+            <ul className="divide-y divide-line rounded-[14px] border border-line bg-bg-elevated">
               {list.map((it) => (
                 <li key={it.id} className="flex items-start gap-3 px-4 py-3 text-sm leading-6">
                   <span className="min-w-0 flex-1">

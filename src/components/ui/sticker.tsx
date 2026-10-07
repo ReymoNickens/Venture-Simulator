@@ -1,130 +1,66 @@
-import {
-  FlaskConical,
-  Gauge,
-  NotebookPen,
-  ScanEye,
-  Send,
-  Users,
-  Vote,
-  type LucideIcon,
-} from "lucide-react";
+import { Check } from "lucide-react";
+import { JOURNEY_STEPS } from "@/lib/domain/config";
 import type { JourneyId } from "@/lib/domain/state-machine";
 import { cn } from "@/lib/utils";
 
-type Tint = "butter" | "coral" | "lilac" | "cobalt" | "mint" | "pink";
-
-/** One sticker per journey step, so the same step looks the same everywhere. */
-const STEP_STICKERS: Record<JourneyId, { icon: LucideIcon; tint: Tint }> = {
-  group: { icon: Users, tint: "butter" },
-  opportunity: { icon: ScanEye, tint: "coral" },
-  submit: { icon: Send, tint: "cobalt" },
-  select: { icon: Vote, tint: "lilac" },
-  evidence: { icon: NotebookPen, tint: "pink" },
-  assumptions: { icon: FlaskConical, tint: "mint" },
-  simulate: { icon: Gauge, tint: "cobalt" },
-};
-
-const TINTS: Record<Tint, string> = {
-  butter: "bg-gold text-ink",
-  coral: "bg-clay text-white",
-  lilac: "bg-indigo text-white",
-  cobalt: "bg-accent text-white",
-  mint: "bg-mint text-white",
-  pink: "bg-pink text-ink",
-};
-
 const SIZES = {
-  xs: { box: "size-7", icon: "size-3.5" },
-  sm: { box: "size-9", icon: "size-4" },
-  md: { box: "size-12", icon: "size-6" },
-  lg: { box: "size-16", icon: "size-8" },
-  xl: { box: "size-24", icon: "size-11" },
+  xs: { box: "size-7 text-[13px]", icon: "size-3.5" },
+  sm: { box: "size-9 text-[15px]", icon: "size-4" },
+  md: { box: "size-11 text-[18px]", icon: "size-5" },
+  lg: { box: "size-14 text-[24px]", icon: "size-6" },
+  xl: { box: "size-20 text-[34px]", icon: "size-9" },
 } as const;
 
 /**
- * A step's sticker: a bright die-cut disc with a line icon, slightly tilted
- * like it was stuck on by hand.
+ * A step's marker: its number in a circle, the way steps are numbered on a
+ * handout. Numbers mean something to everyone; symbols for "evidence" or
+ * "assumptions" did not. Done steps show a tick.
  */
 export function StepSticker({
   step,
   size = "md",
-  tilt = true,
   muted = false,
+  done = false,
   className,
 }: {
   step: JourneyId;
   size?: keyof typeof SIZES;
+  /** Kept for older callers; markers are never tilted now. */
   tilt?: boolean;
   muted?: boolean;
+  done?: boolean;
   className?: string;
 }) {
-  const def = STEP_STICKERS[step];
-  const Icon = def.icon;
+  const number = JOURNEY_STEPS.findIndex((s) => s.id === step) + 1;
   const s = SIZES[size];
-  const index = Object.keys(STEP_STICKERS).indexOf(step);
   return (
     <span
       aria-hidden
       className={cn(
-        "sticker inline-flex shrink-0 items-center justify-center rounded-full",
+        "inline-flex shrink-0 items-center justify-center rounded-full font-display font-semibold tabular-nums",
         s.box,
-        muted ? "bg-bg-subtle text-faint" : TINTS[def.tint],
+        done
+          ? "bg-mint text-white"
+          : muted
+            ? "border border-line-strong bg-transparent text-faint"
+            : "bg-accent text-accent-fg",
         className,
       )}
-      style={tilt ? { transform: `rotate(${(index % 2 ? 1 : -1) * 6}deg)` } : undefined}
     >
-      <Icon className={s.icon} strokeWidth={2.2} />
+      {done ? <Check className={s.icon} strokeWidth={3} /> : number}
     </span>
   );
 }
 
-/** The app mark: a cobalt blob with a spark — reads as "idea in motion". */
-export function LogoMark({ className }: { className?: string }) {
+/**
+ * The masthead: the course code set in the heading serif, the way it appears
+ * on a course outline. `full` adds the university underneath.
+ */
+export function LogoMark({ full = false, className }: { full?: boolean; className?: string }) {
   return (
-    <svg viewBox="0 0 40 40" className={cn("size-9", className)} aria-hidden>
-      <path
-        d="M20 3c7 0 15 4 16 12s-3 18-11 21S6 36 4 27 9 3 20 3z"
-        fill="var(--color-accent)"
-      />
-      <path
-        d="M21 10l-6 12h6l-2 9 8-13h-6l3-8z"
-        fill="var(--color-gold)"
-        stroke="#111"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-/** Hand-drawn underline for a hero word. */
-export function Scribble({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 200 16"
-      preserveAspectRatio="none"
-      className={cn("h-3 w-full", className)}
-      aria-hidden
-    >
-      <path
-        d="M3 11c30-7 62-9 96-6s67 4 98-3"
-        fill="none"
-        stroke="var(--color-clay)"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-/** A four-point sparkle doodle. */
-export function Sparkle({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={cn("size-5", className)} aria-hidden>
-      <path
-        d="M12 1c1 6 5 10 11 11-6 1-10 5-11 11-1-6-5-10-11-11 6-1 10-5 11-11z"
-        fill="currentColor"
-      />
-    </svg>
+    <span className={cn("inline-flex flex-col leading-none", className)}>
+      <span className="font-display text-[19px] font-semibold tracking-tight whitespace-nowrap text-ink">ENT 302</span>
+      {full ? <span className="mt-1 text-[12px] font-medium text-muted">University of Cape Coast</span> : null}
+    </span>
   );
 }

@@ -39,9 +39,9 @@ function Login() {
   return (
     <main className="min-h-dvh text-ink">
       <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-5 py-10">
-        <LogoMark className="size-12" />
-        <h1 className="mt-5 font-display text-4xl font-extrabold">
-          {mode === "activate" ? "First time here?" : "Let’s get you in."}
+        <LogoMark full />
+        <h1 className="mt-5 font-display text-4xl font-semibold">
+          {mode === "activate" ? "Activate your account" : "Sign in"}
         </h1>
         <p className="mt-2 text-[15px] leading-6 text-muted">
           {mode === "activate"

@@ -8,7 +8,7 @@ import type { WorkspaceSnapshot } from "@/lib/domain/types";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card } from "@/components/ui/badge";
 import { Loading } from "@/components/ui/feedback";
-import { Sparkle, StepSticker } from "@/components/ui/sticker";
+import { StepSticker } from "@/components/ui/sticker";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/studio/")({ component: StudioHome });
@@ -113,7 +113,7 @@ function StudioHome() {
             ? [data.offering.courseCode, data.offering.programme, data.offering.level].filter(Boolean).join(" · ")
             : "Studio"}
         </p>
-        <h1 className="font-display text-[34px] leading-none font-extrabold">
+        <h1 className="font-display text-[34px] leading-none font-semibold">
           {firstName ? `Hi, ${firstName}.` : "Studio"}
         </h1>
       </div>
@@ -121,18 +121,17 @@ function StudioHome() {
       <section
         aria-labelledby="next-title"
         className={cn(
-          "tape relative mt-3 rounded-[24px] border border-line bg-bg-elevated px-5 pt-7 pb-5",
-          !next.waiting && "shadow-[0_18px_40px_-28px_rgba(17,17,17,0.45)]",
+          "relative mt-3 rounded-[14px] border border-line bg-bg-elevated px-5 pt-5 pb-5",
+          !next.waiting && "border-l-4 border-l-accent",
         )}
       >
-        <Sparkle className="absolute top-4 right-5 size-4 text-clay" />
         <div className="flex items-center gap-3">
-          <StepSticker step={next.step} size="lg" />
+          <StepSticker step={next.step} size="md" />
           <div>
             <p className="text-xs font-semibold text-muted">
-              {next.waiting ? "Nothing to do right now" : `Stop ${progress.stop} of ${progress.total} · Now`}
+              {next.waiting ? "Nothing to do right now" : `Step ${progress.stop} of ${progress.total} · Now`}
             </p>
-            <h2 id="next-title" className="font-display text-2xl leading-tight font-extrabold">
+            <h2 id="next-title" className="font-display text-2xl leading-tight font-semibold">
               {next.title}
             </h2>
           </div>
@@ -150,7 +149,7 @@ function StudioHome() {
       </section>
 
       {data.feedback.length ? (
-        <section aria-labelledby="feedback-title" className="rounded-[20px] border-2 border-indigo/30 bg-indigo-soft p-4">
+        <section aria-labelledby="feedback-title" className="rounded-[14px] border-2 border-indigo/30 bg-indigo-soft p-4">
           <h2 id="feedback-title" className="flex items-center gap-2 text-xs font-semibold text-indigo">
             <MessageSquareText className="size-4" aria-hidden /> From your lecturer
           </h2>
@@ -179,7 +178,7 @@ function StudioHome() {
       {data.isClassRep ? (
         <Link
           to="/studio/class"
-          className="flex items-center gap-3.5 rounded-[20px] border border-line bg-bg-elevated p-4 hover:border-ink/40"
+          className="flex items-center gap-3.5 rounded-[14px] border border-line bg-bg-elevated p-4 hover:border-ink/40"
         >
           <span className="sticker flex size-11 shrink-0 items-center justify-center rounded-full bg-indigo text-white">
             <Users className="size-5" aria-hidden />

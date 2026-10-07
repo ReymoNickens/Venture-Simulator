@@ -252,7 +252,7 @@ function StatusHeader({
   const current = Math.min(view.completedPeriod + (finished ? 0 : 1), view.periodCount);
   return (
     <div className="space-y-3">
-      <div className="rounded-[24px] bg-ink p-5 text-white shadow-[0_18px_40px_-24px_rgba(17,17,17,0.7)]">
+      <div className="rounded-[14px] bg-ink p-5 text-white shadow-[0_18px_40px_-24px_rgba(17,17,17,0.7)]">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-semibold text-white/60">
             {view.market.scenarioName} · {label} {current} of {view.periodCount}
@@ -266,7 +266,7 @@ function StatusHeader({
           )}
         </div>
         <p className="mt-3 text-xs text-white/60">Cash now</p>
-        <p className={cn("font-display text-[32px] leading-none font-extrabold whitespace-nowrap tabular-nums sm:text-[40px]", view.cash < 0 && "text-clay")}>
+        <p className={cn("font-display text-[32px] leading-none font-semibold whitespace-nowrap tabular-nums sm:text-[40px]", view.cash < 0 && "text-clay")}>
           {formatGhs(view.cash)}
         </p>
         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
@@ -419,7 +419,7 @@ function DecideStep({
   }
   if (!period) {
     return (
-      <p className="rounded-[16px] bg-bg-subtle px-4 py-5 text-center text-sm text-muted">
+      <p className="rounded-[14px] bg-bg-subtle px-4 py-5 text-center text-sm text-muted">
         There is no {m.periodLabel} open for decisions right now.
       </p>
     );
@@ -587,7 +587,7 @@ function ResultsStep({ view }: { view: SimulationView }) {
 
   if (!view.periods.length) {
     return (
-      <p className="rounded-[16px] bg-bg-subtle px-4 py-5 text-center text-sm text-muted">
+      <p className="rounded-[14px] bg-bg-subtle px-4 py-5 text-center text-sm text-muted">
         No results yet. Submit your first {label}’s decisions to see what happens.
       </p>
     );

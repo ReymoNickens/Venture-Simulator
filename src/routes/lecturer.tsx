@@ -51,9 +51,9 @@ function LecturerLayout() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-2.5">
           <Link to="/lecturer" className="flex min-w-0 items-center gap-2.5">
             <LogoMark />
-            <span className="min-w-0">
+            <span className="min-w-0 border-l border-line-strong pl-2.5">
               <span className="block text-[11px] font-semibold text-muted">Lecturer</span>
-              <span className="block truncate font-display text-[15px] leading-tight font-bold">
+              <span className="block truncate font-display text-[15px] leading-tight font-semibold">
                 {home?.fullName ?? "…"}
               </span>
             </span>
@@ -65,7 +65,7 @@ function LecturerLayout() {
                 to={t.to}
                 activeOptions={{ exact: t.exact }}
                 className="flex min-h-10 items-center gap-1.5 rounded-full px-4 text-sm font-semibold text-muted"
-                activeProps={{ className: "bg-ink !text-white" }}
+                activeProps={{ className: "bg-bg-elevated !text-accent shadow-sm" }}
               >
                 <t.icon className="size-4" aria-hidden />
                 {t.label}
@@ -82,7 +82,7 @@ function LecturerLayout() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-4 pt-2 pb-28 md:pb-16">
+      <main className="mx-auto w-full max-w-5xl px-4 pt-2 pb-24 md:pb-16">
         {error && !home ? (
           <div className="mx-auto max-w-md space-y-4 pt-10">
             <FormMessages error={error} />
@@ -102,17 +102,20 @@ function LecturerLayout() {
         )}
       </main>
 
-      <nav aria-label="Lecturer" className="no-print fixed inset-x-3 bottom-3 z-30 md:hidden">
-        <ul className="mx-auto grid max-w-sm grid-cols-3 rounded-full bg-ink p-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]">
+      <nav
+        aria-label="Lecturer"
+        className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg-elevated pb-[env(safe-area-inset-bottom)] md:hidden"
+      >
+        <ul className="mx-auto grid max-w-sm grid-cols-3">
           {TABS.map((t) => (
             <li key={t.to}>
               <Link
                 to={t.to}
                 activeOptions={{ exact: t.exact }}
-                className="flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-full py-1.5 text-[11px] font-semibold text-white/65"
-                activeProps={{ className: "bg-white/12 !text-white [&_svg]:text-gold" }}
+                className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[12px] font-semibold text-muted"
+                activeProps={{ className: "!text-accent" }}
               >
-                <t.icon className="size-5" aria-hidden />
+                <t.icon className="size-5" aria-hidden strokeWidth={1.8} />
                 {t.label}
               </Link>
             </li>

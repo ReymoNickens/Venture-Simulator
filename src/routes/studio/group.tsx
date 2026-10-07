@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ChevronRight, KeyRound, Plus, Sparkles } from "lucide-react";
+import { ChevronRight, KeyRound, Plus, Users } from "lucide-react";
 import { useStudioWorkspace } from "@/hooks/workspace-context";
 import { createGroup, joinGroup } from "@/lib/server/mutations";
 import { bootstrapDemoCohort } from "@/lib/server/bootstrap";
@@ -111,7 +111,7 @@ function GroupPage() {
         </Option>
 
         <Option
-          icon={<Sparkles className="size-5" aria-hidden />}
+          icon={<Users className="size-5" aria-hidden />}
           tint="bg-accent text-white"
           title="Try a practice group"
           sub="Nine practice classmates, so you can walk the whole journey alone"
@@ -157,14 +157,14 @@ function Option({
   children: ReactNode;
 }) {
   return (
-    <div className={cn("rounded-[20px] border bg-bg-elevated transition-colors", open ? "border-ink" : "border-line")}>
+    <div className={cn("rounded-[14px] border bg-bg-elevated transition-colors", open ? "border-ink" : "border-line")}>
       <button
         type="button"
         onClick={onOpen}
         aria-expanded={open}
         className="flex w-full items-center gap-3.5 p-4 text-left"
       >
-        <span className={cn("sticker flex size-11 shrink-0 items-center justify-center rounded-full", tint)}>{icon}</span>
+        <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full bg-bg-subtle text-ink-soft", tint && "")}>{icon}</span>
         <span className="min-w-0 flex-1">
           <span className="block font-display text-lg leading-tight font-bold">{title}</span>
           <span className="block text-sm text-muted">{sub}</span>

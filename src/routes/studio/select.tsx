@@ -234,7 +234,7 @@ function ProblemCard({
   return (
     <article
       className={cn(
-        "rounded-[20px] border bg-bg-elevated transition-[border-color,box-shadow]",
+        "rounded-[14px] border bg-bg-elevated transition-[border-color,box-shadow]",
         selected ? "border-ink shadow-[0_0_0_2px_var(--color-ink)]" : "border-line",
         rejected && "opacity-70",
       )}

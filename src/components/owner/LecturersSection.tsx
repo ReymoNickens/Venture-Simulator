@@ -56,7 +56,7 @@ export function LecturersSection({ ownerCode }: { ownerCode: string }) {
             </ul>
           ) : null}
           {data.invites.some((i) => i.status === "waiting") ? (
-            <ul className="divide-y divide-line rounded-[18px] border border-line bg-bg-elevated">
+            <ul className="divide-y divide-line rounded-[14px] border border-line bg-bg-elevated">
               {data.invites
                 .filter((i) => i.status === "waiting")
                 .map((i) => (
@@ -181,7 +181,7 @@ function NewLecturerCode({ code, expiresAt, label }: { code: string; expiresAt: 
     `After that, sign in at ${origin}/login with your email. The code works once and expires on ${new Date(expiresAt).toLocaleDateString()}.`,
   ].join("\n");
   return (
-    <div className="flow-enter tape rounded-[22px] border-2 border-ink bg-bg-elevated p-5 pt-6">
+    <div className="flow-enter tape rounded-[14px] border-2 border-ink bg-bg-elevated p-5 pt-6">
       <p className="text-xs font-semibold text-muted">Lecturer invite for {label}</p>
       <p className="mt-1 font-mono text-3xl font-medium tracking-wider">{code}</p>
       <p className="mt-1 text-sm text-muted">Shown only now. Send it before you leave this page.</p>
@@ -221,7 +221,7 @@ function LecturerRow({
   const [busy, setBusy] = useState(false);
   const names = classes.filter((c) => l.offeringIds.includes(c.offeringId)).map((c) => c.label);
   return (
-    <li className="rounded-[18px] border border-line bg-bg-elevated p-4">
+    <li className="rounded-[14px] border border-line bg-bg-elevated p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-semibold">{l.fullName}</p>

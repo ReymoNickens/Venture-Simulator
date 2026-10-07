@@ -1,56 +1,59 @@
+@import "@fontsource-variable/newsreader/opsz.css";
+@import "@fontsource-variable/source-sans-3";
 @import "tailwindcss";
 
 /*
- * Design language: sticker-collage minimalism.
- *  - A calm warm-white canvas with lots of room. Most screens show one thing.
- *  - Ink-black type and pill buttons; ONE vivid accent per screen.
- *  - Personality comes from small collage moments — a sticker, a strip of
- *    tape, a hand-drawn underline — used in hero spots only, never on forms.
- *  - Secondary information is always one tap away, never on screen by default.
+ * Design language: a field notebook, not a tech product.
+ *  - Paper, ink and an editorial serif for headings; a humanist sans for
+ *    reading. Fonts are bundled, so they load fast on mobile data and offline.
+ *  - Colours come from the place: deep sea green for action, ochre for
+ *    "you are here", laterite red for warnings, palm green for done.
+ *  - No decoration for its own sake: an icon only appears next to words that
+ *    say the same thing, and steps are numbered, not symbolised.
  */
 
 @theme {
-  --font-display: "Bricolage Grotesque", "Arial Narrow", system-ui, sans-serif;
-  --font-sans: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-display: "Newsreader Variable", Georgia, "Times New Roman", serif;
+  --font-sans: "Source Sans 3 Variable", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
-  --color-bg: #fbf9f5;
-  --color-bg-elevated: #ffffff;
-  --color-bg-subtle: #f3f0ea;
-  --color-ink: #111111;
-  --color-ink-soft: #2e2e2e;
-  --color-muted: #6b6b6b;
-  --color-faint: #9b9b9b;
-  --color-line: #ebe7df;
-  --color-line-strong: #d6d0c4;
+  --color-bg: #f6f1e7;
+  --color-bg-elevated: #fffdf8;
+  --color-bg-subtle: #ede6d8;
+  --color-ink: #1d1a16;
+  --color-ink-soft: #3a342c;
+  --color-muted: #6b6256;
+  --color-faint: #9a9083;
+  --color-line: #e3dacb;
+  --color-line-strong: #cbbfa9;
 
-  /* Cobalt: the single action/progress colour. */
-  --color-accent: #2d4bff;
+  /* Sea green: the single action/progress colour. */
+  --color-accent: #1e5b4f;
   --color-accent-fg: #ffffff;
-  --color-accent-soft: #e8ecff;
-  /* Butter: highlights and "you are here". */
-  --color-gold: #ffd84d;
-  --color-gold-deep: #7a5c00;
-  --color-gold-soft: #fff5cc;
-  /* Coral: urgency, objections, market shocks. */
-  --color-clay: #ff5a3c;
-  --color-clay-soft: #ffe7e1;
-  /* Lilac: people — lecturers, messages. */
-  --color-indigo: #6b4dff;
-  --color-indigo-soft: #efeaff;
-  /* Mint: done. */
-  --color-mint: #19a974;
-  --color-mint-soft: #ddf6ea;
-  --color-pink: #ff8fc7;
+  --color-accent-soft: #e1ece7;
+  /* Ochre: highlights and "you are here". */
+  --color-gold: #e2a93b;
+  --color-gold-deep: #7a5410;
+  --color-gold-soft: #f7ead0;
+  /* Laterite: urgency, objections, market shocks. */
+  --color-clay: #b4492c;
+  --color-clay-soft: #f6e1d8;
+  /* Indigo dye: people — lecturers, messages. */
+  --color-indigo: #34487a;
+  --color-indigo-soft: #e3e7f1;
+  /* Palm: done. */
+  --color-mint: #3f7d3a;
+  --color-mint-soft: #e3eedd;
+  --color-pink: #e7c3b8;
 
   --color-sun: var(--color-gold);
   --color-sun-soft: var(--color-gold-soft);
-  --color-warn: #b26a00;
-  --color-warn-soft: #fff1dc;
+  --color-warn: #8a5a12;
+  --color-warn-soft: #f7ead0;
   --color-bad: var(--color-clay);
   --color-bad-soft: var(--color-clay-soft);
   --color-ok: var(--color-mint);
-  --color-spine: #111111;
+  --color-spine: #1d1a16;
 }
 
 @layer base {
@@ -72,8 +75,9 @@
   h3 {
     font-family: var(--font-display);
     text-wrap: balance;
-    letter-spacing: -0.025em;
-    font-weight: 700;
+    letter-spacing: -0.01em;
+    font-weight: 600;
+    font-optical-sizing: auto;
   }
   p {
     text-wrap: pretty;
@@ -83,7 +87,7 @@
     cursor: pointer;
   }
   ::selection {
-    background: var(--color-gold);
+    background: var(--color-gold-soft);
   }
   :focus-visible {
     outline: 2px solid var(--color-accent);
@@ -92,40 +96,15 @@
 }
 
 @layer components {
-  /* A strip of masking tape — collage, used on hero cards only. */
+  /* Kept as hooks; the decorative tape strips are gone. */
   .tape {
     position: relative;
   }
-  .tape::before {
-    content: "";
-    position: absolute;
-    top: -10px;
-    left: 50%;
-    width: 84px;
-    height: 22px;
-    transform: translateX(-50%) rotate(-3deg);
-    background: color-mix(in oklab, var(--color-gold) 70%, white);
-    opacity: 0.85;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
-    z-index: 1;
-  }
-  /* A paper note — evidence, interviews. Quiet, with a tape corner. */
   .note {
     position: relative;
     background: var(--color-bg-elevated);
     border: 1px solid var(--color-line);
-    border-radius: 16px;
-  }
-  .note::before {
-    content: "";
-    position: absolute;
-    top: -7px;
-    left: 18px;
-    width: 46px;
-    height: 14px;
-    transform: rotate(-4deg);
-    background: color-mix(in oklab, var(--color-pink) 45%, white);
-    opacity: 0.9;
+    border-radius: 12px;
   }
   /* Kept for components that still ask for it: now plain paper. */
   .notebook {
@@ -140,11 +119,9 @@
   .tabular {
     font-variant-numeric: tabular-nums;
   }
-  /* Sticker: a white die-cut edge and a soft lift. */
+  /* Step marker: a plain ring, no lift. */
   .sticker {
-    box-shadow:
-      0 0 0 3px #fff,
-      0 6px 14px -6px rgba(17, 17, 17, 0.35);
+    box-shadow: none;
   }
 }
 
