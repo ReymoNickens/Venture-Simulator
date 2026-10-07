@@ -47,7 +47,8 @@ export const careful: Strategy = (ctx) => {
   const eventResponses: Record<string, string> = {};
   for (const id of awaitingResponse(ctx)) {
     const eventId = id.split("@")[0];
-    if (preferred[eventId]) eventResponses[id] = preferred[eventId];
+    const offered = scenario.events.find((e) => e.id === eventId)?.responses.some((r) => r.id === preferred[eventId]);
+    if (preferred[eventId] && offered) eventResponses[id] = preferred[eventId];
   }
   return { period: ctx.period, products, marketingBudget: 15000, eventResponses };
 };

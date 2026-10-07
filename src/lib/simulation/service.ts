@@ -179,9 +179,16 @@ export interface SimulationRow {
   engine_version: string;
   status: "operating" | "cash_out" | "exited";
   completed_period: number;
+  /** The group's own market, frozen at start (0014); null = the class's scenario. */
+  scenario: Scenario | null;
 }
 
-const SIM_COLUMNS = "id, cohort_id, group_id, venture_id, engine_version, status, completed_period";
+const SIM_COLUMNS = "id, cohort_id, group_id, venture_id, engine_version, status, completed_period, scenario";
+
+/** The market a simulation runs in: its own, or (older simulations) the class's. */
+export function scenarioOf(sim: Pick<SimulationRow, "scenario">, cohort: CohortRow): Scenario {
+  return sim.scenario ?? cohort.scenario;
+}
 
 export async function findSimulationForGroup(db: Db, groupId: string): Promise<SimulationRow | null> {
   const rows = await db.query<SimulationRow>(`select ${SIM_COLUMNS} from simulations where group_id = $1`, [groupId]);
@@ -194,21 +201,40 @@ export async function findSimulationForGroup(db: Db, groupId: string): Promise<S
  */
 export async function startSimulation(
   db: Db,
-  input: { studentId: string; groupId: string; ventureId: string; offeringId: string },
+  input: {
+    studentId: string;
+    groupId: string;
+    ventureId: string;
+    offeringId: string;
+    /** Build the group's own market from the class's scenario (its weeks, cash and events). */
+    buildScenario?: (classScenario: Scenario) => Scenario;
+  },
 ): Promise<SimulationRow> {
   const existing = await findSimulationForGroup(db, input.groupId);
   if (existing) return existing;
   const cohort = await ensureCohort(db, input.offeringId);
   const id = newId();
-  const state = initialState(cohort.scenario, id);
+  const own = input.buildScenario ? input.buildScenario(cohort.scenario) : null;
+  const scenario = own ?? cohort.scenario;
+  const state = initialState(scenario, id);
   await asEngine(db, async () => {
     const inserted = await db.query<{ id: string }>(
       `insert into simulations
-         (id, cohort_id, group_id, venture_id, engine_version, scenario_id, scenario_version, started_by_student_id)
-       values ($1, $2, $3, $4, $5, $6, $7, $8)
+         (id, cohort_id, group_id, venture_id, engine_version, scenario_id, scenario_version, started_by_student_id, scenario)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        on conflict (group_id) do nothing
        returning id`,
-      [id, cohort.id, input.groupId, input.ventureId, cohort.engine_version, cohort.scenario.id, cohort.scenario.version, input.studentId],
+      [
+        id,
+        cohort.id,
+        input.groupId,
+        input.ventureId,
+        cohort.engine_version,
+        scenario.id,
+        scenario.version,
+        input.studentId,
+        own ? JSON.stringify(own) : null,
+      ],
     );
     if (!inserted[0]) return; // another member started it a moment ago
     for (const tx of state.ledger) {
@@ -320,8 +346,9 @@ export async function runPeriodFor(db: Db, simulationId: string, period: number)
     );
     if (!decisionRow) throw new AppError("NO_DECISIONS", `No decisions were submitted for period ${period}.`);
     let state: SimState;
+    const scenario = scenarioOf(sim, cohort);
     if (period === 1) {
-      state = initialState(cohort.scenario, simulationId);
+      state = initialState(scenario, simulationId);
     } else {
       const [prev] = await db.query<{ state: SimState }>(
         "select state from simulation_results where simulation_id = $1 and period = $2",
@@ -337,7 +364,7 @@ export async function runPeriodFor(db: Db, simulationId: string, period: number)
     try {
       output = runPeriod({
         engineVersion: sim.engine_version,
-        scenario: cohort.scenario,
+        scenario,
         state,
         decisions: decisionRow.decisions,
         cohortEvents,
@@ -395,10 +422,12 @@ export async function runPeriodFor(db: Db, simulationId: string, period: number)
 // ------------------------------------------------------------ student view
 
 export interface MarketBrief {
+  /** A service unused this week is lost; goods can be kept (some may go to waste). */
+  kind: "goods" | "service";
   scenarioName: string;
   description: string;
   periodLabel: string;
-  products: { id: string; name: string; unit: string }[];
+  products: { id: string; name: string; unit: string; startingPrice: number | null }[];
   segments: { id: string; name: string }[];
   qualityTiers: { id: string; label: string }[];
   suppliers: {
@@ -421,10 +450,18 @@ export interface MarketBrief {
  */
 export function marketBrief(scenario: Scenario, last: StudentPeriodView | null): MarketBrief {
   return {
+    kind: scenario.family === "service" ? "service" : "goods",
     scenarioName: scenario.name,
     description: scenario.description,
     periodLabel: scenario.periodLabel,
-    products: scenario.products.map((p) => ({ id: p.id, name: p.name, unit: p.unit })),
+    // A group's own venture starts from the price its customers said they'd
+    // pay (their own figure). The reference scenario's price stays hidden.
+    products: scenario.products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      unit: p.unit,
+      startingPrice: scenario.id === "own-venture" ? p.referencePrice.value : null,
+    })),
     segments: scenario.segments.map((s) => ({ id: s.id, name: s.name })),
     qualityTiers: scenario.qualityTiers.map((t) => ({ id: t.id, label: t.label })),
     suppliers: scenario.suppliers.map((s) => ({
@@ -503,7 +540,8 @@ export async function loadSimulationView(db: Db, groupId: string): Promise<Simul
   );
   const latest = results.length ? results[results.length - 1].student_output : null;
   const stock: Record<string, number> = {};
-  for (const p of cohort.scenario.products) stock[p.id] = latest?.outcomes.inventory[p.id]?.closing ?? 0;
+  const scenario = scenarioOf(sim, cohort);
+  for (const p of scenario.products) stock[p.id] = latest?.outcomes.inventory[p.id]?.closing ?? 0;
   const next = sim.completed_period + 1;
   const nextPeriod =
     sim.status !== "exited" && next <= cohort.period_count && next <= cohort.open_through_period && cohort.status === "running"
@@ -519,7 +557,7 @@ export async function loadSimulationView(db: Db, groupId: string): Promise<Simul
     nextPeriod,
     cash: Number(cash),
     stock,
-    market: marketBrief(cohort.scenario, latest),
+    market: marketBrief(scenario, latest),
     periods: results.map((r) => {
       const d = decisions.find((x) => x.period === r.period);
       return {

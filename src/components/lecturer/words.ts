@@ -14,6 +14,7 @@ const EVENT_WORDS: Record<string, string> = {
   EVIDENCE_LINKED: "linked evidence to an assumption",
   AI_SESSION_STARTED: "started a conversation with the advisor",
   SIMULATION_STARTED: "launched the simulated venture",
+  VENTURE_NUMBERS_SAVED: "set the venture's numbers for the simulation",
   SIMULATION_DECISIONS_SUBMITTED: "submitted a week in the simulation",
 };
 

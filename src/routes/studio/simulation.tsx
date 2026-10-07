@@ -6,6 +6,8 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { FormMessages, Loading } from "@/components/ui/feedback";
 import { StepHeader } from "@/components/shell/StepHeader";
 import { MarketInfo } from "@/components/sim/MarketInfo";
+import { ghs } from "@/components/sim/money";
+import { NumbersWizard } from "@/components/sim/NumbersWizard";
 import { PlanWeek } from "@/components/sim/PlanWeek";
 import { StallBoard } from "@/components/sim/StallBoard";
 import { WeekResult } from "@/components/sim/WeekResult";
@@ -24,10 +26,10 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/studio/simulation")({ component: SimulationPage });
 
-type Mode = "home" | "plan";
+type Mode = "home" | "plan" | "numbers";
 
 function SimulationPage() {
-  const { data: workspace, refresh: refreshWorkspace } = useStudioWorkspace();
+  const { refresh: refreshWorkspace } = useStudioWorkspace();
   const [page, setPage] = useState<SimulationPageData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingPeriod, setPendingPeriod] = useState<number | null>(null);
@@ -59,12 +61,11 @@ function SimulationPage() {
     return subscribeConnection(() => void load());
   }, [load]);
 
-  const ventureName = workspace?.venture?.name ?? null;
 
   if (!page) {
     return error ? (
       <div>
-        <StepHeader step="simulate" title="Run a food stall" />
+        <StepHeader step="simulate" title="Run your venture" />
         <FormMessages error={error} />
       </div>
     ) : (
@@ -73,7 +74,29 @@ function SimulationPage() {
   }
 
   if (!page.view) {
-    return <StartCard page={page} ventureName={ventureName} onStarted={() => void Promise.all([load(), refreshWorkspace()])} />;
+    if (mode === "numbers" && page.venture) {
+      return (
+        <NumbersWizard
+          ventureName={page.venture.name}
+          hints={{ problem: page.venture.problem, alternatives: page.venture.alternatives }}
+          numbers={page.numbers}
+          evidence={page.evidence}
+          onCancel={() => setMode("home")}
+          onSaved={() => {
+            setMode("home");
+            window.scrollTo({ top: 0 });
+            void load();
+          }}
+        />
+      );
+    }
+    return (
+      <StartCard
+        page={page}
+        onSetNumbers={() => setMode("numbers")}
+        onStarted={() => void Promise.all([load(), refreshWorkspace()])}
+      />
+    );
   }
 
   const view = page.view;
@@ -96,44 +119,79 @@ function SimulationPage() {
 
 function StartCard({
   page,
-  ventureName,
+  onSetNumbers,
   onStarted,
 }: {
   page: SimulationPageData;
-  ventureName: string | null;
+  onSetNumbers: () => void;
   onStarted: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const n = page.numbers;
+  const name = page.venture?.name ?? "your venture";
+
+  if (!page.venture) {
+    return (
+      <div className="space-y-5">
+        <StepHeader step="simulate" title="Run your venture" lead="Six weeks in a simulated market, built from your own numbers." />
+        {page.blockedReason ? <p className="rounded-[14px] bg-gold-soft px-3 py-2 text-sm text-gold-deep">{page.blockedReason}</p> : null}
+        <Link to="/studio/select" className={cn(buttonVariants({ variant: "secondary", size: "lg" }), "w-full")}>
+          Pick a venture first <ArrowRight className="size-4" aria-hidden />
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
-      <StepHeader step="simulate" title="Run a food stall" lead="Six weeks. Each week your group decides four things, then sees what happened." />
-      <div className="paper space-y-3 rounded-[20px] p-5">
-        <ol className="space-y-2.5">
-          {[
-            ["How many meals to make", "bg-gold"],
-            ["Which quality and supplier", "bg-pink"],
-            ["What price to charge", "bg-accent text-white"],
-            ["How much to spend on marketing", "bg-indigo text-white"],
-          ].map(([text, tone], i) => (
-            <li key={text} className="flex items-center gap-3">
-              <span className={cn("sticker flex size-8 shrink-0 items-center justify-center rounded-full font-display text-sm font-extrabold", tone)}>
-                {i + 1}
-              </span>
-              <span className="text-[15px] font-semibold">{text}</span>
+      <StepHeader
+        step="simulate"
+        title={
+          <>
+            Run <span className="mark">{name}</span>
+          </>
+        }
+        lead="Six weeks in a market built from your own numbers. Each week you decide, then see what happened."
+      />
+      {!n ? (
+        <div className="paper space-y-3 rounded-[20px] p-5">
+          <h2 className="font-display text-xl font-extrabold">First, your numbers</h2>
+          <p className="text-[15px] leading-6 text-ink-soft">
+            About ten quick questions: what one costs you, what customers would pay, how many people have the problem, and
+            your weekly costs. Use your evidence; where you have none, say it’s a guess.
+          </p>
+          <Button size="lg" className="w-full" onClick={onSetNumbers}>
+            Set our numbers <ArrowRight className="size-4" aria-hidden />
+          </Button>
+        </div>
+      ) : (
+        <div className="paper space-y-3 rounded-[20px] p-5">
+          <h2 className="font-display text-xl font-extrabold">Your numbers</h2>
+          <ul className="space-y-1 text-[15px]">
+            <li>
+              Each {n.unit} costs you <strong>{ghs(n.costPerUnit)}</strong> and sells for about <strong>{ghs(n.price)}</strong>.
             </li>
-          ))}
-        </ol>
-        <p className="text-[15px] leading-6 text-ink-soft">
-          You start with cash in the box. Run out and the stall closes, and working out why <span className="mark">is the lesson</span>.
-        </p>
-        {page.blockedReason ? <p className="rounded-[14px] bg-gold-soft px-3 py-2 text-sm text-gold-deep">{page.blockedReason}</p> : null}
-        <FormMessages error={error} />
-        {page.canStart ? (
+            <li>
+              About <strong>{n.peoplePerWeek}</strong> people have the problem each week; you can provide up to{" "}
+              <strong>{n.capacityPerWeek}</strong>.
+            </li>
+            <li>
+              Running costs: <strong>{ghs(n.fixedCosts.reduce((a, f) => a + f.amount, 0))}</strong> a week.
+            </li>
+          </ul>
+          <button type="button" className="min-h-11 text-sm font-bold underline underline-offset-4" onClick={onSetNumbers}>
+            Change our numbers
+          </button>
+          <p className="text-[15px] leading-6 text-ink-soft">
+            Once you open, these numbers are fixed. You start with cash in the box; run out and the venture closes, and working
+            out why <span className="mark">is the lesson</span>.
+          </p>
+          <FormMessages error={error} />
           <Button
             size="lg"
             className="w-full"
-            disabled={busy}
+            disabled={busy || !page.canStart}
             onClick={() => {
               setBusy(true);
               setError(null);
@@ -143,34 +201,11 @@ function StartCard({
                 .finally(() => setBusy(false));
             }}
           >
-            {busy ? "Opening the stall…" : "Open the stall"}
+            {busy ? "Opening…" : `Open ${name}`}
           </Button>
-        ) : (
-          <Link to="/studio/select" className={cn(buttonVariants({ variant: "secondary", size: "lg" }), "w-full")}>
-            Pick a venture first <ArrowRight className="size-4" aria-hidden />
-          </Link>
-        )}
-      </div>
-      <WhyFoodStall ventureName={ventureName} />
+        </div>
+      )}
     </div>
-  );
-}
-
-/**
- * Students arrive having chosen their own problem and meet a food stall.
- * Say why in two lines, behind a tap, so it does not read as their work
- * being thrown away and does not stand between them and playing.
- */
-function WhyFoodStall({ ventureName }: { ventureName: string | null }) {
-  return (
-    <details className="rounded-[18px] border border-line bg-bg-elevated px-4">
-      <summary className="flex min-h-12 cursor-pointer list-none items-center font-display font-extrabold">Why a food stall?</summary>
-      <p className="pb-4 text-[15px] leading-6 text-ink-soft">
-        Every group practises on the same stall, so results can be compared fairly. Price, stock and cash work the same way
-        in {ventureName ? <strong>{ventureName}</strong> : "your own venture"}, so keep testing your real idea in the
-        notebook too.
-      </p>
-    </details>
   );
 }
 

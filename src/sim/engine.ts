@@ -555,6 +555,8 @@ export function runPeriodV1(input: PeriodInput): PeriodOutput {
     avgPrice,
     nextRepayment,
     marketingSpend,
+    service: scenario.family === "service",
+    unit: scenario.products[0]?.unit ?? "unit",
   });
 
   const newState: SimState = {
