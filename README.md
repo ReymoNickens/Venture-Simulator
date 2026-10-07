@@ -44,60 +44,70 @@ The original concept named Next.js, Supabase, and Claude. Pedagogy follows the c
 ## Look around (demo class)
 
 The fastest way to see every screen: open `/owner`, enter
-`OWNER_ACCESS_CODE`, and tap **As a student**, **As a course rep** or **As a
-lecturer** under *Look around*. The first tap sets up a demo class (ENT 302 ·
-Demo class) with a rep, a student, a lecturer, three classmates still to
-activate and one group of synthetic classmates. Each tap signs you in with a
-one-off password, so there is nothing to remember. A gold bar on demo
-accounts says who you are and has **Switch role**, which goes back to the
-owner page. Demo accounts use `@tour.demo` emails (`src/lib/demo`).
+`OWNER_ACCESS_CODE`, and tap **As a student** or **As a lecturer** under
+*Look around*. The first tap sets up a demo class (ENT 302 · Demo class) with
+a student, a lecturer and one group of synthetic classmates. Each tap signs
+you in with a one-off password. A bar on practice accounts says who you are
+and has **Switch role**, which goes back to the owner page. Demo accounts use
+`@tour.demo` emails (`src/lib/demo`).
 
-## Sign-in and class lists
+## Sign-in, groups and lecturers
 
-There is no open self-registration. Each class keeps its own list, and the
-course rep maintains it from a phone, without any database work:
+Students sign themselves up; lecturers have nothing to set up.
 
-1. **Owner** (whoever runs the platform) opens `/owner`, enters the
-   `OWNER_ACCESS_CODE`, and makes a one-time setup code for each class
-   (e.g. "BSc Business, Level 300"). The page copies a ready-made WhatsApp
-   message with the link and code for the rep. Codes expire after 30 days and
-   are stored only as hashes.
-2. **Course rep** opens `/rep`, enters the code, names the programme and
-   level, and creates their own account. They land on **Class list**
-   (`/studio/class`), download the Excel template
-   (`public/templates/class-list-template.xlsx`: Full name, Index number,
-   Email, Programme), fill it in and upload it. Every bad row is explained by
-   its Excel row number. Uploading again adds late students and fixes typos;
-   anyone who has already activated is never changed. The page also copies a
-   WhatsApp message telling the class how to get in.
-3. **Students** activate at `/login` → "First time here? Activate your
-   account" with the email and index number on their class list, plus a
-   password. After that they sign in with EITHER their email or their index
-   number. Index number doubles as Better Auth's `username`, matched
-   case-insensitively.
-
-4. **Lecturers** get an invite code from the owner page: tick the classes
-   they teach, copy the message, send it. The lecturer opens
-   `/lecturer-setup`, enters the code, their name and email, and a password;
-   after that they sign in at `/login` with their email and land on
-   `/lecturer`:
+1. **Owner** opens `/owner` with `OWNER_ACCESS_CODE` and keeps the list of
+   **classes** (course · programme · level · semester), which students choose
+   from.
+2. **Group leader** opens the app (it can be added to the home screen) and
+   signs in at `/login` with a **phone number**: a 6-digit code arrives by SMS
+   (Arkesel), and the first code creates the account. **Continue with Google**
+   appears once Google sign-in is configured. Then they give their **details**
+   once (`/onboarding`): full name, index number, programme, email, phone and
+   class. On the group step they **start a group**, which makes them its
+   leader, and share its **invite link** (`/join/CODE`) with **Share on
+   WhatsApp** or **Copy link**.
+3. **Members** open the link, sign in the same way, fill in their details and
+   are added to that group. The code still works typed in by hand.
+4. **One person, one group:** index numbers, emails and phone numbers are
+   each unique to one student, and a student can be active in only one group
+   (database indexes in `migrations/0013`, with friendly messages from the
+   server first).
+5. **Lecturers:** the owner adds a lecturer's name, email and classes and
+   gets a login (email plus a generated password) to pass on. The lecturer
+   signs in at `/login` via "Lecturer? Sign in with email and password", can
+   change the password (`/lecturer/password`), and the owner can make a new
+   one if it is forgotten. A lecturer sees only their classes (row-level
+   security):
    - **Needs you:** groups that ran out of cash, have gone quiet for a week,
      have members who have done nothing, rely on opinion as evidence, or
-     have untested critical assumptions. Everyone else is listed as on track.
-   - **Group page:** who did what, the chosen problem and why, everyone's
-     picks, evidence, assumptions, simulation weeks and activity, plus
-     **feedback** (one-tap phrases or typed) that the group sees on Today.
-   - **Activity:** what students are doing, newest first.
-   - **Classes:** a marks sheet per class as an Excel file (activity counts
-     per student, a starting point for marking).
-   Lecturers only ever see the classes the owner ticked (enforced by the
-   database's row-level security), and the owner can change them later.
+     have untested critical assumptions.
+   - **Group page:** who did what, the chosen problem, everyone's picks,
+     evidence, assumptions, simulation weeks, activity, and **feedback** the
+     group sees on Today.
+   - **Activity**, and a **marks sheet** per class as an Excel file.
 
-A "class" is one course offering for one programme and level; groups form
-within a class. The older script `node scripts/roster-import.mjs roster.csv
-[courseOfferingId]` (CSV: `email,index_number,full_name,programme`) still
-works for bulk loads by someone with database access. To rebuild the Excel
-template after changing it, run `node scripts/make-class-template.mjs`.
+### SMS codes (Arkesel)
+
+Set `ARKESEL_API_KEY` and `ARKESEL_SENDER_ID` (the approved sender name, at
+most 11 characters, e.g. `ENT302`) in Vercel and redeploy. Until both are
+set, codes are not texted: they wait on the owner page for 10 minutes under
+*Texts are not switched on yet*, so sign-in can be tried meanwhile
+(`src/lib/sms/arkesel.ts`). Each number may ask for 3 codes a minute.
+
+To get the key: sign up at arkesel.com, add credit, request a sender ID
+under *SMS → Sender IDs* (approval can take a few days), then copy the key
+from *Dashboard → API Keys*.
+
+### Google sign-in
+
+1. In the Google Cloud console, create a project, then *APIs & Services →
+   OAuth consent screen*: External, app name "ENT 302", your email.
+2. *Credentials → Create credentials → OAuth client ID*: type *Web
+   application*. Authorised redirect URI:
+   `https://venture-simulator.vercel.app/api/auth/callback/google`.
+3. Put the client ID and secret in Vercel as `GOOGLE_CLIENT_ID` and
+   `GOOGLE_CLIENT_SECRET` and redeploy. The button appears on `/login` by
+   itself. `BETTER_AUTH_URL` must be the same public address.
 
 ## Environment
 
@@ -109,7 +119,11 @@ Do not put secrets in the client. Deployed apps receive:
 | `ANTHROPIC_API_KEY` | server | Advisor (never `VITE_`-prefixed) |
 | `BETTER_AUTH_URL` | server | This app's public URL |
 | `BETTER_AUTH_SECRET` | server | Session signing secret |
-| `OWNER_ACCESS_CODE` | server | Unlocks `/owner`, where course rep setup codes are made. Use a long random phrase. |
+| `OWNER_ACCESS_CODE` | server | Unlocks `/owner` (classes, lecturer logins, look around). Use a long random phrase. |
+| `ARKESEL_API_KEY` | server | Arkesel SMS key for sign-in codes |
+| `ARKESEL_SENDER_ID` | server | Approved SMS sender name, at most 11 characters |
+| `GOOGLE_CLIENT_ID` | server | Google sign-in (optional) |
+| `GOOGLE_CLIENT_SECRET` | server | Google sign-in (optional) |
 | `VITE_APP_NAME` | client | Optional display name |
 
 Copy [`.env.example`](.env.example) when running outside this host. Never commit a real `.env`.

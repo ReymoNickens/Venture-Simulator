@@ -4,6 +4,7 @@ import { getSql, withRlsBypass } from "@/lib/db";
 import { joinCode, newId } from "@/lib/utils";
 import type { OpportunityFields, RelationshipType } from "@/lib/domain/types";
 import { DEFAULT_GROUP_SIZE, DEFAULT_MAX_PHOTO_BYTES } from "@/lib/domain/config";
+import { isPhoneEmail, normalisePhone } from "@/lib/phone";
 import {
   AppError,
   assertGroupMember,
@@ -20,12 +21,21 @@ function fail(err: unknown): never {
   throw err;
 }
 
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * The details step after a first sign-in (phone code or Google): who you are
+ * on the register, how to reach you, and your class. Index number, email and
+ * phone each belong to one person only. Name and index number are set once.
+ */
 export const upsertProfile = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((input: {
     fullName: string;
     indexNumber: string;
     programme: string;
+    email?: string;
+    phone?: string;
     offeringId: string;
   }) => input)
   .handler(async ({ context, data }) => {
@@ -37,36 +47,58 @@ export const upsertProfile = createServerFn({ method: "POST" })
     const offering = await sql<{ id: string }>`
       select id from course_offerings where id = ${data.offeringId} limit 1
     `;
-    if (!offering[0]) throw new AppError("NOT_FOUND", "That course offering does not exist.");
+    if (!offering[0]) throw new AppError("NOT_FOUND", "That class does not exist.");
+
+    // A phone number checked by text message beats whatever was typed.
+    const account = await sql<{ phoneNumber: string | null }>`
+      select "phoneNumber" from "user" where id = ${context.userId} limit 1
+    `;
+    const phone = account[0]?.phoneNumber ?? (data.phone ? normalisePhone(data.phone) : null);
+    if (data.phone && !phone) throw new AppError("INVALID", "That phone number doesn’t look right. Type it like 024 412 3456.");
+    const email = data.email?.trim().toLowerCase() || null;
+    if (email && (!EMAIL.test(email) || isPhoneEmail(email))) throw new AppError("INVALID", "That email doesn’t look right.");
 
     const existing = await loadStudent(context.userId);
+    const indexNumber = existing ? existing.indexNumber : data.indexNumber.trim().toUpperCase();
+    const fullName = data.fullName.trim().replace(/\s+/g, " ");
+    if (!existing && (!fullName || !indexNumber)) {
+      throw new AppError("INVALID", "Name and index number are required.");
+    }
 
-    // Name and index number are set once — at roster activation (real sign-in)
-    // or below (dev/demo fallback, when auth is disabled and there is no
-    // roster to claim) — and are never editable afterward.
+    // Other students' rows are invisible under RLS, so the "is it taken?"
+    // check reads past it. The unique indexes (0002, 0006, 0013) back this up.
+    const clash = await withRlsBypass(async () => {
+      const rows = await sql<{ index_number: string; email: string | null; phone: string | null }>`
+        select index_number, email, phone from students
+        where (index_number = ${indexNumber} or (${email}::text is not null and lower(email) = ${email})
+               or (${phone}::text is not null and phone = ${phone}))
+          and (auth_user_id is distinct from ${context.userId})
+          and not is_synthetic
+        limit 1
+      `;
+      return rows[0] ?? null;
+    });
+    if (clash) {
+      const what = clash.index_number === indexNumber ? "index number" : email && clash.email?.toLowerCase() === email ? "email" : "phone number";
+      throw new AppError(
+        "DUPLICATE",
+        `That ${what} is already registered to another student. Each person can only be in one group. If it is yours, sign in the way you did before.`,
+      );
+    }
+
     let studentId: string;
     if (existing) {
       studentId = existing.id;
       await sql`
-        update students set programme = ${programme}, updated_at = now()
+        update students set programme = ${programme},
+          email = coalesce(${email}, email), phone = coalesce(${phone}, phone), updated_at = now()
         where id = ${studentId}
       `;
     } else {
-      const fullName = data.fullName.trim();
-      const indexNumber = data.indexNumber.trim().toUpperCase();
-      if (!fullName || !indexNumber) {
-        throw new AppError("INVALID", "Name and index number are required.");
-      }
-      const taken = await sql<{ id: string }>`
-        select id from students where index_number = ${indexNumber} limit 1
-      `;
-      if (taken[0]) {
-        throw new AppError("DUPLICATE", "That index number is already registered.");
-      }
       studentId = newId();
       await sql`
-        insert into students (id, auth_user_id, full_name, index_number, programme, is_synthetic)
-        values (${studentId}, ${context.userId}, ${fullName}, ${indexNumber}, ${programme}, false)
+        insert into students (id, auth_user_id, full_name, index_number, programme, email, phone, is_synthetic)
+        values (${studentId}, ${context.userId}, ${fullName}, ${indexNumber}, ${programme}, ${email}, ${phone}, false)
       `;
     }
 
@@ -160,7 +192,7 @@ export const joinGroup = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const student = await requireStudent(context.userId);
     const existing = await loadGroupForStudent(student.id);
-    if (existing) throw new AppError("ALREADY_IN_GROUP", "You already belong to a group.");
+    if (existing) throw new AppError("ALREADY_IN_GROUP", "You are already in a group. Each person can only be in one.");
     const sql = await getSql();
     const code = data.joinCode.trim().toUpperCase();
     // Looking a group up by its join code, and counting its current members,
@@ -193,17 +225,17 @@ export const joinGroup = createServerFn({ method: "POST" })
       `;
       return { ...group, activeCount: Number(count[0]?.n ?? 0) };
     });
-    if (!group) throw new AppError("NOT_FOUND", "No group uses that join code.");
+    if (!group) throw new AppError("NOT_FOUND", "That invite link or code doesn’t match any group. Ask your group leader to send it again.");
     // Each course rep's class is its own offering; groups form within a class.
     const offering = await loadOfferingForStudent(student.id);
     if (offering && group.course_offering_id !== offering.id) {
-      throw new AppError("OTHER_CLASS", "That join code belongs to a group in another class. Ask a classmate for your group’s code.");
+      throw new AppError("OTHER_CLASS", "That invite is for a group in another class. Ask your group leader for the right link.");
     }
     if (group.status === "venture_created") {
       throw new AppError("CLOSED", "This group has already selected a venture.");
     }
     if (group.activeCount >= Number(group.capacity)) {
-      throw new AppError("FULL", "This group is full.");
+      throw new AppError("FULL", "This group is full. Ask your group leader, or start a group of your own.");
     }
     const dup = await sql<{ id: string }>`
       select id from group_members where group_id = ${group.id} and student_id = ${student.id} limit 1

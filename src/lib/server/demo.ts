@@ -1,4 +1,4 @@
-// The owner's "look around" buttons: sign in as the demo student, course rep
+// The owner's "look around" buttons: sign in as the demo student
 // or lecturer of a ready-made class (src/lib/demo/tour.ts), without setup
 // codes, uploads or activation. Gated by OWNER_ACCESS_CODE like the rest of
 // the owner page.
@@ -13,7 +13,7 @@ export interface DemoLogin {
 }
 
 export const startDemo = createServerFn({ method: "POST" })
-  .validator(parseInput(z.object({ ownerCode: z.string().min(1).max(200), role: z.enum(["student", "rep", "lecturer"]) })))
+  .validator(parseInput(z.object({ ownerCode: z.string().min(1).max(200), role: z.enum(["student", "lecturer"]) })))
   .handler(async ({ data }): Promise<DemoLogin> => {
     // Loaded here, not at the top: pages import this file, and only the
     // handler runs on the server.

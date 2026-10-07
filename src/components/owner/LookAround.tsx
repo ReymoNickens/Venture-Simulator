@@ -1,26 +1,19 @@
 import { useState } from "react";
-import { GraduationCap, Presentation, UserRound, type LucideIcon } from "lucide-react";
+import { Presentation, UserRound, type LucideIcon } from "lucide-react";
 import { signIn } from "@/lib/auth/client";
 import { startDemo } from "@/lib/server/demo";
 import { Card } from "@/components/ui/badge";
 import { FormMessages } from "@/components/ui/feedback";
 
-type Role = "student" | "rep" | "lecturer";
+type Role = "student" | "lecturer";
 
 const ROLES: { role: Role; title: string; body: string; to: string; icon: LucideIcon }[] = [
   {
     role: "student",
     title: "As a student",
-    body: "Form a group, collect opportunities, test a venture, run the food stall.",
+    body: "Start a group and invite members, find problems, test a venture, run the food stall.",
     to: "/studio",
     icon: UserRound,
-  },
-  {
-    role: "rep",
-    title: "As a course rep",
-    body: "See the class list, upload a sheet, check who has activated.",
-    to: "/studio/class",
-    icon: GraduationCap,
   },
   {
     role: "lecturer",

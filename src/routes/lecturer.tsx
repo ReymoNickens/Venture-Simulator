@@ -72,13 +72,18 @@ function LecturerLayout() {
               </Link>
             ))}
           </nav>
-          <button
-            type="button"
-            onClick={() => void signOut()}
-            className="flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-muted hover:bg-bg-subtle"
-          >
-            <LogOut className="size-4" aria-hidden /> Sign out
-          </button>
+          <div className="flex shrink-0 items-center">
+            <Link to="/lecturer/password" className="hidden min-h-11 items-center px-3 text-sm font-semibold text-muted hover:text-ink sm:flex">
+              Change password
+            </Link>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="flex min-h-11 items-center gap-1.5 rounded-[10px] px-3 text-sm font-semibold text-muted hover:bg-bg-subtle"
+            >
+              <LogOut className="size-4" aria-hidden /> Sign out
+            </button>
+          </div>
         </div>
       </header>
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Download, Users } from "lucide-react";
 import { useLecturer } from "@/hooks/lecturer-context";
 import { getMarksSheet } from "@/lib/server/lecturers";
@@ -25,9 +25,12 @@ function ClassesPage() {
         ))}
       </ul>
       <p className="text-xs leading-5 text-muted">
-        Class lists are kept by each class’s course rep. If a student is missing, ask the rep to add them. To change
-        which classes you see, ask the platform owner.
+        Students join by themselves: a group leader starts a group and sends the others an invite link. To change which
+        classes you see, ask the platform owner.
       </p>
+      <Link to="/lecturer/password" className="inline-flex min-h-11 items-center text-sm font-semibold text-accent underline underline-offset-4">
+        Change your password
+      </Link>
     </div>
   );
 }
