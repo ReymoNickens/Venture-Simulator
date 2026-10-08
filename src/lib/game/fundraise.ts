@@ -720,12 +720,18 @@ export interface OpeningLoan {
   amount: number;
   ratePerPeriodBp: number;
   termPeriods: number;
+  /** Part of the loan already spent before opening: still owed, no longer cash. */
+  spentBeforeOpening?: number;
 }
 
 /**
  * What the game hands to the venture: the cash that is the group's own (savings,
  * gifts, wages, susu, grant, a share sold) as starting capital, and every loan
  * as a debt that is repaid with interest from the first week. Pesewas.
+ *
+ * The venture opens with exactly the cash the group holds. If the group spent
+ * more than its own money while raising (fares, susu, a repair), the rest came
+ * out of the loans: they are still owed in full, but that part is not cash.
  */
 export function fundingPlan(s: GameState, termPeriods = 6): { startingCash: number; loans: OpeningLoan[] } {
   const loans: OpeningLoan[] = s.debts.map((d, i) => ({
@@ -737,5 +743,11 @@ export function fundingPlan(s: GameState, termPeriods = 6): { startingCash: numb
     termPeriods,
   }));
   const borrowed = loans.reduce((a, l) => a + l.amount, 0);
+  let spent = Math.max(0, borrowed - s.cash * 100);
+  for (const l of loans) {
+    const part = Math.min(spent, l.amount);
+    if (part > 0) l.spentBeforeOpening = part;
+    spent -= part;
+  }
   return { startingCash: Math.max(0, s.cash * 100 - borrowed), loans };
 }

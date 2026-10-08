@@ -115,4 +115,18 @@ describe("fundraising game", () => {
     assert.deepEqual(plan.loans[0], { id: "raised_1_bank", source: "bank", amount: 100000, ratePerPeriodBp: 300, termPeriods: 6 });
     assert.equal(plan.startingCash + plan.loans[0].amount, s.cash * 100);
   });
+
+  it("opens with only the cash the group still holds when it spent some of a loan", () => {
+    // GHS 20 of its own, borrow GHS 120 from Kojo, then spend on a fare and susu.
+    let s = go(newGame(5, "uncle"), "friend");
+    s = perform(s, "borrow_friend");
+    assert.equal(s.debts.length, 1, "Kojo lends");
+    s = go(s, "market");
+    s = finish(perform(s, "susu_pay"));
+    assert.ok(s.cash < 120, "some of the loan was spent");
+    const plan = fundingPlan(s);
+    const cashIn = plan.startingCash + plan.loans.reduce((a, l) => a + l.amount - (l.spentBeforeOpening ?? 0), 0);
+    assert.equal(cashIn, s.cash * 100);
+    assert.equal(plan.loans[0].amount, 12000, "still owed in full");
+  });
 });

@@ -118,12 +118,15 @@ export interface OpeningLoan {
   amount: number;
   ratePerPeriodBp: number;
   termPeriods: number;
+  /** Part of the loan already spent before opening (fares, fees): owed, but no longer cash. */
+  spentBeforeOpening?: number;
 }
 
 /**
  * Start a venture with the loans it raised before opening. Each loan is cash
  * in the opening ledger and a debt repaid in equal instalments from period 1,
- * with interest on the balance, like any other loan.
+ * with interest on the balance, like any other loan. Whatever was spent before
+ * opening leaves the cash again as a capital line, so the debt stays whole.
  */
 export function withOpeningFinancing<S extends { ledger: { id: string; period: number; category: string; amount: number; memo: string; ref: string | null; explainId: string }[]; debts: Debt[] }>(
   state: S,
@@ -137,6 +140,9 @@ export function withOpeningFinancing<S extends { ledger: { id: string; period: n
     if (l.amount <= 0) throw new EngineInputError(`Opening loan ${l.id} must be a positive amount`);
     if (!Number.isInteger(l.termPeriods) || l.termPeriods < 1) throw new EngineInputError(`Opening loan ${l.id} needs a term`);
     if (debts.some((d) => d.id === l.id)) throw new EngineInputError(`Opening loan ${l.id} is listed twice`);
+    const spent = l.spentBeforeOpening ?? 0;
+    assertPesewas(spent, `opening loan ${l.id} spent`);
+    if (spent < 0 || spent > l.amount) throw new EngineInputError(`Opening loan ${l.id} cannot have spent more than it lent`);
     const n = ledger.length + 1;
     ledger.push({
       id: `0:${n}`,
@@ -147,6 +153,18 @@ export function withOpeningFinancing<S extends { ledger: { id: string; period: n
       ref: l.id,
       explainId: `p0.setup.${n}`,
     });
+    if (spent > 0) {
+      const m = ledger.length + 1;
+      ledger.push({
+        id: `0:${m}`,
+        period: 0,
+        category: "capital",
+        amount: -spent,
+        memo: "Spent while raising the money",
+        ref: l.id,
+        explainId: `p0.setup.${m}`,
+      });
+    }
     debts.push({
       id: l.id,
       source: l.source,

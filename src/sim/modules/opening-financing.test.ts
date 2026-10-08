@@ -35,9 +35,16 @@ describe("loans raised before opening", () => {
     assert.equal(out.newState.debts[0].balance, 100000 - Math.floor(100000 / 6));
   });
 
+  it("still owe in full what was spent before opening, without it being cash", () => {
+    const start = withOpeningFinancing(initialState(campusFoodStall, "sim-z"), [{ ...loan, spentBeforeOpening: 30000 }]);
+    assert.equal(cashBalance(start.ledger), campusFoodStall.startingCapital.value + 70000);
+    assert.equal(start.debts[0].balance, 100000);
+  });
+
   it("refuse nonsense", () => {
     const s = initialState(campusFoodStall, "sim-y");
     assert.throws(() => withOpeningFinancing(s, [{ ...loan, amount: 0 }]));
     assert.throws(() => withOpeningFinancing(s, [loan, loan]));
+    assert.throws(() => withOpeningFinancing(s, [{ ...loan, spentBeforeOpening: 100001 }]));
   });
 });
