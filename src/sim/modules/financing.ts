@@ -83,7 +83,9 @@ export function repay(ctx: PeriodContext, debts: Debt[]): { debts: Debt[]; inter
   let interestTotal = 0;
   const next = debts.map((d) => {
     if (d.balance <= 0) return d;
-    const interest = toPesewas((d.balance * d.ratePerPeriodBp) / 10000);
+    const flat = d.interestOn === "principal";
+    const base = flat ? d.principal : d.balance;
+    const interest = toPesewas((base * d.ratePerPeriodBp) / 10000);
     const due = d.schedule.filter((s) => s.period === ctx.period).reduce((s, i) => s + i.principal, 0);
     const principal = Math.min(due, d.balance);
     const label = SOURCE_LABEL[d.source];
@@ -92,7 +94,9 @@ export function repay(ctx: PeriodContext, debts: Debt[]): { debts: Debt[]; inter
         "financing",
         "loan_interest",
         interest,
-        `${label}: interest ${formatGhs(interest)} = balance ${formatGhs(d.balance)} × ${d.ratePerPeriodBp / 100}%.`,
+        flat
+          ? `${label}: interest ${formatGhs(interest)} = ${formatGhs(d.principal)} borrowed × ${d.ratePerPeriodBp / 100}%, a flat rate.`
+          : `${label}: interest ${formatGhs(interest)} = balance ${formatGhs(d.balance)} × ${d.ratePerPeriodBp / 100}%.`,
       );
       ctx.post("loan_interest", -interest, `${label} interest`, d.id, lineId);
       interestTotal += interest;
@@ -120,12 +124,15 @@ export interface OpeningLoan {
   termPeriods: number;
   /** Part of the loan already spent before opening (fares, fees): owed, but no longer cash. */
   spentBeforeOpening?: number;
+  /** Charge the rate on the amount borrowed each period (as the lender quoted it), not on the balance. */
+  flatInterest?: boolean;
 }
 
 /**
  * Start a venture with the loans it raised before opening. Each loan is cash
  * in the opening ledger and a debt repaid in equal instalments from period 1,
- * with interest on the balance, like any other loan. Whatever was spent before
+ * with interest on the balance like any other loan, or on the amount borrowed
+ * when the loan was quoted at a flat rate. Whatever was spent before
  * opening leaves the cash again as a capital line, so the debt stays whole.
  */
 export function withOpeningFinancing<S extends { ledger: { id: string; period: number; category: string; amount: number; memo: string; ref: string | null; explainId: string }[]; debts: Debt[] }>(
@@ -171,6 +178,7 @@ export function withOpeningFinancing<S extends { ledger: { id: string; period: n
       principal: l.amount,
       balance: l.amount,
       ratePerPeriodBp: l.ratePerPeriodBp,
+      ...(l.flatInterest ? { interestOn: "principal" as const } : {}),
       schedule: repaymentSchedule(l.amount, l.termPeriods, 1),
       disbursedPeriod: 0,
     });

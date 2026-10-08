@@ -722,6 +722,8 @@ export interface OpeningLoan {
   termPeriods: number;
   /** Part of the loan already spent before opening: still owed, no longer cash. */
   spentBeforeOpening?: number;
+  /** Interest on the amount borrowed every week, as the game quotes it. */
+  flatInterest?: boolean;
 }
 
 /**
@@ -741,6 +743,8 @@ export function fundingPlan(s: GameState, termPeriods = 6): { startingCash: numb
     amount: d.amount * 100,
     ratePerPeriodBp: Math.round((d.ratePerWeek ?? 0) * 10000),
     termPeriods,
+    // The game quotes a flat rate (GHS 1,000 at 3% for 6 weeks: GHS 1,180), so the venture pays that.
+    ...(d.ratePerWeek ? { flatInterest: true } : {}),
   }));
   const borrowed = loans.reduce((a, l) => a + l.amount, 0);
   let spent = Math.max(0, borrowed - s.cash * 100);

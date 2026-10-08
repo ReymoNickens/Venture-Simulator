@@ -35,6 +35,26 @@ describe("loans raised before opening", () => {
     assert.equal(out.newState.debts[0].balance, 100000 - Math.floor(100000 / 6));
   });
 
+  it("at a flat rate cost exactly what the lender quoted", () => {
+    // The game quotes GHS 1,000 at 3% a week for 6 weeks as GHS 1,180 to repay.
+    let state = withOpeningFinancing(initialState(campusFoodStall, "sim-f"), [{ ...loan, flatInterest: true }]);
+    for (let period = 1; period <= 6; period++) {
+      state = runPeriod({
+        engineVersion: CURRENT_ENGINE_VERSION,
+        scenario: campusFoodStall,
+        state,
+        decisions: { period, products: { rice_pack: { price: 2500, qualityTier: "standard", order: { supplierId: "market_trader", units: 0 } } }, marketingBudget: 0, eventResponses: {} },
+        cohortEvents: [],
+        seed: groupSeed("sim-f", period),
+        financing: [],
+      }).newState;
+    }
+    const paid = (category: string) => -state.ledger.filter((t) => t.ref === loan.id && t.category === category).reduce((a, t) => a + t.amount, 0);
+    assert.equal(paid("loan_interest"), 18000);
+    assert.equal(paid("loan_principal"), 100000);
+    assert.equal(state.debts[0].balance, 0);
+  });
+
   it("still owe in full what was spent before opening, without it being cash", () => {
     const start = withOpeningFinancing(initialState(campusFoodStall, "sim-z"), [{ ...loan, spentBeforeOpening: 30000 }]);
     assert.equal(cashBalance(start.ledger), campusFoodStall.startingCapital.value + 70000);

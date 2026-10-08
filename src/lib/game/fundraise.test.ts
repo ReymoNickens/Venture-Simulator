@@ -112,7 +112,7 @@ describe("fundraising game", () => {
     s = perform(s, "accept_offer");
     const plan = fundingPlan(s);
     assert.equal(plan.loans.length, 1);
-    assert.deepEqual(plan.loans[0], { id: "raised_1_bank", source: "bank", amount: 100000, ratePerPeriodBp: 300, termPeriods: 6 });
+    assert.deepEqual(plan.loans[0], { id: "raised_1_bank", source: "bank", amount: 100000, ratePerPeriodBp: 300, termPeriods: 6, flatInterest: true });
     assert.equal(plan.startingCash + plan.loans[0].amount, s.cash * 100);
   });
 
