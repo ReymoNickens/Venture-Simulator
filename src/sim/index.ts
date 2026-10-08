@@ -3,6 +3,7 @@ export * from "./types.ts";
 export { canonicalJson } from "./canonical.ts";
 export { cashBalance, EngineInputError } from "./context.ts";
 export { initialState, ENGINE_V1 } from "./engine.ts";
+export { withOpeningFinancing, type OpeningLoan } from "./modules/financing.ts";
 export { formatGhs } from "./money.ts";
 export { drawCohortEvents } from "./modules/events.ts";
 export { findUnsourcedParams } from "./params.ts";

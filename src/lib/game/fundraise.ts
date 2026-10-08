@@ -12,6 +12,7 @@ export type PlaceId = "hostel" | "library" | "enterprise" | "friend" | "market" 
 export type Slot = 0 | 1 | 2;
 export const SLOT_NAMES = ["Morning", "Afternoon", "Evening"] as const;
 export const DAYS = 10;
+/** The practice game's target; in the course it comes from the group's own numbers. */
 export const GOAL = 1500;
 
 export interface Place {
@@ -104,6 +105,8 @@ export interface Debt {
   totalRepay: number;
   weekly: number;
   note: string;
+  /** Interest per week (0.03 = 3%); none for family and friends. */
+  ratePerWeek?: number;
 }
 
 export interface Offer {
@@ -121,6 +124,8 @@ export interface LogLine {
 
 export interface GameState {
   seed: number;
+  /** Cedis needed to open. Older saves have none: use goalOf(). */
+  goal?: number;
   cardId: string;
   day: number;
   slot: Slot;
@@ -168,14 +173,17 @@ function rng(seed: number): () => number {
 }
 const roll = (s: GameState, salt: number) => rng(s.seed * 31 + s.day * 977 + salt)();
 
+export const goalOf = (s: GameState) => s.goal ?? GOAL;
+
 export function cardOf(s: GameState): LifeCard {
   return LIFE_CARDS.find((c) => c.id === s.cardId) ?? LIFE_CARDS[0];
 }
 
-export function newGame(seed: number, cardId?: string): GameState {
+export function newGame(seed: number, cardId?: string, goal: number = GOAL): GameState {
   const card = cardId ? (LIFE_CARDS.find((c) => c.id === cardId) ?? LIFE_CARDS[0]) : LIFE_CARDS[Math.floor(rng(seed)() * LIFE_CARDS.length)];
   return {
     seed,
+    goal,
     cardId: card.id,
     day: 1,
     slot: 0,
@@ -202,7 +210,7 @@ export function newGame(seed: number, cardId?: string): GameState {
     microfinanceTried: false,
     offer: null,
     familyPotLeft: card.familyPot,
-    log: [{ day: 1, text: `Day 1. You have GHS ${card.cash}. Your venture needs GHS ${GOAL} to open in ${DAYS} days.`, tone: "info" }],
+    log: [{ day: 1, text: `Day 1. You have GHS ${card.cash}. Your venture needs GHS ${goal} to open in ${DAYS} days.`, tone: "info" }],
     over: false,
   };
 }
@@ -605,7 +613,14 @@ export function perform(s: GameState, id: ActionId, answers: number[] = []): Gam
         ...next,
         debts: [
           ...next.debts,
-          { source: o.source, amount: o.amount, totalRepay: repayTotal(o), weekly: weeklyOf(o), note: `${Math.round(o.ratePerWeek * 100)}% a week for ${o.weeks} weeks` },
+          {
+            source: o.source,
+            amount: o.amount,
+            totalRepay: repayTotal(o),
+            weekly: weeklyOf(o),
+            note: `${Math.round(o.ratePerWeek * 100)}% a week for ${o.weeks} weeks`,
+            ratePerWeek: o.ratePerWeek,
+          },
         ],
       };
       next = note(next, `You sign. GHS ${o.amount} now; GHS ${weeklyOf(o)} a week to repay from week 1.`, "good");
@@ -684,14 +699,59 @@ export function summary(s: GameState): Summary {
   if (s.evidence < 2) lessons.push("With little evidence, the people with the most money were the hardest to convince.");
   if (s.familyTrust < 40) lessons.push("Family trust is a resource too, and you spent a lot of it.");
   if (s.susuPaid > 0 && !s.susuCollected) lessons.push(`GHS ${s.susuPaid} is still with Auntie Esi. Saving takes time to pay off.`);
-  if (s.cash < GOAL) lessons.push(`You are GHS ${GOAL - s.cash} short. Start smaller, or keep going after money you haven’t tried yet.`);
+  if (s.cash < goalOf(s)) lessons.push(`You are GHS ${goalOf(s) - s.cash} short. Start smaller, or keep going after money you haven’t tried yet.`);
   return {
     cash: s.cash,
-    short: Math.max(0, GOAL - s.cash),
+    short: Math.max(0, goalOf(s) - s.cash),
     weeklyRepayments: weekly,
     totalToRepay: owed,
     equityGiven: s.equityGiven,
     bySource: (Object.entries(s.raised) as [Source, number][]).filter(([, v]) => v > 0).map(([source, amount]) => ({ source, amount })),
     lessons,
   };
+}
+
+// ------------------------------------------------------------ funding plan
+
+/** A loan as the venture's simulation needs it: pesewas, interest per week in basis points. */
+export interface OpeningLoan {
+  id: string;
+  source: "family" | "bank" | "microfinance";
+  amount: number;
+  ratePerPeriodBp: number;
+  termPeriods: number;
+  /** Part of the loan already spent before opening: still owed, no longer cash. */
+  spentBeforeOpening?: number;
+  /** Interest on the amount borrowed every week, as the game quotes it. */
+  flatInterest?: boolean;
+}
+
+/**
+ * What the game hands to the venture: the cash that is the group's own (savings,
+ * gifts, wages, susu, grant, a share sold) as starting capital, and every loan
+ * as a debt that is repaid with interest from the first week. Pesewas.
+ *
+ * The venture opens with exactly the cash the group holds. If the group spent
+ * more than its own money while raising (fares, susu, a repair), the rest came
+ * out of the loans: they are still owed in full, but that part is not cash.
+ */
+export function fundingPlan(s: GameState, termPeriods = 6): { startingCash: number; loans: OpeningLoan[] } {
+  const loans: OpeningLoan[] = s.debts.map((d, i) => ({
+    id: `raised_${i + 1}_${d.source}`,
+    // The engine knows friends and family together.
+    source: d.source === "friend" ? "family" : d.source,
+    amount: d.amount * 100,
+    ratePerPeriodBp: Math.round((d.ratePerWeek ?? 0) * 10000),
+    termPeriods,
+    // The game quotes a flat rate (GHS 1,000 at 3% for 6 weeks: GHS 1,180), so the venture pays that.
+    ...(d.ratePerWeek ? { flatInterest: true } : {}),
+  }));
+  const borrowed = loans.reduce((a, l) => a + l.amount, 0);
+  let spent = Math.max(0, borrowed - s.cash * 100);
+  for (const l of loans) {
+    const part = Math.min(spent, l.amount);
+    if (part > 0) l.spentBeforeOpening = part;
+    spent -= part;
+  }
+  return { startingCash: Math.max(0, s.cash * 100 - borrowed), loans };
 }

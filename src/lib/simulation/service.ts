@@ -23,6 +23,8 @@ import {
   type Decisions,
   type PeriodOutput,
   type Scenario,
+  withOpeningFinancing,
+  type OpeningLoan,
   type SimState,
   type StudentPeriodView,
 } from "../../sim/index.ts";
@@ -181,9 +183,16 @@ export interface SimulationRow {
   completed_period: number;
   /** The group's own market, frozen at start (0014); null = the class's scenario. */
   scenario: Scenario | null;
+  /** Loans the group raised before opening (0015). */
+  opening_financing: OpeningLoan[] | null;
 }
 
-const SIM_COLUMNS = "id, cohort_id, group_id, venture_id, engine_version, status, completed_period, scenario";
+const SIM_COLUMNS = "id, cohort_id, group_id, venture_id, engine_version, status, completed_period, scenario, opening_financing";
+
+/** Where a simulation starts: the scenario's starting capital, plus any loans raised before opening. */
+export function openingState(sim: Pick<SimulationRow, "id" | "opening_financing">, scenario: Scenario): SimState {
+  return withOpeningFinancing(initialState(scenario, sim.id), sim.opening_financing ?? []);
+}
 
 /** The market a simulation runs in: its own, or (older simulations) the class's. */
 export function scenarioOf(sim: Pick<SimulationRow, "scenario">, cohort: CohortRow): Scenario {
@@ -208,6 +217,8 @@ export async function startSimulation(
     offeringId: string;
     /** Build the group's own market from the class's scenario (its weeks, cash and events). */
     buildScenario?: (classScenario: Scenario) => Scenario;
+    /** Loans raised before opening, in place from the start. */
+    openingLoans?: OpeningLoan[];
   },
 ): Promise<SimulationRow> {
   const existing = await findSimulationForGroup(db, input.groupId);
@@ -216,12 +227,13 @@ export async function startSimulation(
   const id = newId();
   const own = input.buildScenario ? input.buildScenario(cohort.scenario) : null;
   const scenario = own ?? cohort.scenario;
-  const state = initialState(scenario, id);
+  const loans = input.openingLoans ?? [];
+  const state = openingState({ id, opening_financing: loans }, scenario);
   await asEngine(db, async () => {
     const inserted = await db.query<{ id: string }>(
       `insert into simulations
-         (id, cohort_id, group_id, venture_id, engine_version, scenario_id, scenario_version, started_by_student_id, scenario)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         (id, cohort_id, group_id, venture_id, engine_version, scenario_id, scenario_version, started_by_student_id, scenario, opening_financing)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        on conflict (group_id) do nothing
        returning id`,
       [
@@ -234,6 +246,7 @@ export async function startSimulation(
         scenario.version,
         input.studentId,
         own ? JSON.stringify(own) : null,
+        loans.length ? JSON.stringify(loans) : null,
       ],
     );
     if (!inserted[0]) return; // another member started it a moment ago
@@ -348,7 +361,7 @@ export async function runPeriodFor(db: Db, simulationId: string, period: number)
     let state: SimState;
     const scenario = scenarioOf(sim, cohort);
     if (period === 1) {
-      state = initialState(scenario, simulationId);
+      state = openingState(sim, scenario);
     } else {
       const [prev] = await db.query<{ state: SimState }>(
         "select state from simulation_results where simulation_id = $1 and period = $2",

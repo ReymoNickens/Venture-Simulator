@@ -438,3 +438,33 @@ describe("a group's own venture", () => {
       assert.equal(b?.market.products[0].id, "rice_pack");
     }));
 });
+
+describe("money raised before opening", () => {
+  it("starts with the group's own cash plus its loans, and repays from week 1", () =>
+    withDb(async (pg) => {
+      const sim = await as(pg, "auth-a", (db) =>
+        startSimulation(db, {
+          studentId: "student-a",
+          groupId: "group-a",
+          ventureId: "venture-a",
+          offeringId: "off1",
+          buildScenario: (frame) => ({ ...frame, startingCapital: { value: 50000, assumption: true } }),
+          openingLoans: [{ id: "raised_1_bank", source: "bank", amount: 100000, ratePerPeriodBp: 300, termPeriods: 6 }],
+        }),
+      );
+      const before = await as(pg, "auth-a", (db) => loadSimulationView(db, "group-a"));
+      assert.equal(before?.cash, 150000, "GHS 500 of their own + GHS 1,000 borrowed");
+      await as(pg, "auth-a", (db) => submitDecisions(db, { simulationId: sim.id, studentId: "student-a", clientId: "c-1", decisions: decisions(1) }));
+      const rows = await pg.query<{ category: string; amount: number }>(
+        "select category, amount from simulation_transactions where simulation_id = $1 and period = 1 and category in ('loan_interest', 'loan_principal')",
+        [sim.id],
+      );
+      assert.deepEqual(
+        rows.rows.map((r) => [r.category, Number(r.amount)]).sort(),
+        [
+          ["loan_interest", -3000],
+          ["loan_principal", -16666],
+        ],
+      );
+    }));
+});

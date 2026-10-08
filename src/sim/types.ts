@@ -275,6 +275,8 @@ export interface Debt {
   balance: Pesewas;
   /** Interest per period on the outstanding balance, in basis points. */
   ratePerPeriodBp: number;
+  /** "principal": a flat rate, charged on the amount borrowed until it is repaid. Absent = on the balance. */
+  interestOn?: "principal";
   schedule: RepaymentInstalment[];
   disbursedPeriod: number;
 }

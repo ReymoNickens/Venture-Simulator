@@ -83,7 +83,9 @@ export function repay(ctx: PeriodContext, debts: Debt[]): { debts: Debt[]; inter
   let interestTotal = 0;
   const next = debts.map((d) => {
     if (d.balance <= 0) return d;
-    const interest = toPesewas((d.balance * d.ratePerPeriodBp) / 10000);
+    const flat = d.interestOn === "principal";
+    const base = flat ? d.principal : d.balance;
+    const interest = toPesewas((base * d.ratePerPeriodBp) / 10000);
     const due = d.schedule.filter((s) => s.period === ctx.period).reduce((s, i) => s + i.principal, 0);
     const principal = Math.min(due, d.balance);
     const label = SOURCE_LABEL[d.source];
@@ -92,7 +94,9 @@ export function repay(ctx: PeriodContext, debts: Debt[]): { debts: Debt[]; inter
         "financing",
         "loan_interest",
         interest,
-        `${label}: interest ${formatGhs(interest)} = balance ${formatGhs(d.balance)} × ${d.ratePerPeriodBp / 100}%.`,
+        flat
+          ? `${label}: interest ${formatGhs(interest)} = ${formatGhs(d.principal)} borrowed × ${d.ratePerPeriodBp / 100}%, a flat rate.`
+          : `${label}: interest ${formatGhs(interest)} = balance ${formatGhs(d.balance)} × ${d.ratePerPeriodBp / 100}%.`,
       );
       ctx.post("loan_interest", -interest, `${label} interest`, d.id, lineId);
       interestTotal += interest;
@@ -109,4 +113,75 @@ export function repay(ctx: PeriodContext, debts: Debt[]): { debts: Debt[]; inter
     return { ...d, balance: d.balance - principal };
   });
   return { debts: next, interest: interestTotal };
+}
+
+/** A loan in place before the first period: raised while getting ready to open. */
+export interface OpeningLoan {
+  id: string;
+  source: FinancingDisbursement["source"];
+  amount: number;
+  ratePerPeriodBp: number;
+  termPeriods: number;
+  /** Part of the loan already spent before opening (fares, fees): owed, but no longer cash. */
+  spentBeforeOpening?: number;
+  /** Charge the rate on the amount borrowed each period (as the lender quoted it), not on the balance. */
+  flatInterest?: boolean;
+}
+
+/**
+ * Start a venture with the loans it raised before opening. Each loan is cash
+ * in the opening ledger and a debt repaid in equal instalments from period 1,
+ * with interest on the balance like any other loan, or on the amount borrowed
+ * when the loan was quoted at a flat rate. Whatever was spent before
+ * opening leaves the cash again as a capital line, so the debt stays whole.
+ */
+export function withOpeningFinancing<S extends { ledger: { id: string; period: number; category: string; amount: number; memo: string; ref: string | null; explainId: string }[]; debts: Debt[] }>(
+  state: S,
+  loans: readonly OpeningLoan[],
+): S {
+  if (!loans.length) return state;
+  const ledger = [...state.ledger];
+  const debts = [...state.debts];
+  for (const l of loans) {
+    assertPesewas(l.amount, `opening loan ${l.id}`);
+    if (l.amount <= 0) throw new EngineInputError(`Opening loan ${l.id} must be a positive amount`);
+    if (!Number.isInteger(l.termPeriods) || l.termPeriods < 1) throw new EngineInputError(`Opening loan ${l.id} needs a term`);
+    if (debts.some((d) => d.id === l.id)) throw new EngineInputError(`Opening loan ${l.id} is listed twice`);
+    const spent = l.spentBeforeOpening ?? 0;
+    assertPesewas(spent, `opening loan ${l.id} spent`);
+    if (spent < 0 || spent > l.amount) throw new EngineInputError(`Opening loan ${l.id} cannot have spent more than it lent`);
+    const n = ledger.length + 1;
+    ledger.push({
+      id: `0:${n}`,
+      period: 0,
+      category: "financing_in",
+      amount: l.amount,
+      memo: SOURCE_LABEL[l.source],
+      ref: l.id,
+      explainId: `p0.setup.${n}`,
+    });
+    if (spent > 0) {
+      const m = ledger.length + 1;
+      ledger.push({
+        id: `0:${m}`,
+        period: 0,
+        category: "capital",
+        amount: -spent,
+        memo: "Spent while raising the money",
+        ref: l.id,
+        explainId: `p0.setup.${m}`,
+      });
+    }
+    debts.push({
+      id: l.id,
+      source: l.source,
+      principal: l.amount,
+      balance: l.amount,
+      ratePerPeriodBp: l.ratePerPeriodBp,
+      ...(l.flatInterest ? { interestOn: "principal" as const } : {}),
+      schedule: repaymentSchedule(l.amount, l.termPeriods, 1),
+      disbursedPeriod: 0,
+    });
+  }
+  return { ...state, ledger, debts };
 }
